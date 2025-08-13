@@ -1,11 +1,18 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useGesture } from "@use-gesture/react";
-import { Stage, Layer, Image, Text, Rect } from "react-konva";
+import { Stage, Layer, Text, Rect } from "react-konva";
 import Konva from "konva";
+import type { KonvaEventObject } from "konva/lib/Node";
 
 import useWindowSize from "@/hooks/useWindowSize";
 import { type Point, Tools } from "@/lib/definations";
-import type { KonvaEventObject } from "konva/lib/Node";
+import {
+  ZOOM_FACTOR,
+  MIN_SCALE,
+  MAX_SCALE,
+  DEFAULT_SCALE,
+  DEFAULT_VIEWPOINT_POS,
+} from "@/lib/constants";
 
 function InfiniteCanvas() {
   const { width, height } = useWindowSize();
@@ -15,9 +22,11 @@ function InfiniteCanvas() {
   const spaceRef = useRef<boolean>(false);
 
   const [tool, setTool] = useState<Tools>(Tools.Brush);
-  const [scale, setScale] = useState(1);
-  const [viewpointPos, updateViewpointPos] = useState<Point>({ x: 0, y: 0 });
-  const [cursorPos, setCursorPos] = useState<Point>({ x: 0, y: 0 });
+  const [scale, setScale] = useState(DEFAULT_SCALE);
+  const [viewpointPos, updateViewpointPos] = useState<Point>(
+    DEFAULT_VIEWPOINT_POS
+  );
+  const [cursorPos, setCursorPos] = useState<Point | null>(null);
 
   useEffect(() => {
     toolRef.current = tool;
@@ -90,10 +99,10 @@ function InfiniteCanvas() {
     if (!pointer) return;
 
     const oldScale = stage.scaleX(); // current scale
-    const scaleBy = 1.06; // factor > 1
     // deltaY < 0 => wheel scrolled up (zoom in). deltaY > 0 => zoom out.
-    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-    const clamped = Math.max(0.1, Math.min(newScale, 10));
+    const newScale =
+      e.evt.deltaY < 0 ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
+    const clamped = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
 
     // world coordinates of the pointer (using stage.x()/y() to avoid stale state)
     const worldPos = {
