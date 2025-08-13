@@ -16,7 +16,10 @@ export function ActionCards() {
   const [roomCode, setRoomCode] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
-  const handleCreateBoard = () => {};
+  const handleCreateBoard = () => {
+    const roomId = Math.random().toString(36).substring(2, 15);
+    navigate(`/board/${roomId}`);
+  };
 
   const handleJoinBoard = async () => {};
 
