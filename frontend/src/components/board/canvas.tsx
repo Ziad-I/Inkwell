@@ -18,19 +18,114 @@ function InfiniteCanvas() {
   const { width, height } = useWindowSize();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
-  const toolRef = useRef<Tools>(Tools.Brush);
-  const spaceRef = useRef<boolean>(false);
+  const spaceRef = useRef(false);
 
-  const [tool, setTool] = useState<Tools>(Tools.Brush);
-  const [scale, setScale] = useState(DEFAULT_SCALE);
-  const [viewpointPos, updateViewpointPos] = useState<Point>(
-    DEFAULT_VIEWPOINT_POS
-  );
-  const [cursorPos, setCursorPos] = useState<Point | null>(null);
+  const [displayState, setDisplayState] = useState({
+    scale: DEFAULT_SCALE,
+    viewpointPos: DEFAULT_VIEWPOINT_POS,
+    cursorPos: null as Point | null,
+  });
 
-  useEffect(() => {
-    toolRef.current = tool;
-  }, [tool]);
+  const stageOperations = {
+    getScale: () => stageRef.current?.scaleX() || DEFAULT_SCALE,
+    getViewpointPos: () =>
+      stageRef.current?.position() || DEFAULT_VIEWPOINT_POS,
+
+    setScale: (newScale: number, pivotPoint?: Point) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const clamped = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+
+      if (pivotPoint) {
+        const oldScale = stage.scaleX();
+        const worldPos = {
+          x: (pivotPoint.x - stage.x()) / oldScale,
+          y: (pivotPoint.y - stage.y()) / oldScale,
+        };
+
+        const newPos = {
+          x: pivotPoint.x - worldPos.x * clamped,
+          y: pivotPoint.y - worldPos.y * clamped,
+        };
+
+        stage.position(newPos);
+      }
+
+      stage.scale({ x: clamped, y: clamped });
+      stage.batchDraw();
+    },
+
+    setViewpointPos: (newPos: Point) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      stage.position(newPos);
+      stage.batchDraw();
+    },
+
+    translate: (dx: number, dy: number) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pos = stage.position();
+      stage.position({ x: pos.x + dx, y: pos.y + dy });
+      stage.batchDraw();
+    },
+
+    screenToWorld: (sx: number, sy: number) => {
+      const stage = stageRef.current;
+      if (!stage) return { x: sx, y: sy };
+
+      const scale = stage.scaleX();
+      const pos = stage.position();
+      return {
+        x: (sx - pos.x) / scale,
+        y: (sy - pos.y) / scale,
+      };
+    },
+
+    worldToScreen: (wx: number, wy: number) => {
+      const stage = stageRef.current;
+      if (!stage) return { x: wx, y: wy };
+
+      const scale = stage.scaleX();
+      const pos = stage.position();
+      return {
+        x: wx * scale + pos.x,
+        y: wy * scale + pos.y,
+      };
+    },
+  };
+
+  const syncDisplayState = useCallback((immediate: boolean = false) => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const update = () => {
+      const scale = stage.scaleX();
+      const viewpointPos = stage.position();
+      const pointer = stage.getPointerPosition();
+
+      let cursorPos = null;
+      if (pointer) {
+        cursorPos = stageOperations.screenToWorld(pointer.x, pointer.y);
+      }
+
+      setDisplayState((prev) => ({
+        ...prev,
+        scale,
+        viewpointPos,
+        cursorPos,
+      }));
+    };
+
+    if (immediate) {
+      update();
+    } else {
+      requestAnimationFrame(update);
+    }
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -55,26 +150,6 @@ function InfiniteCanvas() {
     };
   }, []);
 
-  const screenToWorld = useCallback(
-    (sx: number, sy: number) => {
-      return {
-        x: (sx - viewpointPos.x) / scale,
-        y: (sy - viewpointPos.y) / scale,
-      };
-    },
-    [scale, viewpointPos.x, viewpointPos.y]
-  );
-
-  const worldToScreen = useCallback(
-    (wx: number, wy: number) => {
-      return {
-        x: wx * scale + viewpointPos.x,
-        y: wy * scale + viewpointPos.y,
-      };
-    },
-    [scale, viewpointPos.x, viewpointPos.y]
-  );
-
   const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {};
 
   const onPointerMove = (e: KonvaEventObject<PointerEvent>) => {
@@ -84,67 +159,53 @@ function InfiniteCanvas() {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    const worldPos = screenToWorld(pointerPos.x, pointerPos.y);
-    setCursorPos(worldPos);
+    const worldPos = stageOperations.screenToWorld(pointerPos.x, pointerPos.y);
+    setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
   };
 
   const onPointerUp = (e: KonvaEventObject<PointerEvent>) => {};
 
-  const onWheel = (e: KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-    const stage = stageRef.current;
-    if (!stage) return;
+  const onWheel = useCallback(
+    (e: KonvaEventObject<WheelEvent>) => {
+      e.evt.preventDefault();
+      const stage = stageRef.current;
+      if (!stage) return;
 
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
 
-    const oldScale = stage.scaleX(); // current scale
-    // deltaY < 0 => wheel scrolled up (zoom in). deltaY > 0 => zoom out.
-    const newScale =
-      e.evt.deltaY < 0 ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
-    const clamped = Math.max(MIN_SCALE, Math.min(newScale, MAX_SCALE));
+      const oldScale = stage.scaleX();
+      const newScale =
+        e.evt.deltaY < 0 ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
 
-    // world coordinates of the pointer (using stage.x()/y() to avoid stale state)
-    const worldPos = {
-      x: (pointer.x - stage.x()) / oldScale,
-      y: (pointer.y - stage.y()) / oldScale,
-    };
+      // Direct stage manipulation
+      stageOperations.setScale(newScale, pointer);
 
-    // compute new stage position so zoom occurs around pointer
-    const newPos = {
-      x: pointer.x - worldPos.x * clamped,
-      y: pointer.y - worldPos.y * clamped,
-    };
-
-    // apply directly to Konva stage
-    stage.scale({ x: clamped, y: clamped });
-    stage.position(newPos);
-    stage.batchDraw();
-
-    // keep React state (if you use it elsewhere) in sync
-    setScale(clamped);
-    updateViewpointPos(newPos);
-  };
+      // Sync display after zoom
+      syncDisplayState();
+    },
+    [syncDisplayState]
+  );
 
   useGesture(
     {
-      onDrag: ({ event, delta: [dx, dy], touches }) => {
+      onDrag: ({ event, delta: [dx, dy], touches, first, last }) => {
         const pan = spaceRef.current && touches === 1;
         if (!pan || !stageRef.current) return;
 
         event.preventDefault();
 
-        const stage = stageRef.current;
-        if (!stage) return;
+        if (first) {
+          setDisplayState((prev) => ({ ...prev, isDragging: true }));
+        }
 
-        const pos = stage.position();
-        stage.position({ x: pos.x + dx, y: pos.y + dy });
-        stage.batchDraw();
+        stageOperations.translate(dx, dy);
 
-        updateViewpointPos((prevPos) => ({
-          x: prevPos.x + dx,
-          y: prevPos.y + dy,
-        }));
+        if (last) {
+          syncDisplayState(true);
+        } else {
+          syncDisplayState();
+        }
       },
     },
     {
@@ -166,12 +227,14 @@ function InfiniteCanvas() {
           padding: 8,
         }}
       >
-        <div>Scale: {scale.toFixed(2)}</div>
+        <div>Scale: {displayState.scale.toFixed(2)}</div>
         <div>
-          World: {cursorPos?.x.toFixed(1)}, {cursorPos?.y.toFixed(1)}
+          World: {displayState.cursorPos?.x.toFixed(1)},{" "}
+          {displayState.cursorPos?.y.toFixed(1)}
         </div>
         <div>
-          Offset: {viewpointPos.x.toFixed(0)}, {viewpointPos.y.toFixed(0)}
+          Offset: {displayState.viewpointPos.x.toFixed(0)},{" "}
+          {displayState.viewpointPos.y.toFixed(0)}
         </div>
       </div>
       <div ref={containerRef} style={{ touchAction: "none" }}>
@@ -184,10 +247,6 @@ function InfiniteCanvas() {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          scaleX={scale}
-          scaleY={scale}
-          x={viewpointPos.x}
-          y={viewpointPos.y}
         >
           <Layer>
             <Text
