@@ -23,7 +23,7 @@ function InfiniteCanvas() {
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
     viewpointPos: DEFAULT_VIEWPOINT_POS,
-    cursorPos: null as Point | null,
+    cursorPos: DEFAULT_VIEWPOINT_POS as Point | null,
   });
 
   const stageOperations = useRef({
@@ -130,23 +130,31 @@ function InfiniteCanvas() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
+        if (e.target instanceof HTMLInputElement) return;
         e.preventDefault();
         spaceRef.current = true;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") {
+        if (e.target instanceof HTMLInputElement) return;
         e.preventDefault();
         spaceRef.current = false;
       }
     };
 
+    const onBlur = (e: FocusEvent) => {
+      spaceRef.current = false;
+    };
+
     window.addEventListener("keydown", onKeyDown, { passive: false });
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 
@@ -220,16 +228,7 @@ function InfiniteCanvas() {
 
   return (
     <>
-      <div
-        style={{
-          position: "fixed",
-          left: 12,
-          top: 12,
-          zIndex: 20,
-          background: "rgba(255,255,255,0.9)",
-          padding: 8,
-        }}
-      >
+      <div className="fixed top-3 left-3 z-20 bg-muted p-2">
         <div>Scale: {displayState.scale.toFixed(2)}</div>
         <div>
           World: {displayState.cursorPos?.x.toFixed(1)},{" "}
@@ -245,7 +244,7 @@ function InfiniteCanvas() {
           ref={stageRef}
           width={width}
           height={height - 1}
-          className="bg-muted"
+          className="bg-background"
           onWheel={onWheel}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
