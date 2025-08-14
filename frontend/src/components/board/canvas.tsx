@@ -26,7 +26,7 @@ function InfiniteCanvas() {
     cursorPos: null as Point | null,
   });
 
-  const stageOperations = {
+  const stageOperations = useRef({
     getScale: () => stageRef.current?.scaleX() || DEFAULT_SCALE,
     getViewpointPos: () =>
       stageRef.current?.position() || DEFAULT_VIEWPOINT_POS,
@@ -96,7 +96,7 @@ function InfiniteCanvas() {
         y: wy * scale + pos.y,
       };
     },
-  };
+  });
 
   const syncDisplayState = useCallback((immediate: boolean = false) => {
     const stage = stageRef.current;
@@ -109,7 +109,7 @@ function InfiniteCanvas() {
 
       let cursorPos = null;
       if (pointer) {
-        cursorPos = stageOperations.screenToWorld(pointer.x, pointer.y);
+        cursorPos = stageOperations.current.screenToWorld(pointer.x, pointer.y);
       }
 
       setDisplayState((prev) => ({
@@ -159,7 +159,10 @@ function InfiniteCanvas() {
     const pointerPos = stage.getPointerPosition();
     if (!pointerPos) return;
 
-    const worldPos = stageOperations.screenToWorld(pointerPos.x, pointerPos.y);
+    const worldPos = stageOperations.current.screenToWorld(
+      pointerPos.x,
+      pointerPos.y
+    );
     setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
   };
 
@@ -179,7 +182,7 @@ function InfiniteCanvas() {
         e.evt.deltaY < 0 ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
 
       // Direct stage manipulation
-      stageOperations.setScale(newScale, pointer);
+      stageOperations.current.setScale(newScale, pointer);
 
       // Sync display after zoom
       syncDisplayState();
@@ -199,7 +202,7 @@ function InfiniteCanvas() {
           setDisplayState((prev) => ({ ...prev, isDragging: true }));
         }
 
-        stageOperations.translate(dx, dy);
+        stageOperations.current.translate(dx, dy);
 
         if (last) {
           syncDisplayState(true);
