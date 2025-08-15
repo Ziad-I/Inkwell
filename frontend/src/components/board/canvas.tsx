@@ -5,7 +5,13 @@ import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 
 import useWindowSize from "@/hooks/useWindowSize";
-import { type Point, Tools } from "@/lib/definations";
+import {
+  type Point,
+  type StageOperations,
+  type ToolContext,
+  type toolSettings,
+  Tools,
+} from "@/lib/definations";
 import {
   ZOOM_FACTOR,
   MIN_SCALE,
@@ -13,23 +19,38 @@ import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
+import { ToolManager } from "@/Tools/manager";
+import { toolLoaders, type ToolLoader } from "@/Tools/loaders";
+import type { Shape, ShapeConfig } from "konva/lib/Shape";
 
 function InfiniteCanvas() {
   const { width, height } = useWindowSize();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<Konva.Stage | null>(null);
+  const drawingLayerRef = useRef<Konva.Layer | null>(null);
+
   const spaceRef = useRef(false);
+  const toolManagerRef = useRef<ToolManager | null>(null);
+  const toolSettingsRef = useRef<toolSettings>({
+    stroke: "#000",
+    strokeWidth: 2,
+    color: "#000",
+  });
 
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
     viewpointPos: DEFAULT_VIEWPOINT_POS,
     cursorPos: DEFAULT_VIEWPOINT_POS as Point | null,
+    // activeTool: Tools.Brush,
   });
 
-  const stageOperations = useRef({
+  const stageOperations = useRef<StageOperations>({
     getScale: () => stageRef.current?.scaleX() || DEFAULT_SCALE,
+
     getViewpointPos: () =>
       stageRef.current?.position() || DEFAULT_VIEWPOINT_POS,
+
+    getStage: () => stageRef.current,
 
     setScale: (newScale: number, pivotPoint?: Point) => {
       const stage = stageRef.current;
@@ -55,6 +76,8 @@ function InfiniteCanvas() {
       stage.scale({ x: clamped, y: clamped });
       stage.batchDraw();
     },
+
+    getDrawingLayer: () => drawingLayerRef.current,
 
     setViewpointPos: (newPos: Point) => {
       const stage = stageRef.current;
@@ -96,6 +119,10 @@ function InfiniteCanvas() {
         y: wy * scale + pos.y,
       };
     },
+
+    addPermanentNode: (node: Konva.Node) => {
+      drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+    },
   });
 
   const syncDisplayState = useCallback((immediate: boolean = false) => {
@@ -128,11 +155,41 @@ function InfiniteCanvas() {
   }, []);
 
   useEffect(() => {
+    const ctx: ToolContext = {
+      stageOps: stageOperations.current!,
+      toolSettingsRef,
+    };
+    const mgr = new ToolManager(ctx);
+
+    (Object.entries(toolLoaders) as [Tools, ToolLoader][]).forEach(
+      ([id, loader]) => {
+        if (loader.eager) {
+          const t = loader.load(ctx);
+          // loader might return Promise or Tool — normalize
+          if (t instanceof Promise) {
+            t.then((tool) => mgr.register(tool));
+          } else {
+            mgr.register(t);
+          }
+        }
+        console.log(`Registered tool: ${id}`);
+      }
+    );
+
+    setTimeout(() => mgr.setActiveTool(Tools.Brush), 0);
+    toolManagerRef.current = mgr;
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Space") {
         if (e.target instanceof HTMLInputElement) return;
         e.preventDefault();
         spaceRef.current = true;
+        const stage = stageRef.current;
+        if (stage) {
+          stage.container().style.cursor = "grabbing";
+        }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -140,6 +197,12 @@ function InfiniteCanvas() {
         if (e.target instanceof HTMLInputElement) return;
         e.preventDefault();
         spaceRef.current = false;
+        const stage = stageRef.current;
+        if (stage) {
+          toolManagerRef.current?.applyCursor(
+            toolManagerRef.current?.getEffectiveTool()
+          );
+        }
       }
     };
 
@@ -158,7 +221,25 @@ function InfiniteCanvas() {
     };
   }, []);
 
-  const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {};
+  const activateTool = async (toolId: Tools) => {
+    const mgr = toolManagerRef.current;
+    if (!mgr) return;
+
+    let tool = mgr.getTool(toolId);
+    if (!tool) {
+      const loader = toolLoaders[toolId];
+      const maybe = loader.load({
+        stageOps: stageOperations.current!,
+        toolSettingsRef,
+      });
+      tool = maybe instanceof Promise ? await maybe : maybe;
+      mgr.register(tool);
+    }
+    mgr.setActiveTool(tool.id);
+  };
+
+  const onPointerDown = (e: KonvaEventObject<PointerEvent>) =>
+    toolManagerRef.current?.handlePointerDown(e);
 
   const onPointerMove = (e: KonvaEventObject<PointerEvent>) => {
     const stage = stageRef.current;
@@ -172,9 +253,16 @@ function InfiniteCanvas() {
       pointerPos.y
     );
     setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
+
+    if (spaceRef.current) {
+      return;
+    }
+
+    toolManagerRef.current?.handlePointerMove(e);
   };
 
-  const onPointerUp = (e: KonvaEventObject<PointerEvent>) => {};
+  const onPointerUp = (e: KonvaEventObject<PointerEvent>) =>
+    toolManagerRef.current?.handlePointerUp(e);
 
   const onWheel = useCallback(
     (e: KonvaEventObject<WheelEvent>) => {
@@ -250,7 +338,7 @@ function InfiniteCanvas() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
-          <Layer>
+          <Layer ref={drawingLayerRef}>
             <Text
               text="World-space primitives (transformed by stage)."
               x={20}
