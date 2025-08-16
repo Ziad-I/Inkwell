@@ -1,12 +1,5 @@
 import { createBrushTool } from "@/Tools/brushTool";
-import type { Tool, ToolContext } from "@/lib/definations";
-
-export const Tools = {
-  Brush: "brush",
-  Eraser: "eraser",
-  Shape: "shape",
-};
-export type Tools = (typeof Tools)[keyof typeof Tools];
+import { type Tool, type ToolContext, Tools } from "@/Tools/types";
 
 export type ToolLoader = {
   load: (ctx: ToolContext) => Tool | Promise<Tool>;

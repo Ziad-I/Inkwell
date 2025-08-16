@@ -1,6 +1,6 @@
-import type { Point, ToolContext } from "@/lib/definations";
+import type { Point } from "@/lib/definations";
 import Konva from "konva";
-import { Tools } from "@/Tools/loaders";
+import { Tools, type ToolContext } from "@/Tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
 
 function flattenPoints(pts: Point[]) {
@@ -19,8 +19,6 @@ export function createBrushTool(ctx: ToolContext) {
     cursor: "crosshair",
     onActivate() {},
     onDeactivate() {
-      const layer = ctx.stageOps.getDrawingLayer();
-      layer?.getStage()?.container().style.removeProperty("cursor");
       if (line) {
         line.destroy();
         line = null;

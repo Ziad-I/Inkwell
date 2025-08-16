@@ -5,13 +5,8 @@ import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 
 import useWindowSize from "@/hooks/useWindowSize";
-import {
-  type Point,
-  type StageOperations,
-  type ToolContext,
-  type toolSettings,
-  Tools,
-} from "@/lib/definations";
+import type { Point, StageOperations } from "@/lib/definations";
+import type { ToolContext, toolSettings } from "@/Tools/types";
 import {
   ZOOM_FACTOR,
   MIN_SCALE,
@@ -20,7 +15,6 @@ import {
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
 import { ToolManager } from "@/Tools/manager";
-import { toolLoaders, type ToolLoader } from "@/Tools/loaders";
 import type { Shape, ShapeConfig } from "konva/lib/Shape";
 
 function InfiniteCanvas() {
@@ -155,29 +149,18 @@ function InfiniteCanvas() {
   }, []);
 
   useEffect(() => {
-    const ctx: ToolContext = {
-      stageOps: stageOperations.current!,
-      toolSettingsRef,
-    };
-    const mgr = new ToolManager(ctx);
+    async function initToolManager() {
+      if (toolManagerRef.current) return;
+      const ctx: ToolContext = {
+        stageOps: stageOperations.current!,
+        toolSettingsRef,
+      };
 
-    (Object.entries(toolLoaders) as [Tools, ToolLoader][]).forEach(
-      ([id, loader]) => {
-        if (loader.eager) {
-          const t = loader.load(ctx);
-          // loader might return Promise or Tool — normalize
-          if (t instanceof Promise) {
-            t.then((tool) => mgr.register(tool));
-          } else {
-            mgr.register(t);
-          }
-        }
-        console.log(`Registered tool: ${id}`);
-      }
-    );
-
-    setTimeout(() => mgr.setActiveTool(Tools.Brush), 0);
-    toolManagerRef.current = mgr;
+      const mgr = new ToolManager(ctx);
+      await mgr.initTools();
+      toolManagerRef.current = mgr;
+    }
+    initToolManager();
   }, []);
 
   useEffect(() => {
@@ -220,23 +203,6 @@ function InfiniteCanvas() {
       window.removeEventListener("blur", onBlur);
     };
   }, []);
-
-  const activateTool = async (toolId: Tools) => {
-    const mgr = toolManagerRef.current;
-    if (!mgr) return;
-
-    let tool = mgr.getTool(toolId);
-    if (!tool) {
-      const loader = toolLoaders[toolId];
-      const maybe = loader.load({
-        stageOps: stageOperations.current!,
-        toolSettingsRef,
-      });
-      tool = maybe instanceof Promise ? await maybe : maybe;
-      mgr.register(tool);
-    }
-    mgr.setActiveTool(tool.id);
-  };
 
   const onPointerDown = (e: KonvaEventObject<PointerEvent>) =>
     toolManagerRef.current?.handlePointerDown(e);
