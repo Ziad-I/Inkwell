@@ -183,7 +183,7 @@ function InfiniteCanvas() {
         const stage = stageRef.current;
         if (stage) {
           toolManagerRef.current?.applyCursor(
-            toolManagerRef.current?.getEffectiveTool()
+            toolManagerRef.current?.getEffectiveTool()?.id ?? null
           );
         }
       }
