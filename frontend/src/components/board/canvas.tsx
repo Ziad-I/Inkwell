@@ -6,7 +6,7 @@ import type { KonvaEventObject } from "konva/lib/Node";
 
 import useWindowSize from "@/hooks/useWindowSize";
 import type { Point, StageOperations } from "@/lib/definations";
-import type { ToolContext, toolSettings } from "@/Tools/types";
+import type { ToolContext, toolSettings } from "@/tools/types";
 import {
   ZOOM_FACTOR,
   MIN_SCALE,
@@ -14,7 +14,7 @@ import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
-import { ToolManager } from "@/Tools/manager";
+import { ToolManager } from "@/tools/manager";
 import type { Shape, ShapeConfig } from "konva/lib/Shape";
 
 function InfiniteCanvas() {

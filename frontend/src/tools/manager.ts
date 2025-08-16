@@ -1,6 +1,6 @@
-import { type Tool, type ToolContext, Tools } from "@/Tools/types";
+import { type Tool, type ToolContext, Tools } from "@/tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { toolLoaders, type ToolLoader } from "@/Tools/loaders";
+import { toolLoaders, type ToolLoader } from "@/tools/loaders";
 
 export class ToolManager {
   private tools = new Map<Tools, Tool>();

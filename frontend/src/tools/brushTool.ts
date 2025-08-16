@@ -1,6 +1,6 @@
 import type { Point } from "@/lib/definations";
 import Konva from "konva";
-import { Tools, type ToolContext } from "@/Tools/types";
+import { Tools, type ToolContext } from "@/tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
 
 function flattenPoints(pts: Point[]) {

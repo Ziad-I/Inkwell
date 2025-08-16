@@ -1,5 +1,5 @@
-import { createBrushTool } from "@/Tools/brushTool";
-import { type Tool, type ToolContext, Tools } from "@/Tools/types";
+import { createBrushTool } from "@/tools/brushTool";
+import { type Tool, type ToolContext, Tools } from "@/tools/types";
 
 export type ToolLoader = {
   load: (ctx: ToolContext) => Tool | Promise<Tool>;
