@@ -2,89 +2,102 @@ import type { Point } from "@/lib/definations";
 import Konva from "konva";
 import { Tools, type ToolContext } from "@/tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
+import { BaseTool } from "./baseTool";
 
-function flattenPoints(pts: Point[]) {
-  return pts.flatMap((p) => [p.x, p.y]);
-}
+export class BrushTool extends BaseTool {
+  id = Tools.Brush;
+  label = "Brush";
+  cursor = "crosshair";
+  exclusive = true;
 
-export function createBrushTool(ctx: ToolContext) {
-  let isDrawing = false;
-  let pts: Point[] = [];
-  let line: Konva.Line | null = null;
+  private isDrawing = false;
+  private pts: Point[] = [];
+  private line: Konva.Line | null = null;
 
-  return {
-    id: Tools.Brush,
-    label: "Brush",
-    exclusive: true,
-    cursor: "crosshair",
-    onActivate() {},
-    onDeactivate() {
-      if (line) {
-        line.destroy();
-        line = null;
-      }
-      pts = [];
-      isDrawing = false;
-    },
-    onPointerDown(e: KonvaEventObject<PointerEvent>) {
-      const stage = ctx.stageOps.getStage();
-      if (!stage) return;
-      const p = stage.getPointerPosition();
-      if (!p) return;
-      isDrawing = true;
-      const wp = ctx.stageOps.screenToWorld(p.x, p.y);
-      pts = [wp];
+  constructor(ctx: ToolContext) {
+    super(ctx);
+  }
 
-      const layer = ctx.stageOps.getDrawingLayer();
-      if (!layer) return;
+  private flattenPoints(pts: Point[]) {
+    return pts.flatMap((p) => [p.x, p.y]);
+  }
 
-      // read stroke settings from the shared settings ref (if present)
-      const stroke = ctx.toolSettingsRef?.current?.stroke ?? "#000";
-      const strokeWidth = ctx.toolSettingsRef?.current?.strokeWidth ?? 2;
-      const color = ctx.toolSettingsRef?.current?.color ?? "#000";
+  onActivate() {}
 
-      line = new Konva.Line({
-        points: flattenPoints(pts),
-        stroke,
-        strokeWidth,
-        fill: color,
-        tension: 0.45,
-        lineCap: "round",
-        lineJoin: "round",
-        listening: false,
-        perfectDrawEnabled: false,
-        strokeScaleEnabled: false,
-      });
-      layer.add(line);
-      layer.batchDraw();
-    },
-    onPointerMove(e: KonvaEventObject<PointerEvent>) {
-      if (!isDrawing) return;
-      const stage = ctx.stageOps.getStage();
-      if (!stage || !line) return;
-      const p = stage.getPointerPosition();
-      if (!p) return;
-      const wp = ctx.stageOps.screenToWorld(p.x, p.y);
+  onDeactivate() {
+    if (this.line) {
+      this.line.destroy();
+      this.line = null;
+    }
+    this.pts = [];
+    this.isDrawing = false;
+  }
 
-      // simple screen-space sampling
-      const last = pts[pts.length - 1];
-      const screenLast = ctx.stageOps.worldToScreen(last.x, last.y);
-      const dx = p.x - screenLast.x;
-      const dy = p.y - screenLast.y;
-      if (Math.hypot(dx, dy) < 2) return; // skip close points
+  onPointerDown(e: KonvaEventObject<PointerEvent>) {
+    const stage = this.ctx.stageOps.getStage();
+    if (!stage) return;
 
-      pts.push(wp);
-      line.points(flattenPoints(pts));
-      ctx.stageOps.getDrawingLayer()?.batchDraw();
-    },
-    onPointerUp(e: KonvaEventObject<PointerEvent>) {
-      if (!isDrawing) return;
-      isDrawing = false;
+    const p = stage.getPointerPosition();
+    if (!p) return;
 
-      // finalize: we keep the Konva.Line in the layer as the permanent stroke
-      // In a real app you'd run RDP simplification and store stroke metadata
-      line = null;
-      pts = [];
-    },
-  };
+    this.isDrawing = true;
+    const wp = this.ctx.stageOps.screenToWorld(p.x, p.y);
+    this.pts = [wp];
+
+    const layer = this.ctx.stageOps.getDrawingLayer();
+    if (!layer) return;
+
+    // read stroke settings from the shared settings ref (if present)
+    const stroke = this.ctx.toolSettingsRef?.current?.stroke ?? "#000";
+    const strokeWidth = this.ctx.toolSettingsRef?.current?.strokeWidth ?? 2;
+    const color = this.ctx.toolSettingsRef?.current?.color ?? "#000";
+
+    this.line = new Konva.Line({
+      points: this.flattenPoints(this.pts),
+      stroke,
+      strokeWidth,
+      fill: color,
+      tension: 0.45,
+      lineCap: "round",
+      lineJoin: "round",
+      listening: false,
+      perfectDrawEnabled: false,
+      strokeScaleEnabled: false,
+    });
+    layer.add(this.line);
+    layer.batchDraw();
+  }
+
+  onPointerMove(e: KonvaEventObject<PointerEvent>) {
+    if (!this.isDrawing) return;
+
+    const stage = this.ctx.stageOps.getStage();
+    if (!stage || !this.line) return;
+
+    const p = stage.getPointerPosition();
+    if (!p) return;
+
+    const wp = this.ctx.stageOps.screenToWorld(p.x, p.y);
+
+    // simple screen-space sampling
+    const last = this.pts[this.pts.length - 1];
+    const screenLast = this.ctx.stageOps.worldToScreen(last.x, last.y);
+    const dx = p.x - screenLast.x;
+    const dy = p.y - screenLast.y;
+
+    if (Math.hypot(dx, dy) < 2) return; // skip close points
+
+    this.pts.push(wp);
+    this.line.points(this.flattenPoints(this.pts));
+    this.ctx.stageOps.getDrawingLayer()?.batchDraw();
+  }
+
+  onPointerUp(e: KonvaEventObject<PointerEvent>) {
+    if (!this.isDrawing) return;
+
+    this.isDrawing = false;
+    // finalize: we keep the Konva.Line in the layer as the permanent stroke
+    this.line = null;
+    this.pts = [];
+  }
 }

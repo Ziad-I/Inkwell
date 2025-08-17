@@ -1,4 +1,4 @@
-import { createBrushTool } from "@/tools/brushTool";
+import { BrushTool } from "@/tools/brushTool";
 import { type Tool, type ToolContext, Tools } from "@/tools/types";
 
 export type ToolLoader = {
@@ -7,5 +7,5 @@ export type ToolLoader = {
 };
 
 export const toolLoaders: Record<Tools, ToolLoader> = {
-  [Tools.Brush]: { load: (ctx) => createBrushTool(ctx), eager: true },
+  [Tools.Brush]: { load: (ctx) => new BrushTool(ctx), eager: true },
 };
