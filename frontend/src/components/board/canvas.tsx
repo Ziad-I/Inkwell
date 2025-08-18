@@ -117,6 +117,13 @@ function InfiniteCanvas() {
     addPermanentNode: (node: Konva.Node) => {
       drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
     },
+
+    redrawLayer: () => {
+      const layer = drawingLayerRef.current;
+      if (layer) {
+        layer.batchDraw();
+      }
+    },
   });
 
   const syncDisplayState = useCallback((immediate: boolean = false) => {
