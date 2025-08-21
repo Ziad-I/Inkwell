@@ -1,37 +1,35 @@
-import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Grid3X3, Minus, Moon, Plus, Sun } from "lucide-react";
-import { PRESET_COLORS } from "@/lib/constants";
+import { LINE_CAPS, PRESET_COLORS } from "@/lib/constants";
+import { useSettingsStore } from "@/stores/settingsStore";
 
 export function ColorSettings() {
-  const [settings, setSettings] = useState({ color: "#000000" });
-
-  const updateSetting = (value: string) => {
-    setSettings((prev) => ({ ...prev, color: value }));
-  };
+  const color = useSettingsStore((s) => s.color);
+  const setColor = useSettingsStore((s) => s.setColor);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
       <h3 className="text-sm font-medium">Color Settings</h3>
       <div className="grid grid-cols-4 gap-2">
-        {PRESET_COLORS.map((color) => (
+        {PRESET_COLORS.map((c) => (
           <button
-            key={color}
+            key={c}
             className={`w-8 h-8 rounded border-2 ${
-              settings.color === color ? "border-primary" : "border-muted"
+              color === c ? "border-primary" : "border-muted"
             }`}
-            style={{ backgroundColor: color }}
-            onClick={() => updateSetting(color)}
-            title={color}
+            style={{ backgroundColor: c }}
+            onClick={() => setColor(c)}
+            title={c}
           />
         ))}
       </div>
+
       <input
         type="color"
-        value={settings.color}
-        onChange={(e) => updateSetting(e.target.value)}
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
         className="w-full h-10 rounded border"
       />
     </div>
@@ -39,7 +37,8 @@ export function ColorSettings() {
 }
 
 export function SizeSettings() {
-  const [strokeWidth, setStrokeWidth] = useState(2);
+  const strokeWidth = useSettingsStore((s) => s.strokeWidth);
+  const setStrokeWidth = useSettingsStore((s) => s.setStrokeWidth);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
@@ -48,6 +47,7 @@ export function SizeSettings() {
         <span className="text-sm">Stroke Width</span>
         <span className="text-sm text-muted-foreground">{strokeWidth}px</span>
       </div>
+
       <div className="flex items-center gap-2">
         <Button
           size="sm"
@@ -57,6 +57,7 @@ export function SizeSettings() {
         >
           <Minus size={12} />
         </Button>
+
         <Slider
           value={[strokeWidth]}
           onValueChange={([value]) => setStrokeWidth(value)}
@@ -65,6 +66,7 @@ export function SizeSettings() {
           step={1}
           className="flex-1"
         />
+
         <Button
           size="sm"
           variant="outline"
@@ -79,7 +81,8 @@ export function SizeSettings() {
 }
 
 export function OpacitySettings() {
-  const [opacity, setOpacity] = useState(1);
+  const opacity = useSettingsStore((s) => s.opacity);
+  const setOpacity = useSettingsStore((s) => s.setOpacity);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
@@ -90,6 +93,7 @@ export function OpacitySettings() {
           {Math.round(opacity * 100)}%
         </span>
       </div>
+
       <Slider
         value={[opacity * 100]}
         onValueChange={([value]) => setOpacity(value / 100)}
@@ -103,13 +107,14 @@ export function OpacitySettings() {
 }
 
 export function LineCapSettings() {
-  const [lineCap, setLineCap] = useState<"round" | "square" | "butt">("round");
+  const lineCap = useSettingsStore((s) => s.lineCap);
+  const setLineCap = useSettingsStore((s) => s.setLineCap);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
       <h3 className="text-sm font-medium">Line Cap Settings</h3>
       <div className="flex">
-        {(["round", "square", "butt"] as const).map((cap) => (
+        {LINE_CAPS.map((cap) => (
           <Button
             key={cap}
             size="sm"
@@ -126,8 +131,10 @@ export function LineCapSettings() {
 }
 
 export function GeneralSettings() {
-  const [showGrid, setShowGrid] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const showGrid = useSettingsStore((s) => s.showGrid);
+  const setShowGrid = useSettingsStore((s) => s.setShowGrid);
+  const darkMode = useSettingsStore((s) => s.darkMode);
+  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
@@ -145,10 +152,10 @@ export function GeneralSettings() {
       {/* Dark Mode Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {isDarkMode ? <Moon size={14} /> : <Sun size={14} />}
+          {darkMode ? <Moon size={14} /> : <Sun size={14} />}
           <span className="text-sm">Dark Mode</span>
         </div>
-        <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
+        <Switch checked={darkMode} onCheckedChange={setDarkMode} />
       </div>
     </div>
   );

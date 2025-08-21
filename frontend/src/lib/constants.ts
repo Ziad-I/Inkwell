@@ -17,6 +17,8 @@ const PRESET_COLORS = [
   "#008000",
   "#000080",
 ];
+export const LINE_CAPS = ["butt", "round", "square"];
+export const LINE_JOINS = ["miter", "round", "bevel"];
 
 export {
   DEFAULT_SCALE,
