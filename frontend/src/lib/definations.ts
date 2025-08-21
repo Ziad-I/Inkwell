@@ -18,3 +18,12 @@ export interface StageOperations {
   addPermanentNode: (node: Konva.Node) => void;
   redrawLayer: () => void;
 }
+
+export interface Settings {
+  color?: string;
+  strokeWidth?: number;
+  opacity?: number;
+  lineCap?: "butt" | "round" | "square";
+  showGrid?: boolean;
+  darkMode?: boolean;
+}

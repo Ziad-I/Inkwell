@@ -1,4 +1,4 @@
-import type { StageOperations } from "@/lib/definations";
+import type { StageOperations, Settings } from "@/lib/definations";
 import type { KonvaEventObject } from "konva/lib/Node";
 
 export const Tools = {
@@ -21,13 +21,7 @@ export interface Tool {
   exclusive?: boolean; // whether it blocks others
 }
 
-export interface toolSettings {
-  stroke?: string;
-  strokeWidth?: number;
-  color?: string;
-}
-
 export interface ToolContext {
   stageOps: StageOperations;
-  toolSettingsRef?: React.RefObject<toolSettings>;
+  settingsRef?: React.RefObject<Settings>;
 }

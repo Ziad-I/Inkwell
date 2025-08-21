@@ -116,21 +116,19 @@ export class BrushTool extends BaseTool {
     if (!layer) return;
 
     // read stroke settings from the shared settings ref (if present)
-    const stroke = this.ctx.toolSettingsRef?.current?.stroke ?? "#000";
-    const strokeWidth = this.ctx.toolSettingsRef?.current?.strokeWidth ?? 2;
-    const color = this.ctx.toolSettingsRef?.current?.color ?? "#000";
+    const strokeWidth = this.ctx.settingsRef?.current?.strokeWidth ?? 2;
+    const color = this.ctx.settingsRef?.current?.color ?? "#000";
 
     this.line = new Konva.Line({
       points: this.flattenPoints(this.pts),
-      stroke,
+      stroke: color,
       strokeWidth,
-      fill: color,
       tension: 0.45,
       lineCap: "round",
       lineJoin: "round",
       listening: false,
       perfectDrawEnabled: false,
-      strokeScaleEnabled: false,
+      // strokeScaleEnabled: false,
     });
     this.ctx.stageOps.addPermanentNode(this.line);
     this.ctx.stageOps.redrawLayer();
