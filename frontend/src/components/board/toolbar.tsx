@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import ToolButton from "@/components/board/toolButton";
@@ -7,7 +7,6 @@ import type { Tools } from "@/tools/types";
 
 export default function Toolbar() {
   const [activeTool, setActiveTool] = useState<Tools | null>("brush");
-  const [isSpacePressed] = useState(false); // keep original behaviour — wire keyboard handlers where you use the component
   const [availableTools] = useState<Tools[]>(["brush", "eraser"]);
 
   return (
@@ -29,7 +28,7 @@ export default function Toolbar() {
         {/* Tool Info */}
         <div className="flex flex-col items-center gap-1">
           <span className="text-xs font-medium text-center">
-            {isSpacePressed ? "Pan Mode" : activeTool ? activeTool : "No Tool"}
+            {activeTool ? activeTool : "No Tool"}
           </span>
         </div>
 

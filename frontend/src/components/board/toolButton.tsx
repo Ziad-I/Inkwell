@@ -1,11 +1,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Tools } from "@/tools/types";
-import { Brush, Hand } from "lucide-react";
+import { Brush, Eraser } from "lucide-react";
 
 const toolIcons: Record<Tools, any> = {
   [Tools.Brush]: Brush,
-  [Tools.Eraser]: Hand,
+  [Tools.Eraser]: Eraser,
 };
 
 const toolLabels: Record<Tools, string> = {
