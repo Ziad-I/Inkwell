@@ -115,17 +115,17 @@ export class BrushTool extends BaseTool {
     const layer = this.ctx.stageOps.getDrawingLayer();
     if (!layer) return;
 
-    // read stroke settings from the shared settings ref (if present)
-    const strokeWidth = this.ctx.settingsRef?.current?.strokeWidth ?? 2;
-    const color = this.ctx.settingsRef?.current?.color ?? "#000";
+    const { strokeWidth, color, lineCap, lineJoin, opacity } =
+      this.getSettings();
 
     this.line = new Konva.Line({
       points: this.flattenPoints(this.pts),
       stroke: color,
-      strokeWidth,
+      opacity: opacity,
+      strokeWidth: strokeWidth,
+      lineCap: (lineCap as CanvasLineCap) ?? "round",
+      lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
       tension: 0.45,
-      lineCap: "round",
-      lineJoin: "round",
       listening: false,
       perfectDrawEnabled: false,
       // strokeScaleEnabled: false,

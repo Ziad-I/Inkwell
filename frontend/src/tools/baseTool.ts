@@ -1,5 +1,6 @@
 // tools/BaseTool.ts
 import type { Tool, ToolContext, Tools } from "./types";
+import { useSettingsStore } from "@/stores/settingsStore";
 import Konva from "konva";
 
 export abstract class BaseTool implements Tool {
@@ -12,6 +13,10 @@ export abstract class BaseTool implements Tool {
 
   constructor(ctx: ToolContext) {
     this.ctx = ctx;
+  }
+
+  protected getSettings() {
+    return useSettingsStore.getState();
   }
 
   // default lifecycle hooks (no-op)

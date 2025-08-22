@@ -13,12 +13,12 @@ export interface Tool {
   label?: string;
   icon?: string;
   cursor?: string; // CSS cursor style
+  exclusive?: boolean; // whether it blocks others
   onActivate?: () => void;
   onDeactivate?: () => void;
   onPointerDown?: (e: KonvaEventObject<PointerEvent>) => void;
   onPointerMove?: (e: KonvaEventObject<PointerEvent>) => void;
   onPointerUp?: (e: KonvaEventObject<PointerEvent>) => void;
-  exclusive?: boolean; // whether it blocks others
 }
 
 export interface ToolContext {
