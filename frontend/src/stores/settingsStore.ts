@@ -1,6 +1,6 @@
 import type { LINE_CAPS, LINE_JOINS } from "@/lib/constants";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+// import { persist } from "zustand/middleware";
 
 type LineCap = (typeof LINE_CAPS)[number];
 type LineJoin = (typeof LINE_JOINS)[number];
@@ -39,23 +39,23 @@ const initialSettings = {
 };
 
 export const useSettingsStore = create<SettingsState>()(
-  persist(
-    (set) => ({
-      ...initialSettings,
-      setColor: (c: string) => set(() => ({ color: c })),
-      setStrokeWidth: (n: number) =>
-        set(() => ({ strokeWidth: Math.max(1, Math.min(50, Math.round(n))) })),
-      setOpacity: (v: number) =>
-        set(() => ({ opacity: Math.max(0, Math.min(1, v)) })),
-      setLineCap: (cap: LineCap) => set(() => ({ lineCap: cap })),
-      setLineJoin: (join: LineJoin) => set(() => ({ lineJoin: join })),
-      setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
-      setDarkMode: (d: boolean) => set(() => ({ darkMode: d })),
-      reset: () => set(() => ({ ...initialSettings })),
-    }),
-    {
-      name: "whiteboard-settings", // localStorage key
-      version: 1,
-    }
-  )
+  // persist(
+  (set) => ({
+    ...initialSettings,
+    setColor: (c: string) => set(() => ({ color: c })),
+    setStrokeWidth: (n: number) =>
+      set(() => ({ strokeWidth: Math.max(1, Math.min(50, Math.round(n))) })),
+    setOpacity: (v: number) =>
+      set(() => ({ opacity: Math.max(0, Math.min(1, v)) })),
+    setLineCap: (cap: LineCap) => set(() => ({ lineCap: cap })),
+    setLineJoin: (join: LineJoin) => set(() => ({ lineJoin: join })),
+    setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
+    setDarkMode: (d: boolean) => set(() => ({ darkMode: d })),
+    reset: () => set(() => ({ ...initialSettings })),
+  })
+  //   {
+  //     name: "whiteboard-settings", // localStorage key
+  //     version: 1,
+  //   }
+  // )
 );
