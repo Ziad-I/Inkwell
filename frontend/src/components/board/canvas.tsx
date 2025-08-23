@@ -7,7 +7,6 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { ToolManager } from "@/tools/manager";
 import useWindowSize from "@/hooks/useWindowSize";
 import type { Point, StageOperations } from "@/lib/definations";
-import type { ToolContext } from "@/tools/types";
 import {
   ZOOM_FACTOR,
   DEFAULT_SCALE,
@@ -16,12 +15,14 @@ import {
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
+  toolManagerRef: React.RefObject<ToolManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
 }
 
 function InfiniteCanvas({
   stageOperations,
+  toolManagerRef,
   stageRef,
   drawingLayerRef,
 }: InfiniteCanvasProps) {
@@ -29,7 +30,6 @@ function InfiniteCanvas({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
-  const toolManagerRef = useRef<ToolManager | null>(null);
 
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
@@ -64,20 +64,6 @@ function InfiniteCanvas({
     } else {
       requestAnimationFrame(update);
     }
-  }, []);
-
-  useEffect(() => {
-    async function initToolManager() {
-      if (toolManagerRef.current) return;
-      const ctx: ToolContext = {
-        stageOps: stageOperations!,
-      };
-
-      const mgr = new ToolManager(ctx);
-      await mgr.initTools();
-      toolManagerRef.current = mgr;
-    }
-    initToolManager();
   }, []);
 
   useEffect(() => {
