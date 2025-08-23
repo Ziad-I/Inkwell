@@ -3,10 +3,12 @@ import type { Point } from "@/lib/definations";
 import { Tools, type ToolContext } from "@/tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
+import { Brush } from "lucide-react";
 
 export class BrushTool extends BaseTool {
   id = Tools.Brush;
   label = "Brush";
+  icon = Brush;
   cursor = "crosshair";
   exclusive = true;
 
