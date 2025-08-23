@@ -7,7 +7,6 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import useWindowSize from "@/hooks/useWindowSize";
 import type { Point, StageOperations } from "@/lib/definations";
 import type { ToolContext } from "@/tools/types";
-import type { Settings } from "@/lib/definations";
 import {
   ZOOM_FACTOR,
   MIN_SCALE,
@@ -26,16 +25,11 @@ function InfiniteCanvas() {
 
   const spaceRef = useRef(false);
   const toolManagerRef = useRef<ToolManager | null>(null);
-  const settingsRef = useRef<Settings>({
-    strokeWidth: 2,
-    color: "#000",
-  });
 
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
     viewpointPos: DEFAULT_VIEWPOINT_POS,
     cursorPos: DEFAULT_VIEWPOINT_POS as Point | null,
-    // activeTool: Tools.Brush,
   });
 
   const stageOperations = useRef<StageOperations>({
@@ -160,7 +154,6 @@ function InfiniteCanvas() {
       if (toolManagerRef.current) return;
       const ctx: ToolContext = {
         stageOps: stageOperations.current!,
-        settingsRef: settingsRef,
       };
 
       const mgr = new ToolManager(ctx);
