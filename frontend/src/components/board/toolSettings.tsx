@@ -59,7 +59,7 @@ function FloatingWidget({ isOpen, onClose, children }: FloatingWidgetProps) {
       {/* Backdrop */}
       <div className="fixed inset-0 z-20" onClick={onClose} />
       {/* Panel */}
-      <Card className="fixed left-32 z-30 p-3  bg-muted border shadow-lg">
+      <Card className="fixed left-32 z-30 p-3  bg-muted border shadow-lg transform -translate-y-2">
         {children}
       </Card>
     </>
