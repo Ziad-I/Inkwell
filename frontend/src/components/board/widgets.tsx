@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Grid3X3, Minus, Moon, Plus, Sun } from "lucide-react";
 import { LINE_CAPS, PRESET_COLORS } from "@/lib/constants";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTheme } from "@/hooks/useTheme";
 
 export function ColorSettings() {
   const color = useSettingsStore((s) => s.color);
@@ -133,8 +134,11 @@ export function LineCapSettings() {
 export function GeneralSettings() {
   const showGrid = useSettingsStore((s) => s.showGrid);
   const setShowGrid = useSettingsStore((s) => s.setShowGrid);
-  const darkMode = useSettingsStore((s) => s.darkMode);
-  const setDarkMode = useSettingsStore((s) => s.setDarkMode);
+  const { theme, setTheme } = useTheme();
+
+  const handleThemeToggle = (checked: boolean) => {
+    setTheme(checked ? "dark" : "light");
+  };
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
@@ -152,10 +156,13 @@ export function GeneralSettings() {
       {/* Dark Mode Toggle */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {darkMode ? <Moon size={14} /> : <Sun size={14} />}
+          {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
           <span className="text-sm">Dark Mode</span>
         </div>
-        <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+        <Switch
+          checked={theme === "dark"}
+          onCheckedChange={handleThemeToggle}
+        />
       </div>
     </div>
   );

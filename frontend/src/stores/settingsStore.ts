@@ -15,7 +15,7 @@ export type SettingsState = {
 
   // General settings
   showGrid: boolean;
-  darkMode: boolean;
+  // darkMode: boolean;
 
   // Actions
   setColor: (c: string) => void;
@@ -24,7 +24,7 @@ export type SettingsState = {
   setLineCap: (cap: LineCap) => void;
   setLineJoin: (join: LineJoin) => void;
   setShowGrid: (s: boolean) => void;
-  setDarkMode: (d: boolean) => void;
+  // setDarkMode: (d: boolean) => void;
   reset: () => void;
 };
 
@@ -50,7 +50,7 @@ export const useSettingsStore = create<SettingsState>()(
     setLineCap: (cap: LineCap) => set(() => ({ lineCap: cap })),
     setLineJoin: (join: LineJoin) => set(() => ({ lineJoin: join })),
     setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
-    setDarkMode: (d: boolean) => set(() => ({ darkMode: d })),
+    // setDarkMode: (d: boolean) => set(() => ({ darkMode: d })),
     reset: () => set(() => ({ ...initialSettings })),
   })
   //   {
