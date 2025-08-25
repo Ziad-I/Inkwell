@@ -25,7 +25,7 @@ function BoardPage() {
 
   return (
     <div>
-      <Toolbar />
+      <Toolbar toolManagerRef={toolManagerRef} />
       <InfiniteCanvas
         toolManagerRef={toolManagerRef}
         stageOperations={stageOperations}

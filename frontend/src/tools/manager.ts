@@ -1,6 +1,12 @@
-import { type Tool, type ToolContext, Tools } from "@/tools/types";
+import {
+  type Tool,
+  type ToolContext,
+  type ToolMetadata,
+  Tools,
+} from "@/tools/types";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { toolLoaders, type ToolLoader } from "@/tools/loaders";
+import { useToolStore } from "@/stores/toolStore";
 
 export class ToolManager {
   private tools = new Map<Tools, Tool>();
@@ -14,6 +20,11 @@ export class ToolManager {
     this.loaders = loaders ?? toolLoaders;
   }
 
+  private updateStore() {
+    useToolStore.getState().setActiveTool(this.getEffectiveTool()?.id ?? null);
+    useToolStore.getState().setAllTools(this.getTools());
+  }
+
   private setActiveTool(id: Tools | null) {
     if (id !== null && this.activeTool?.id === id) return;
 
@@ -21,6 +32,8 @@ export class ToolManager {
     this.activeTool = id ? this.tools.get(id) ?? null : null;
     this.activeTool?.onActivate?.();
     this.applyCursor(this.getEffectiveTool()?.id ?? null);
+
+    this.updateStore();
   }
 
   async initTools() {
@@ -37,6 +50,8 @@ export class ToolManager {
     } else {
       this.setActiveTool(null);
     }
+
+    this.updateStore();
   }
 
   async activateTool(id: Tools): Promise<void> {
@@ -122,6 +137,8 @@ export class ToolManager {
     this.overrideStack.push(tool.id);
     tool.onActivate?.();
     this.applyCursor(tool.id);
+
+    this.updateStore();
   }
 
   popOverride() {
@@ -133,6 +150,8 @@ export class ToolManager {
     const effectiveTool = this.getEffectiveTool();
     effectiveTool?.onActivate?.();
     this.applyCursor(effectiveTool?.id ?? null);
+
+    this.updateStore();
   }
 
   getEffectiveTool(): Tool | null {
@@ -155,7 +174,10 @@ export class ToolManager {
     this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
-  listTools() {
-    return Array.from(this.tools.values());
+  getTools(): ToolMetadata[] {
+    return Array.from(this.tools.values()).map(
+      ({ id, label, icon, cursor, exclusive }) =>
+        ({ id, label, icon, cursor, exclusive } as ToolMetadata)
+    );
   }
 }

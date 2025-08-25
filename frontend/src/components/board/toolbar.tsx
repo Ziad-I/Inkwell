@@ -1,24 +1,36 @@
-import { useState } from "react";
+import { use, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import ToolButton from "@/components/board/toolButton";
 import ToolSettings from "@/components/board/toolSettings";
 import type { Tools } from "@/tools/types";
+import type { ToolManager } from "@/tools/manager";
+import { useToolStore } from "@/stores/toolStore";
 
-export default function Toolbar() {
-  const [activeTool, setActiveTool] = useState<Tools | null>("brush");
-  const [availableTools] = useState<Tools[]>(["brush", "eraser"]);
+interface ToolbarProps {
+  toolManagerRef: React.RefObject<ToolManager | null>;
+}
+
+export default function Toolbar({ toolManagerRef }: ToolbarProps) {
+  const activeTool = useToolStore((state) => state.activeToolId);
+  const allTools = useToolStore((state) => state.allTools);
+
+  const handleToolClick = (toolId: Tools) => {
+    toolManagerRef.current?.activateTool(toolId);
+  };
 
   return (
     <Card className="fixed top-1/2 left-4 transform -translate-y-1/2 z-30 p-2 bg-muted">
       <div className="flex flex-col items-center gap-2">
         <div className="flex flex-col gap-1">
-          {availableTools.map((toolId) => (
+          {allTools.map((tool) => (
             <ToolButton
-              key={toolId}
-              toolId={toolId}
-              isActive={activeTool === toolId}
-              onClick={() => setActiveTool(toolId)}
+              key={tool.id}
+              toolId={tool.id}
+              toolLabel={tool.label!}
+              toolIcon={tool.icon!}
+              isActive={tool.id === activeTool}
+              onClick={() => handleToolClick(tool.id)}
             />
           ))}
         </div>

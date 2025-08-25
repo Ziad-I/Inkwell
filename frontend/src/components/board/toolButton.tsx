@@ -1,41 +1,32 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Tools } from "@/tools/types";
-import { Brush, Eraser } from "lucide-react";
-
-const toolIcons: Record<Tools, any> = {
-  [Tools.Brush]: Brush,
-  [Tools.Eraser]: Eraser,
-};
-
-const toolLabels: Record<Tools, string> = {
-  [Tools.Brush]: "Brush",
-  [Tools.Eraser]: "Eraser",
-};
+import { type LucideProps } from "lucide-react";
 
 interface ToolButtonProps {
   toolId: Tools;
+  toolLabel: string;
+  toolIcon: React.ComponentType<LucideProps>;
   isActive?: boolean;
   onClick?: () => void;
 }
 
 export default function ToolButton({
   toolId,
+  toolLabel,
+  toolIcon: ToolIcon,
   isActive = false,
   onClick,
 }: ToolButtonProps) {
-  const IconComponent = toolIcons[toolId];
-  const label = toolLabels[toolId];
-
   return (
     <Button
       variant={isActive ? "default" : "secondary"}
       size="icon"
       className="flex flex-col gap-1 p-1 border-2"
-      title={label}
+      title={toolLabel}
       onClick={onClick}
     >
-      <IconComponent size={14} />
+      <ToolIcon size={14} />
     </Button>
   );
 }
