@@ -52,6 +52,7 @@ export class ToolManager {
     }
     if (this.activeTool?.id === id) return;
     this.setActiveTool(id);
+    console.log(`Activated tool: ${id}`);
   }
 
   register(tool: Tool) {

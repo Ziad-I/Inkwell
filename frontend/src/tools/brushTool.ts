@@ -121,6 +121,7 @@ export class BrushTool extends BaseTool {
       this.getSettings();
 
     this.line = new Konva.Line({
+      id: crypto.randomUUID(),
       points: this.flattenPoints(this.pts),
       stroke: color,
       opacity: opacity,
@@ -128,10 +129,15 @@ export class BrushTool extends BaseTool {
       lineCap: (lineCap as CanvasLineCap) ?? "round",
       lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
       tension: 0.45,
-      listening: false,
-      perfectDrawEnabled: false,
+      listening: true,
+      hitStrokeWidth: (strokeWidth ?? 1) + 12,
       // strokeScaleEnabled: false,
+
+      // optimizations
+      perfectDrawEnabled: false,
+      shadowForStrokeEnabled: false,
     });
+    this.line.setAttr("erasable", true);
     this.ctx.stageOps.addPermanentNode(this.line);
     this.ctx.stageOps.redrawLayer();
   }
