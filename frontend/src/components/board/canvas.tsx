@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useGesture } from "@use-gesture/react";
-import type Konva from "konva";
+import Konva from "konva";
 import { Stage, Layer, Text, Rect } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-
 import { ToolManager } from "@/tools/manager";
 import useWindowSize from "@/hooks/useWindowSize";
 import type { Point, StageOperations } from "@/lib/definations";
@@ -12,6 +11,7 @@ import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
+import { Tools } from "@/tools/types";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
@@ -77,6 +77,12 @@ function InfiniteCanvas({
           stage.container().style.cursor = "grabbing";
         }
       }
+      if (e.code === "KeyE") {
+        toolManagerRef.current?.activateTool(Tools.Eraser);
+      }
+      if (e.code === "KeyB") {
+        console.log(toolManagerRef.current?.getTools());
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -107,8 +113,12 @@ function InfiniteCanvas({
     };
   }, []);
 
-  const onPointerDown = (e: KonvaEventObject<PointerEvent>) =>
+  const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {
+    if (spaceRef.current) {
+      return;
+    }
     toolManagerRef.current?.handlePointerDown(e);
+  };
 
   const onPointerMove = (e: KonvaEventObject<PointerEvent>) => {
     const stage = stageRef.current;
@@ -196,7 +206,7 @@ function InfiniteCanvas({
       <div ref={containerRef} style={{ touchAction: "none" }}>
         <Stage
           ref={stageRef}
-          width={width}
+          width={width - 1}
           height={height - 1}
           className="bg-background"
           onWheel={onWheel}
