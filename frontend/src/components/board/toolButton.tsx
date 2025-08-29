@@ -1,6 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Tools } from "@/tools/types";
+import { Tools } from "@/types/tool";
 import { type LucideProps } from "lucide-react";
 
 interface ToolButtonProps {

@@ -1,5 +1,5 @@
 import type { LucideProps } from "lucide-react";
-import type { Tool, ToolContext, Tools } from "./types";
+import type { Tool, ToolContext, Tools } from "@/types/tool";
 import { useSettingsStore } from "@/stores/settingsStore";
 import Konva from "konva";
 

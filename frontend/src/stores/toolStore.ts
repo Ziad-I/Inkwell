@@ -1,4 +1,4 @@
-import type { ToolMetadata, Tools } from "@/tools/types";
+import type { ToolMetadata, Tools } from "@/types/tool";
 import { create } from "zustand";
 
 type ToolStore = {

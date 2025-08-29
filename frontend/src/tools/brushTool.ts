@@ -1,6 +1,6 @@
 import Konva from "konva";
-import type { Point } from "@/lib/definations";
-import { Tools, type ToolContext } from "@/tools/types";
+import type { Point } from "@/types/common";
+import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
 import { Brush } from "lucide-react";

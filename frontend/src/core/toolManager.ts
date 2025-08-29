@@ -2,10 +2,11 @@ import {
   type Tool,
   type ToolContext,
   type ToolMetadata,
+  type ToolLoader,
   Tools,
-} from "@/tools/types";
+} from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { toolLoaders, type ToolLoader } from "@/tools/loaders";
+import { toolLoaders } from "@/core/toolLoaders";
 import { useToolStore } from "@/stores/toolStore";
 
 export class ToolManager {

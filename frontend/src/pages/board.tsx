@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import InfiniteCanvas from "@/components/board/canvas";
 import Toolbar from "@/components/board/toolbar";
 import { useStageOperations } from "@/hooks/useStageOperations";
-import { ToolManager } from "@/tools/manager";
-import type { ToolContext } from "@/tools/types";
+import { ToolManager } from "@/core/toolManager";
+import type { ToolContext } from "@/types/tool";
 
 function BoardPage() {
   const { stageOperations, stageRef, drawingLayerRef } = useStageOperations();

@@ -1,10 +1,9 @@
-import { use, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import ToolButton from "@/components/board/toolButton";
 import ToolSettings from "@/components/board/toolSettings";
-import type { Tools } from "@/tools/types";
-import type { ToolManager } from "@/tools/manager";
+import type { Tools } from "@/types/tool";
+import type { ToolManager } from "@/core/toolManager";
 import { useToolStore } from "@/stores/toolStore";
 
 interface ToolbarProps {

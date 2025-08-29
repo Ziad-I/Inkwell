@@ -1,4 +1,4 @@
-import type { StageOperations } from "@/lib/definations";
+import type { StageOperations } from "@/types/common";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { LucideProps } from "lucide-react";
 
@@ -32,3 +32,8 @@ export interface Tool {
 export interface ToolContext {
   stageOps: StageOperations;
 }
+
+export type ToolLoader = {
+  load: (ctx: ToolContext) => Tool | Promise<Tool>;
+  eager?: boolean; // if true, tool is loaded immediately, else on demand
+};

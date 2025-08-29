@@ -3,15 +3,15 @@ import { useGesture } from "@use-gesture/react";
 import Konva from "konva";
 import { Stage, Layer, Text, Rect } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { ToolManager } from "@/tools/manager";
+import { ToolManager } from "@/core/toolManager";
 import useWindowSize from "@/hooks/useWindowSize";
-import type { Point, StageOperations } from "@/lib/definations";
+import type { Point, StageOperations } from "@/types/common";
 import {
   ZOOM_FACTOR,
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
-import { Tools } from "@/tools/types";
+import { Tools } from "@/types/tool";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
@@ -98,7 +98,7 @@ function InfiniteCanvas({
       }
     };
 
-    const onBlur = (e: FocusEvent) => {
+    const onBlur = () => {
       spaceRef.current = false;
     };
 
