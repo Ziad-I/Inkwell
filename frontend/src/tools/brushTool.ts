@@ -92,6 +92,31 @@ export class BrushTool extends BaseTool {
     return pts;
   }
 
+  private createLine(): Konva.Line {
+    const { strokeWidth, color, lineCap, lineJoin, opacity } =
+      this.getSettings();
+
+    const line = new Konva.Line({
+      id: crypto.randomUUID(),
+      points: this.flattenPoints(this.pts),
+      stroke: color,
+      opacity: opacity,
+      strokeWidth: strokeWidth,
+      lineCap: (lineCap as CanvasLineCap) ?? "round",
+      lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
+      tension: 0.45,
+      listening: true,
+      hitStrokeWidth: (strokeWidth ?? 1) + 12,
+      // strokeScaleEnabled: false,
+
+      // optimizations
+      perfectDrawEnabled: false,
+      shadowForStrokeEnabled: false,
+    });
+    line.setAttr("erasable", true);
+    return line;
+  }
+
   onActivate() {}
 
   onDeactivate() {
@@ -117,27 +142,7 @@ export class BrushTool extends BaseTool {
     const layer = this.ctx.stageOps.getDrawingLayer();
     if (!layer) return;
 
-    const { strokeWidth, color, lineCap, lineJoin, opacity } =
-      this.getSettings();
-
-    this.line = new Konva.Line({
-      id: crypto.randomUUID(),
-      points: this.flattenPoints(this.pts),
-      stroke: color,
-      opacity: opacity,
-      strokeWidth: strokeWidth,
-      lineCap: (lineCap as CanvasLineCap) ?? "round",
-      lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
-      tension: 0.45,
-      listening: true,
-      hitStrokeWidth: (strokeWidth ?? 1) + 12,
-      // strokeScaleEnabled: false,
-
-      // optimizations
-      perfectDrawEnabled: false,
-      shadowForStrokeEnabled: false,
-    });
-    this.line.setAttr("erasable", true);
+    this.line = this.createLine();
     this.ctx.stageOps.addPermanentNode(this.line);
     this.ctx.stageOps.redrawLayer();
   }
