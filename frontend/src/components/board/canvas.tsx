@@ -83,6 +83,9 @@ function InfiniteCanvas({
       if (e.code === "KeyB") {
         console.log(toolManagerRef.current?.getTools());
       }
+      if (e.code === "KeyD") {
+        drawingLayerRef.current?.toggleHitCanvas();
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") {
