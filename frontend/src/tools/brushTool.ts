@@ -96,7 +96,7 @@ export class BrushTool extends BaseTool {
 
   onDeactivate() {
     if (this.line) {
-      this.line.destroy();
+      this.ctx.stageOps.removePermanentNode(this.line, true);
       this.line = null;
     }
     this.pts = [];

@@ -16,6 +16,7 @@ export interface StageOperations {
   worldToScreen: (wx: number, wy: number) => Point;
   translate: (dx: number, dy: number) => void;
   addPermanentNode: (node: Konva.Node) => void;
+  removePermanentNode: (node: Konva.Node, destroy: boolean) => void;
   redrawLayer: () => void;
 }
 

@@ -36,7 +36,7 @@ export class EraserTool extends BaseTool {
 
     const shape = layer.getIntersection(pointer);
     if (this.isErasableShape(shape)) {
-      shape?.destroy();
+      this.ctx.stageOps.removePermanentNode(shape!, true);
       this.ctx.stageOps.redrawLayer();
     }
   }

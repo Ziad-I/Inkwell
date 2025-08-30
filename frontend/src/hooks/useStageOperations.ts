@@ -93,6 +93,15 @@ export function useStageOperations() {
       drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
     },
 
+    removePermanentNode: (node: Konva.Node, destroy: boolean = true) => {
+      if (!node) return;
+      if (destroy) {
+        node.destroy();
+      } else {
+        node.remove();
+      }
+    },
+
     redrawLayer: () => {
       const layer = drawingLayerRef.current;
       if (layer) {

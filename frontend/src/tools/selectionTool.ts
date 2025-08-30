@@ -39,7 +39,7 @@ export class SelectionTool extends BaseTool {
 
   private removeTransformer() {
     if (!this.transformer) return;
-    this.transformer.destroy();
+    this.ctx.stageOps.removePermanentNode(this.transformer, false);
     this.transformer = null;
   }
 
@@ -59,7 +59,7 @@ export class SelectionTool extends BaseTool {
 
   private cleanupSelectionBox() {
     if (!this.selectionBox) return;
-    this.selectionBox.destroy();
+    this.ctx.stageOps.removePermanentNode(this.selectionBox, true);
     this.selectionBox = null;
   }
 
