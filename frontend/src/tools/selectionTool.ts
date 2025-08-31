@@ -55,8 +55,8 @@ export class SelectionTool extends BaseTool {
       listening: false,
     });
 
-    this.ctx.stageOps.addDrawingNode(this.selectionBox);
-    this.ctx.stageOps.redrawDrawingLayer();
+    this.ctx.stageOps.addOverlayNode(this.selectionBox);
+    this.ctx.stageOps.redrawOverlayLayer();
   }
 
   private cleanupSelectionBox() {
@@ -108,7 +108,7 @@ export class SelectionTool extends BaseTool {
     this.selectionBox.x(x);
     this.selectionBox.y(y);
 
-    this.ctx.stageOps.redrawDrawingLayer();
+    this.ctx.stageOps.redrawOverlayLayer();
   }
 
   private endSelection() {
