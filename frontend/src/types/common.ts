@@ -9,15 +9,18 @@ export interface StageOperations {
   getScale: () => number;
   getStage: () => Konva.Stage | null;
   getDrawingLayer: () => Konva.Layer | null;
+  getOverlayLayer: () => Konva.Layer | null;
   getViewpointPos: () => Point;
   setScale: (newScale: number, pivot?: Point) => void;
   setViewpointPos: (newPos: Point) => void;
   screenToWorld: (sx: number, sy: number) => Point;
   worldToScreen: (wx: number, wy: number) => Point;
   translate: (dx: number, dy: number) => void;
-  addPermanentNode: (node: Konva.Node) => void;
-  removePermanentNode: (node: Konva.Node, destroy: boolean) => void;
-  redrawLayer: () => void;
+  addDrawingNode: (node: Konva.Node) => void;
+  addOverlayNode: (node: Konva.Node) => void;
+  removeNode: (node: Konva.Node, destroy: boolean) => void;
+  redrawDrawingLayer: () => void;
+  redrawOverlayLayer: () => void;
 }
 
 export interface Settings {

@@ -123,7 +123,7 @@ export class BrushTool extends BaseTool {
 
   onDeactivate() {
     if (this.line) {
-      this.ctx.stageOps.removePermanentNode(this.line, true);
+      this.ctx.stageOps.removeNode(this.line, true);
       this.line = null;
     }
     this.pts = [];
@@ -145,8 +145,8 @@ export class BrushTool extends BaseTool {
     if (!layer) return;
 
     this.line = this.createLine();
-    this.ctx.stageOps.addPermanentNode(this.line);
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.addDrawingNode(this.line);
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onPointerMove(e: KonvaEventObject<PointerEvent>) {
@@ -171,7 +171,7 @@ export class BrushTool extends BaseTool {
 
     this.pts.push(wp);
     this.line.points(this.flattenPoints(this.pts));
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onPointerUp(e: KonvaEventObject<PointerEvent>) {
@@ -182,7 +182,7 @@ export class BrushTool extends BaseTool {
     const finalPoints = this.chaikin(simplifiedPoints);
 
     this.line.points(this.flattenPoints(finalPoints));
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
 
     this.isDrawing = false;
     this.line = null;

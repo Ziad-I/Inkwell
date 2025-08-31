@@ -12,6 +12,7 @@ import {
 export function useStageOperations() {
   const stageRef = useRef<Konva.Stage | null>(null);
   const drawingLayerRef = useRef<Konva.Layer | null>(null);
+  const overlayLayerRef = useRef<Konva.Layer | null>(null);
 
   const stageOperations = useRef<StageOperations>({
     getScale: () => stageRef.current?.scaleX() || DEFAULT_SCALE,
@@ -47,6 +48,8 @@ export function useStageOperations() {
     },
 
     getDrawingLayer: () => drawingLayerRef.current,
+
+    getOverlayLayer: () => overlayLayerRef.current,
 
     setViewpointPos: (newPos: Point) => {
       const stage = stageRef.current;
@@ -89,11 +92,15 @@ export function useStageOperations() {
       };
     },
 
-    addPermanentNode: (node: Konva.Node) => {
+    addDrawingNode: (node: Konva.Node) => {
       drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
     },
 
-    removePermanentNode: (node: Konva.Node, destroy: boolean = true) => {
+    addOverlayNode: (node: Konva.Node) => {
+      overlayLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+    },
+
+    removeNode: (node: Konva.Node, destroy: boolean = true) => {
       if (!node) return;
       if (destroy) {
         node.destroy();
@@ -102,8 +109,15 @@ export function useStageOperations() {
       }
     },
 
-    redrawLayer: () => {
+    redrawDrawingLayer: () => {
       const layer = drawingLayerRef.current;
+      if (layer) {
+        layer.batchDraw();
+      }
+    },
+
+    redrawOverlayLayer: () => {
+      const layer = overlayLayerRef.current;
       if (layer) {
         layer.batchDraw();
       }
@@ -114,5 +128,6 @@ export function useStageOperations() {
     stageOperations: stageOperations.current,
     stageRef,
     drawingLayerRef,
+    overlayLayerRef,
   };
 }

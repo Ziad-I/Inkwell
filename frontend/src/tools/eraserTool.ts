@@ -24,7 +24,7 @@ export class EraserTool extends BaseTool {
   }
 
   private eraseAtPointer() {
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
 
@@ -36,14 +36,14 @@ export class EraserTool extends BaseTool {
 
     const shape = layer.getIntersection(pointer);
     if (this.isErasableShape(shape)) {
-      this.ctx.stageOps.removePermanentNode(shape!, true);
-      this.ctx.stageOps.redrawLayer();
+      this.ctx.stageOps.removeNode(shape!, true);
+      this.ctx.stageOps.redrawDrawingLayer();
     }
   }
 
   onActivate(): void {
     // this.ctx.stageOps.getDrawingLayer()?.toggleHitCanvas();
-    // this.ctx.stageOps.redrawLayer();
+    // this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onDeactivate(): void {

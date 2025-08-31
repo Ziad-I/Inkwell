@@ -33,18 +33,18 @@ export class SelectionTool extends BaseTool {
         return newBox;
       },
     });
-    this.ctx.stageOps.addPermanentNode(this.transformer);
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.addDrawingNode(this.transformer);
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private removeTransformer() {
     if (!this.transformer) return;
-    this.ctx.stageOps.removePermanentNode(this.transformer, false);
+    this.ctx.stageOps.removeNode(this.transformer, false);
     this.transformer = null;
   }
 
   private createSelectionRect(x: number, y: number) {
-    const rect = new Konva.Rect({
+    this.selectionBox = new Konva.Rect({
       x,
       y,
       width: 0,
@@ -54,12 +54,14 @@ export class SelectionTool extends BaseTool {
       dash: [4, 3],
       listening: false,
     });
-    return rect;
+
+    this.ctx.stageOps.addDrawingNode(this.selectionBox);
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private cleanupSelectionBox() {
     if (!this.selectionBox) return;
-    this.ctx.stageOps.removePermanentNode(this.selectionBox, true);
+    this.ctx.stageOps.removeNode(this.selectionBox, true);
     this.selectionBox = null;
   }
 
@@ -82,10 +84,7 @@ export class SelectionTool extends BaseTool {
     const wp = this.ctx.stageOps.screenToWorld(p.x, p.y);
 
     this.startPoint = wp;
-    this.selectionBox = this.createSelectionRect(wp.x, wp.y);
-
-    this.ctx.stageOps.addPermanentNode(this.selectionBox);
-    this.ctx.stageOps.redrawLayer();
+    this.createSelectionRect(wp.x, wp.y);
   }
 
   private updateSelection() {
@@ -109,7 +108,7 @@ export class SelectionTool extends BaseTool {
     this.selectionBox.x(x);
     this.selectionBox.y(y);
 
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private endSelection() {
@@ -150,7 +149,7 @@ export class SelectionTool extends BaseTool {
     this.isSelecting = false;
     this.startPoint = null;
 
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private singleSelect() {
@@ -173,7 +172,7 @@ export class SelectionTool extends BaseTool {
       this.isTransforming = false;
     }
 
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private clearSelection() {
@@ -181,7 +180,7 @@ export class SelectionTool extends BaseTool {
       this.transformer.nodes([]);
       this.isTransforming = false;
     }
-    this.ctx.stageOps.redrawLayer();
+    this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onActivate(): void {
