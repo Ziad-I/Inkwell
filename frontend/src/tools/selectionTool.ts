@@ -63,6 +63,14 @@ export class SelectionTool extends BaseTool {
     this.selectionBox = null;
   }
 
+  private isSelectableNode(node: Konva.Node | null): boolean {
+    if (!node) return false;
+    if (node === this.selectionBox) return false;
+    if (node === this.transformer) return false;
+
+    return node.getAttr("selectable") === true;
+  }
+
   private startSelection() {
     this.isSelecting = true;
     const stage = this.ctx.stageOps.getStage();
@@ -123,9 +131,6 @@ export class SelectionTool extends BaseTool {
       this.isSelecting = false;
       this.startPoint = null;
 
-      // redraw before handling click logic (keeps visuals consistent)
-      this.ctx.stageOps.redrawLayer();
-
       // perform a single-click selection at current pointer pos
       this.singleSelect();
       return;
@@ -133,9 +138,7 @@ export class SelectionTool extends BaseTool {
 
     // Normal box selection path
     const intersections = layer.find((node: Konva.Node) => {
-      if (node === this.selectionBox) return false;
-      if (node === this.transformer) return false;
-      //   if (node.getAttr && node.getAttr("selectable") === false) return false;
+      if (!this.isSelectableNode(node)) return false;
       if (!Konva.Util.haveIntersection(box, node.getClientRect())) return false;
       return true;
     });
@@ -161,7 +164,8 @@ export class SelectionTool extends BaseTool {
     if (!layer) return;
 
     const intersection = layer.getIntersection(p);
-    if (intersection) {
+
+    if (intersection && this.isSelectableNode(intersection)) {
       this.transformer?.nodes([intersection]);
       this.isTransforming = true;
     } else {

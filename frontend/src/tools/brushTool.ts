@@ -114,6 +114,8 @@ export class BrushTool extends BaseTool {
       shadowForStrokeEnabled: false,
     });
     line.setAttr("erasable", true);
+    line.setAttr("selectable", true);
+
     return line;
   }
 
