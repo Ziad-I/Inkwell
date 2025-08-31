@@ -6,7 +6,8 @@ import { ToolManager } from "@/core/toolManager";
 import type { ToolContext } from "@/types/tool";
 
 function BoardPage() {
-  const { stageOperations, stageRef, drawingLayerRef } = useStageOperations();
+  const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
+    useStageOperations();
   const toolManagerRef = useRef<ToolManager | null>(null);
 
   useEffect(() => {
@@ -27,6 +28,7 @@ function BoardPage() {
     <div>
       <Toolbar toolManagerRef={toolManagerRef} />
       <InfiniteCanvas
+        overlayLayerRef={overlayLayerRef}
         toolManagerRef={toolManagerRef}
         stageOperations={stageOperations}
         stageRef={stageRef}

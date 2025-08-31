@@ -3,6 +3,7 @@ import { useGesture } from "@use-gesture/react";
 import Konva from "konva";
 import { Stage, Layer, Text, Rect } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
+import { OverlayLayer } from "@/components/board/overlayLayer";
 import { ToolManager } from "@/core/toolManager";
 import useWindowSize from "@/hooks/useWindowSize";
 import type { Point, StageOperations } from "@/types/common";
@@ -12,12 +13,14 @@ import {
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
 import { Tools } from "@/types/tool";
+import PresenceDot, { PresenceDotHandle } from "./presenceDot";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
   toolManagerRef: React.RefObject<ToolManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
+  overlayLayerRef: React.RefObject<Konva.Layer | null>;
 }
 
 function InfiniteCanvas({
@@ -25,11 +28,14 @@ function InfiniteCanvas({
   toolManagerRef,
   stageRef,
   drawingLayerRef,
+  overlayLayerRef,
 }: InfiniteCanvasProps) {
   const { width, height } = useWindowSize();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
+
+  const dotRef = useRef<PresenceDotHandle>(null);
 
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
@@ -131,6 +137,7 @@ function InfiniteCanvas({
     if (!pointerPos) return;
 
     const worldPos = stageOperations.screenToWorld(pointerPos.x, pointerPos.y);
+    dotRef.current?.setPos(worldPos);
     setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
 
     if (spaceRef.current) {
@@ -217,6 +224,9 @@ function InfiniteCanvas({
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
         >
+          <Layer ref={overlayLayerRef}>
+            <PresenceDot ref={dotRef} />
+          </Layer>
           <Layer ref={drawingLayerRef}>
             <Text
               text="World-space primitives (transformed by stage)."
