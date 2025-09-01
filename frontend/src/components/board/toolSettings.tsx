@@ -7,6 +7,7 @@ import {
   LineCapSettings,
   OpacitySettings,
   SizeSettings,
+  PresenceSettings,
 } from "@/components/board/widgets";
 import {
   Blend,
@@ -15,6 +16,7 @@ import {
   PercentCircle,
   Settings,
   SlidersHorizontal,
+  User,
 } from "lucide-react";
 
 const settingButtons = [
@@ -43,6 +45,12 @@ const settingButtons = [
     label: "General",
     component: GeneralSettings,
   },
+  {
+    id: "presence",
+    icon: User,
+    label: "Presence",
+    component: PresenceSettings,
+  },
 ];
 
 interface FloatingWidgetProps {
@@ -68,7 +76,7 @@ function FloatingWidget({
       <Card
         className={` ${
           compact ? "left-20" : "left-32"
-        } fixed z-50 p-3 bg-muted border shadow-lg transform -translate-y-2 `}
+        } fixed z-50 p-3 bg-muted border shadow-lg transform -translate-y-10 `}
       >
         {children}
       </Card>

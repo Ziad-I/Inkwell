@@ -167,3 +167,37 @@ export function GeneralSettings() {
     </div>
   );
 }
+
+export function PresenceSettings() {
+  const userName = useSettingsStore((s) => s.userName);
+  const userColor = useSettingsStore((s) => s.userColor);
+  const userId = useSettingsStore((s) => s.userId);
+
+  return (
+    <div className="flex flex-col gap-3 w-[200px]">
+      <h3 className="text-sm font-medium">Presence Info</h3>
+
+      <div className="flex items-center gap-3">
+        <div
+          className="w-8 h-8 rounded-full border-3 border-black"
+          style={{ backgroundColor: userColor }}
+          title={userColor || "No color set"}
+          aria-label="User color"
+        />
+
+        <div className="flex flex-col">
+          <span className="text-sm font-medium" title={userName || "Anonymous"}>
+            {userName}
+          </span>
+          <span
+            title={userId}
+            aria-label="User ID"
+            className="text-xs text-muted-foreground"
+          >
+            ID: {userId}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
