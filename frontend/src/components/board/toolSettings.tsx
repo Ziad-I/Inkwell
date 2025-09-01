@@ -75,7 +75,7 @@ function FloatingWidget({
       {/* Panel (higher z so it is always above the toolbar) */}
       <Card
         className={` ${
-          compact ? "left-20" : "left-32"
+          compact ? "left-20" : "left-34"
         } fixed z-50 p-3 bg-muted border shadow-lg transform -translate-y-10 `}
       >
         {children}
