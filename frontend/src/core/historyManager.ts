@@ -116,7 +116,7 @@ export class HistoryManager {
     );
   }
 
-  hasPendingCommnad(): boolean {
+  hasPendingCommand(): boolean {
     return this.pendingCommand !== null;
   }
 
