@@ -24,7 +24,7 @@ export interface StageOperations {
   redrawOverlayLayer: () => void;
 }
 
-export interface historyOperations {
+export interface HistoryOperations {
   startCommand(command: Command): void;
   updatePendingCommand(): void;
   commitPendingCommand(): boolean;

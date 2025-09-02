@@ -1,12 +1,12 @@
 import type { HistoryManager } from "@/core/historyManager";
 import type { Command } from "@/types/command";
-import { type historyOperations } from "@/types/common";
+import { type HistoryOperations } from "@/types/common";
 import { useRef } from "react";
 
 export function useHistoryOperations(
   historyManagerRef: React.RefObject<HistoryManager | null>
 ) {
-  const historyOperations = useRef<historyOperations>({
+  const historyOperations = useRef<HistoryOperations>({
     startCommand(command: Command): void {
       historyManagerRef.current?.startCommand(command);
     },

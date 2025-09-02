@@ -1,6 +1,5 @@
 export interface Command {
   execute(): void;
-  destroy(): void;
   undo(): void;
   redo?(): void;
   description?: string;

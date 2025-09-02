@@ -15,7 +15,7 @@ export class HistoryManager {
 
     this.pendingCommand = command;
     // Execute immediately to show visual feedback
-    // command.execute();
+    command.execute();
   }
 
   // Update the current pending command
@@ -48,8 +48,7 @@ export class HistoryManager {
 
     // Limit history size
     if (this.history.length > this.maxHistorySize) {
-      const removed = this.history.shift();
-      removed?.destroy();
+      this.history.shift();
       this.currentIndex--;
     }
 
@@ -122,7 +121,6 @@ export class HistoryManager {
 
   clear(): void {
     this.cancelPendingCommand();
-    this.history.forEach((command) => command.destroy());
     this.history = [];
     this.currentIndex = -1;
     // this.notifyChange();
