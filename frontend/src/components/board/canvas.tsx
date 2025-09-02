@@ -78,58 +78,12 @@ function InfiniteCanvas({
   }, []);
 
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        if (e.target instanceof HTMLInputElement) return;
-        e.preventDefault();
-        spaceRef.current = true;
-        const stage = stageRef.current;
-        if (stage) {
-          stage.container().style.cursor = "grabbing";
-        }
-      }
-      if (e.code === "KeyE") {
-        toolManagerRef.current?.activateTool(Tools.Eraser);
-      }
-      if (e.code === "KeyB") {
-        console.log(toolManagerRef.current?.getTools());
-      }
-      if (e.code === "KeyD") {
-        drawingLayerRef.current?.toggleHitCanvas();
-      }
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === "z") {
-          historyOperations.undo();
-        } else if (e.key === "y") {
-          historyOperations.redo();
-        }
-      }
-    };
-    const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        if (e.target instanceof HTMLInputElement) return;
-        e.preventDefault();
-        spaceRef.current = false;
-        const stage = stageRef.current;
-        if (stage) {
-          toolManagerRef.current?.applyCursor(
-            toolManagerRef.current?.getEffectiveTool()?.id ?? null
-          );
-        }
-      }
-    };
-
     const onBlur = () => {
       spaceRef.current = false;
     };
 
-    window.addEventListener("keydown", onKeyDown, { passive: false });
-    window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
-
     return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
   }, []);
@@ -209,6 +163,44 @@ function InfiniteCanvas({
       target: containerRef,
       eventOptions: { passive: false },
       drag: { pointer: { touch: true } },
+    }
+  );
+
+  useKeyBindings(
+    {
+      // Space: handle both down and up (no need to re-check inputs or call preventDefault if hook handles those)
+      space: {
+        down: (e) => {
+          spaceRef.current = true;
+          const stage = stageRef.current;
+          if (stage) stage.container().style.cursor = "grabbing";
+        },
+        up: (e) => {
+          spaceRef.current = false;
+          const stage = stageRef.current;
+          if (stage) {
+            toolManagerRef.current?.applyCursor(
+              toolManagerRef.current?.getEffectiveTool()?.id ?? null
+            );
+          }
+        },
+      },
+
+      // Single-key activations (keydown only)
+      e: () => toolManagerRef.current?.activateTool(Tools.Eraser),
+      b: () => console.log(toolManagerRef.current?.getTools()),
+      d: () => drawingLayerRef.current?.toggleHitCanvas(),
+
+      // Undo / redo (include shift variants)
+      "ctrl+z": () => historyOperations.undo(),
+      "meta+z": () => historyOperations.undo(),
+      "ctrl+y": () => historyOperations.redo(),
+      "meta+y": () => historyOperations.redo(),
+    },
+    {
+      allowRepeat: false,
+      ignoreInputs: true,
+      preventDefault: true,
     }
   );
 
