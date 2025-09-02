@@ -42,9 +42,10 @@ function BoardPage() {
       <InfiniteCanvas
         overlayLayerRef={overlayLayerRef}
         toolManagerRef={toolManagerRef}
-        stageOperations={stageOperations}
         stageRef={stageRef}
         drawingLayerRef={drawingLayerRef}
+        stageOperations={stageOperations}
+        historyOperations={historyOperations}
       />
     </div>
   );

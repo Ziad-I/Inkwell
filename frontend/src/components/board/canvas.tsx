@@ -3,20 +3,22 @@ import { useGesture } from "@use-gesture/react";
 import Konva from "konva";
 import { Stage, Layer, Text, Rect } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { OverlayLayer } from "@/components/board/overlayLayer";
 import { ToolManager } from "@/core/toolManager";
 import useWindowSize from "@/hooks/useWindowSize";
-import type { Point, StageOperations } from "@/types/common";
+import type { Point, StageOperations, HistoryOperations } from "@/types/common";
 import {
   ZOOM_FACTOR,
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
 } from "@/lib/constants";
 import { Tools } from "@/types/tool";
-import PresenceDot, { PresenceDotHandle } from "./presenceDot";
+import PresenceDot, {
+  type PresenceDotHandle,
+} from "@/components/board/presenceDot";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
+  historyOperations: HistoryOperations;
   toolManagerRef: React.RefObject<ToolManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
@@ -25,6 +27,7 @@ interface InfiniteCanvasProps {
 
 function InfiniteCanvas({
   stageOperations,
+  historyOperations,
   toolManagerRef,
   stageRef,
   drawingLayerRef,
@@ -91,6 +94,13 @@ function InfiniteCanvas({
       }
       if (e.code === "KeyD") {
         drawingLayerRef.current?.toggleHitCanvas();
+      }
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "z") {
+          historyOperations.undo();
+        } else if (e.key === "y") {
+          historyOperations.redo();
+        }
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
