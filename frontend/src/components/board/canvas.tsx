@@ -1,20 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useGesture } from "@use-gesture/react";
 import Konva from "konva";
-import { Stage, Layer, Text, Rect } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import { ToolManager } from "@/core/toolManager";
-import useWindowSize from "@/hooks/useWindowSize";
-import type { Point, StageOperations, HistoryOperations } from "@/types/common";
-import {
-  ZOOM_FACTOR,
-  DEFAULT_SCALE,
-  DEFAULT_VIEWPOINT_POS,
-} from "@/lib/constants";
-import { Tools } from "@/types/tool";
+import { Layer, Rect, Stage, Text } from "react-konva";
+
 import PresenceDot, {
   type PresenceDotHandle,
 } from "@/components/board/presenceDot";
+import { ToolManager } from "@/core/toolManager";
+import useKeyBindings from "@/hooks/useKeyBindings";
+import useWindowSize from "@/hooks/useWindowSize";
+import {
+  DEFAULT_SCALE,
+  DEFAULT_VIEWPOINT_POS,
+  ZOOM_FACTOR,
+} from "@/lib/constants";
+import type { HistoryOperations, Point, StageOperations } from "@/types/common";
+import { Tools } from "@/types/tool";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
