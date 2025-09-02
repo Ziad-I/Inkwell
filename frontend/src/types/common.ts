@@ -1,4 +1,5 @@
 import type Konva from "konva";
+import type { Command } from "@/types/command";
 
 export interface Point {
   x: number;
@@ -21,6 +22,17 @@ export interface StageOperations {
   removeNode: (node: Konva.Node, destroy: boolean) => void;
   redrawDrawingLayer: () => void;
   redrawOverlayLayer: () => void;
+}
+
+export interface historyOperations {
+  startCommand(command: Command): void;
+  updatePendingCommand(): void;
+  commitPendingCommand(): boolean;
+  cancelPendingCommand(): void;
+  hasPendingCommand(): boolean;
+  undo(): boolean;
+  redo(): boolean;
+  clear(): void;
 }
 
 export interface Settings {
