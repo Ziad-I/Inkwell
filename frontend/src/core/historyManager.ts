@@ -48,7 +48,8 @@ export class HistoryManager {
 
     // Limit history size
     if (this.history.length > this.maxHistorySize) {
-      this.history.shift();
+      const removed = this.history.shift();
+      if (removed) removed.destroy?.();
       this.currentIndex--;
     }
 

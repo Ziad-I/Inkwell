@@ -24,6 +24,13 @@ export class StrokeCommand extends BaseCommand {
     this.stageOps.redrawDrawingLayer();
   }
 
+  destroy(): void {
+    if (this.node && !this.node.getParent()) {
+      this.stageOps.removeNode(this.node, true);
+      this.node = null;
+    }
+  }
+
   undo(): void {
     if (!this.node) return;
     this.stageOps.removeNode(this.node, false);

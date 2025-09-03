@@ -5,6 +5,7 @@ export abstract class BaseCommand implements Command {
 
   abstract execute(): void;
   abstract undo(): void;
+  abstract destroy(): void;
 
   redo(): void {
     this.execute();

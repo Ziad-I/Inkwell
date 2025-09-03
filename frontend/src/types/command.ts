@@ -2,6 +2,7 @@ export interface Command {
   execute(): void;
   undo(): void;
   redo?(): void;
+  destroy?(): void;
   description?: string;
 
   commit?(): void;
