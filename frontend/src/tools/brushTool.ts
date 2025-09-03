@@ -1,5 +1,6 @@
 import Konva from "konva";
 import type { Point } from "@/types/common";
+import { StrokeCommand } from "@/commands/strokeCommand";
 import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
@@ -12,6 +13,7 @@ export class BrushTool extends BaseTool {
   cursor = "crosshair";
   exclusive = true;
 
+  private currentDrawCommand: StrokeCommand | null = null;
   private isDrawing = false;
   private pts: Point[] = [];
   private line: Konva.Line | null = null;
@@ -122,12 +124,14 @@ export class BrushTool extends BaseTool {
   onActivate() {}
 
   onDeactivate() {
-    if (this.line) {
-      this.ctx.stageOps.removeNode(this.line, true);
+    // Cancel any pending operation when tool is deactivated
+    if (this.isDrawing && this.currentDrawCommand) {
+      this.ctx.historyOps.cancelPendingCommand();
+      this.isDrawing = false;
       this.line = null;
+      this.pts = [];
+      this.currentDrawCommand = null;
     }
-    this.pts = [];
-    this.isDrawing = false;
   }
 
   onPointerDown(e: KonvaEventObject<PointerEvent>) {
@@ -145,8 +149,11 @@ export class BrushTool extends BaseTool {
     if (!layer) return;
 
     this.line = this.createLine();
-    this.ctx.stageOps.addDrawingNode(this.line);
-    this.ctx.stageOps.redrawDrawingLayer();
+    this.currentDrawCommand = new StrokeCommand(this.line, this.ctx.stageOps);
+    this.ctx.historyOps.startCommand(this.currentDrawCommand);
+
+    // this.ctx.stageOps.addDrawingNode(this.line);
+    // this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onPointerMove(e: KonvaEventObject<PointerEvent>) {
@@ -170,8 +177,11 @@ export class BrushTool extends BaseTool {
     if (screenDist < this.MIN_POINT_DISTANCE) return; // skip close points
 
     this.pts.push(wp);
-    this.line.points(this.flattenPoints(this.pts));
-    this.ctx.stageOps.redrawDrawingLayer();
+    this.currentDrawCommand?.updatePoints(this.flattenPoints(this.pts));
+    this.ctx.historyOps.updatePendingCommand();
+
+    // this.line.points(this.flattenPoints(this.pts));
+    // this.ctx.stageOps.redrawDrawingLayer();
   }
 
   onPointerUp(e: KonvaEventObject<PointerEvent>) {
@@ -181,11 +191,15 @@ export class BrushTool extends BaseTool {
     const simplifiedPoints = this.rdp(this.pts, this.RDP_EPSILON / scale);
     const finalPoints = this.chaikin(simplifiedPoints);
 
-    this.line.points(this.flattenPoints(finalPoints));
-    this.ctx.stageOps.redrawDrawingLayer();
+    // this.line.points(this.flattenPoints(finalPoints));
+    // this.ctx.stageOps.redrawDrawingLayer();
+
+    this.currentDrawCommand?.updatePoints(this.flattenPoints(finalPoints));
+    this.ctx.historyOps.commitPendingCommand();
 
     this.isDrawing = false;
     this.line = null;
     this.pts = [];
+    this.currentDrawCommand = null;
   }
 }
