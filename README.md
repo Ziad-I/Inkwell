@@ -59,8 +59,7 @@ Available scripts (see `frontend/package.json`):
 - [x] Undo / Redo (local + broadcast hooks; tombstone approach)
 - [x] Presence cursors (client-only simulation)
 - [ ] Shape Tool (rectangle, circle, arrow, etc...)
-- [ ] Add more tools
-- [ ] Implement a backend WebSocketserver to broadcast drawing events.
+- [ ] Implement a backend WebSocket server to broadcast drawing events.
 - [ ] Show live cursors for connected users.
 - [ ] Add room/session management and server-side persistence of whiteboards.
 - [ ] Implement canvas loading on user join.
