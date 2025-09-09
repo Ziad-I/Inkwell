@@ -7,11 +7,13 @@ import { BaseTool } from "./baseTool";
 import { Brush } from "lucide-react";
 
 export class BrushTool extends BaseTool {
-  id = Tools.Brush;
-  label = "Brush";
-  icon = Brush;
-  cursor = "crosshair";
-  exclusive = true;
+  meta = {
+    id: Tools.Brush,
+    label: "Brush",
+    icon: Brush,
+    cursor: "crosshair",
+    exclusive: true,
+  };
 
   private currentDrawCommand: StrokeCommand | null = null;
   private isDrawing = false;

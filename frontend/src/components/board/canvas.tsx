@@ -180,7 +180,7 @@ function InfiniteCanvas({
           const stage = stageRef.current;
           if (stage) {
             toolManagerRef.current?.applyCursor(
-              toolManagerRef.current?.getEffectiveTool()?.id ?? null
+              toolManagerRef.current?.getEffectiveTool()?.meta.id ?? null
             );
           }
         },

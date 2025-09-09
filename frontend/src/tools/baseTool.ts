@@ -1,14 +1,9 @@
-import type { LucideProps } from "lucide-react";
-import type { Tool, ToolContext, Tools } from "@/types/tool";
+import type { Tool, ToolContext, ToolMetadata } from "@/types/tool";
 import { useSettingsStore } from "@/stores/settingsStore";
 import Konva from "konva";
 
 export abstract class BaseTool implements Tool {
-  public abstract id: Tools;
-  public label?: string;
-  public cursor?: string;
-  public icon?: React.ComponentType<LucideProps>;
-  public exclusive?: boolean;
+  public abstract meta: ToolMetadata;
 
   protected ctx: ToolContext;
 

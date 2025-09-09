@@ -7,11 +7,13 @@ import { Move } from "lucide-react";
 import { SelectCommand } from "@/commands/selectCommand";
 
 export class SelectionTool extends BaseTool {
-  id = Tools.Selection;
-  label = "Selection";
-  icon = Move;
-  cursor = "move";
-  exclusive = false;
+  meta = {
+    id: Tools.Selection,
+    label: "Selection",
+    icon: Move,
+    cursor: "move",
+    exclusive: false,
+  };
 
   private readonly MIN_DRAG = 4; // px: minimum drag distance
   private currentSelectCommand: SelectCommand | null = null;

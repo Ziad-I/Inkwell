@@ -18,11 +18,7 @@ export type ToolMetadata = {
 };
 
 export interface Tool {
-  id: Tools;
-  label?: string;
-  icon?: React.ComponentType<LucideProps>;
-  cursor?: string; // CSS cursor style
-  exclusive?: boolean; // whether it blocks others
+  meta: ToolMetadata;
   onActivate?: () => void;
   onDeactivate?: () => void;
   onPointerDown?: (e: KonvaEventObject<PointerEvent>) => void;

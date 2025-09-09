@@ -6,11 +6,13 @@ import { EraseCommand } from "@/commands/eraseCommand";
 import { Eraser as EraserIcon } from "lucide-react";
 
 export class EraserTool extends BaseTool {
-  id = Tools.Eraser;
-  label = "Eraser";
-  icon = EraserIcon;
-  cursor = "cell";
-  exclusive = true;
+  meta = {
+    id: Tools.Eraser,
+    label: "Eraser",
+    icon: EraserIcon,
+    cursor: "cell",
+    exclusive: true,
+  };
 
   private currentEraseCommand: EraseCommand | null = null;
   private isErasing = false;

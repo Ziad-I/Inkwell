@@ -22,17 +22,19 @@ export class ToolManager {
   }
 
   private updateStore() {
-    useToolStore.getState().setActiveTool(this.getEffectiveTool()?.id ?? null);
+    useToolStore
+      .getState()
+      .setActiveTool(this.getEffectiveTool()?.meta.id ?? null);
     useToolStore.getState().setAllTools(this.getTools());
   }
 
   private setActiveTool(id: Tools | null) {
-    if (id !== null && this.activeTool?.id === id) return;
+    if (id !== null && this.activeTool?.meta.id === id) return;
 
     this.activeTool?.onDeactivate?.();
     this.activeTool = id ? this.tools.get(id) ?? null : null;
     this.activeTool?.onActivate?.();
-    this.applyCursor(this.getEffectiveTool()?.id ?? null);
+    this.applyCursor(this.getEffectiveTool()?.meta.id ?? null);
 
     this.updateStore();
   }
@@ -56,7 +58,7 @@ export class ToolManager {
   }
 
   async activateTool(id: Tools): Promise<void> {
-    if (this.activeTool?.id === id) return;
+    if (this.activeTool?.meta.id === id) return;
 
     let tool = this.tools.get(id) ?? null;
     if (!tool) {
@@ -66,14 +68,14 @@ export class ToolManager {
       tool = maybe instanceof Promise ? await maybe : maybe;
       this.register(tool);
     }
-    if (this.activeTool?.id === id) return;
+    if (this.activeTool?.meta.id === id) return;
     this.setActiveTool(id);
     console.log(`Activated tool: ${id}`);
   }
 
   register(tool: Tool) {
-    this.tools.set(tool.id, tool);
-    console.log(`Registered tool: ${tool.id}`);
+    this.tools.set(tool.meta.id, tool);
+    console.log(`Registered tool: ${tool.meta.id}`);
   }
 
   unregister(id: Tools) {
@@ -87,13 +89,13 @@ export class ToolManager {
       this.overrideStack = this.overrideStack.filter((toolId) => toolId !== id);
     }
 
-    if (this.activeTool?.id === id) {
+    if (this.activeTool?.meta.id === id) {
       this.tools.get(id)?.onDeactivate?.();
       this.activeTool = null;
     }
     this.tools.delete(id);
     console.log(`Unregistered tool: ${id}`);
-    this.applyCursor(this.getEffectiveTool()?.id ?? null);
+    this.applyCursor(this.getEffectiveTool()?.meta.id ?? null);
   }
 
   getTool(id: Tools): Tool | null {
@@ -108,7 +110,7 @@ export class ToolManager {
     if (!container) return;
 
     const tool = id ? this.tools.get(id) : null;
-    const cursor = tool?.cursor ?? "";
+    const cursor = tool?.meta.cursor ?? "";
     if (cursor) {
       container.style.cursor = cursor;
     } else {
@@ -124,20 +126,20 @@ export class ToolManager {
     }
 
     const currentTool = this.getEffectiveTool();
-    if (currentTool?.id === tool.id) {
-      console.warn(`Tool ${tool.id} is already active, cannot override`);
+    if (currentTool?.meta?.id === tool.meta.id) {
+      console.warn(`Tool ${tool.meta.id} is already active, cannot override`);
       return;
     }
 
-    if (this.overrideStack.includes(tool.id)) {
-      console.warn(`Tool ${tool.id} is already on the override stack`);
+    if (this.overrideStack.includes(tool.meta.id)) {
+      console.warn(`Tool ${tool.meta.id} is already on the override stack`);
       return;
     }
 
     currentTool?.onDeactivate?.();
-    this.overrideStack.push(tool.id);
+    this.overrideStack.push(tool.meta.id);
     tool.onActivate?.();
-    this.applyCursor(tool.id);
+    this.applyCursor(tool.meta.id);
 
     this.updateStore();
   }
@@ -150,7 +152,7 @@ export class ToolManager {
     }
     const effectiveTool = this.getEffectiveTool();
     effectiveTool?.onActivate?.();
-    this.applyCursor(effectiveTool?.id ?? null);
+    this.applyCursor(effectiveTool?.meta?.id ?? null);
 
     this.updateStore();
   }
@@ -176,9 +178,6 @@ export class ToolManager {
   }
 
   getTools(): ToolMetadata[] {
-    return Array.from(this.tools.values()).map(
-      ({ id, label, icon, cursor, exclusive }) =>
-        ({ id, label, icon, cursor, exclusive } as ToolMetadata)
-    );
+    return Array.from(this.tools.values()).map((t) => t.meta);
   }
 }
