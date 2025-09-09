@@ -2,6 +2,7 @@ import Konva from "konva";
 import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
+import { EraseCommand } from "@/commands/eraseCommand";
 import { Eraser as EraserIcon } from "lucide-react";
 
 export class EraserTool extends BaseTool {
@@ -11,6 +12,7 @@ export class EraserTool extends BaseTool {
   cursor = "cell";
   exclusive = true;
 
+  private currentEraseCommand: EraseCommand | null = null;
   private isErasing = false;
 
   constructor(ctx: ToolContext) {
@@ -35,9 +37,10 @@ export class EraserTool extends BaseTool {
     if (!layer) return;
 
     const shape = layer.getIntersection(pointer);
-    if (this.isErasableShape(shape)) {
-      this.ctx.stageOps.removeNode(shape!, true);
-      this.ctx.stageOps.redrawDrawingLayer();
+    if (shape && this.isErasableShape(shape)) {
+      this.currentEraseCommand?.addErasedNode(shape);
+      // this.ctx.stageOps.removeNode(shape!, true);
+      // this.ctx.stageOps.redrawDrawingLayer();
     }
   }
 
@@ -53,6 +56,9 @@ export class EraserTool extends BaseTool {
 
   onPointerDown(event: KonvaEventObject<PointerEvent>) {
     this.isErasing = true;
+
+    this.currentEraseCommand = new EraseCommand(this.ctx.stageOps);
+    this.ctx.historyOps.startCommand(this.currentEraseCommand);
     this.eraseAtPointer();
   }
 
@@ -63,5 +69,6 @@ export class EraserTool extends BaseTool {
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
     this.isErasing = false;
+    this.ctx.historyOps.commitPendingCommand();
   }
 }
