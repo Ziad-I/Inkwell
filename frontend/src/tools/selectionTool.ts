@@ -4,6 +4,7 @@ import { Tools, type ToolContext } from "@/types/tool";
 import type { Point } from "@/types/common";
 import { BaseTool } from "./baseTool";
 import { Move } from "lucide-react";
+import { SelectCommand } from "@/commands/selectCommand";
 
 export class SelectionTool extends BaseTool {
   id = Tools.Selection;
@@ -13,6 +14,7 @@ export class SelectionTool extends BaseTool {
   exclusive = false;
 
   private readonly MIN_DRAG = 4; // px: minimum drag distance
+  private currentSelectCommand: SelectCommand | null = null;
   private isSelecting = false;
   private isTransforming = false;
   private startPoint: Point | null = null;
@@ -33,13 +35,29 @@ export class SelectionTool extends BaseTool {
         return newBox;
       },
     });
+
+    this.transformer.on("transformstart dragstart", () => {
+      this.currentSelectCommand = new SelectCommand(
+        this.ctx.stageOps,
+        this.transformer!.nodes()
+      );
+      this.currentSelectCommand.setInitialState(this.transformer!.nodes());
+      this.ctx.historyOps.startCommand(this.currentSelectCommand);
+    });
+
+    this.transformer.on("transformend dragend", () => {
+      this.currentSelectCommand?.setFinalState(this.transformer!.nodes());
+      this.ctx.historyOps.commitPendingCommand();
+    });
+
     this.ctx.stageOps.addDrawingNode(this.transformer);
     this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private removeTransformer() {
     if (!this.transformer) return;
-    this.ctx.stageOps.removeNode(this.transformer, false);
+    this.ctx.stageOps.removeNode(this.transformer, true);
+    this.transformer.off("transformstart transformend dragstart dragend");
     this.transformer = null;
   }
 
