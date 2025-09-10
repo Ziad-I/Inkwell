@@ -1,6 +1,6 @@
 import type { Command } from "@/types/command";
 
-export class HistoryManager {
+export class CommandManager {
   private history: Command[] = [];
   private currentIndex = -1;
   private maxHistorySize: number = 50;

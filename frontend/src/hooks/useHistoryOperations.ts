@@ -1,44 +1,44 @@
-import type { HistoryManager } from "@/core/historyManager";
+import type { CommandManager } from "@/core/commandManager";
 import type { Command } from "@/types/command";
-import { type HistoryOperations } from "@/types/common";
+import { type CommandOperations } from "@/types/common";
 import { useRef } from "react";
 
-export function useHistoryOperations(
-  historyManagerRef: React.RefObject<HistoryManager | null>
+export function useCommandOperations(
+  commandManagerRef: React.RefObject<CommandManager | null>
 ) {
-  const historyOperations = useRef<HistoryOperations>({
+  const CommandOperations = useRef<CommandOperations>({
     startCommand(command: Command): void {
-      historyManagerRef.current?.startCommand(command);
+      commandManagerRef.current?.startCommand(command);
     },
 
     updatePendingCommand(): void {
-      historyManagerRef.current?.updatePendingCommand();
+      commandManagerRef.current?.updatePendingCommand();
     },
 
     commitPendingCommand(): boolean {
-      return historyManagerRef.current?.commitPendingCommand() ?? false;
+      return commandManagerRef.current?.commitPendingCommand() ?? false;
     },
 
     cancelPendingCommand(): void {
-      historyManagerRef.current?.cancelPendingCommand();
+      commandManagerRef.current?.cancelPendingCommand();
     },
 
     hasPendingCommand(): boolean {
-      return historyManagerRef.current?.hasPendingCommand() ?? false;
+      return commandManagerRef.current?.hasPendingCommand() ?? false;
     },
 
     undo(): boolean {
-      return historyManagerRef.current?.undo() ?? false;
+      return commandManagerRef.current?.undo() ?? false;
     },
 
     redo(): boolean {
-      return historyManagerRef.current?.redo() ?? false;
+      return commandManagerRef.current?.redo() ?? false;
     },
 
     clear(): void {
-      historyManagerRef.current?.clear();
+      commandManagerRef.current?.clear();
     },
   });
 
-  return { historyOperations: historyOperations.current };
+  return { commandOperations: CommandOperations.current };
 }

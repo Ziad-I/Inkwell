@@ -60,7 +60,7 @@ export class EraserTool extends BaseTool {
     this.isErasing = true;
 
     this.currentEraseCommand = new EraseCommand(this.ctx.stageOps);
-    this.ctx.historyOps.startCommand(this.currentEraseCommand);
+    this.ctx.commandOps.startCommand(this.currentEraseCommand);
     this.eraseAtPointer();
   }
 
@@ -71,6 +71,6 @@ export class EraserTool extends BaseTool {
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
     this.isErasing = false;
-    this.ctx.historyOps.commitPendingCommand();
+    this.ctx.commandOps.commitPendingCommand();
   }
 }

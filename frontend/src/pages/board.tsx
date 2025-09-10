@@ -4,27 +4,28 @@ import Toolbar from "@/components/board/toolbar";
 import { useStageOperations } from "@/hooks/useStageOperations";
 import { ToolManager } from "@/core/toolManager";
 import type { ToolContext } from "@/types/tool";
-import { HistoryManager } from "@/core/historyManager";
-import { useHistoryOperations } from "@/hooks/useHistoryOperations";
+import { CommandManager } from "@/core/commandManager";
+import { useCommandOperations } from "@/hooks/useHistoryOperations";
 
 function BoardPage() {
   const toolManagerRef = useRef<ToolManager | null>(null);
-  const historyManagerRef = useRef<HistoryManager | null>(null);
+  const commandManagerRef = useRef<CommandManager | null>(null);
   const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
     useStageOperations();
-  const { historyOperations } = useHistoryOperations(historyManagerRef);
+  const { commandOperations: commandOperations } =
+    useCommandOperations(commandManagerRef);
 
   useEffect(() => {
-    async function initHistoryManager() {
-      if (historyManagerRef.current) return;
-      historyManagerRef.current = new HistoryManager();
+    async function initCommandManager() {
+      if (commandManagerRef.current) return;
+      commandManagerRef.current = new CommandManager();
     }
 
     async function initToolManager() {
       if (toolManagerRef.current) return;
       const ctx: ToolContext = {
         stageOps: stageOperations!,
-        historyOps: historyOperations!,
+        commandOps: commandOperations!,
       };
 
       const mgr = new ToolManager(ctx);
@@ -32,7 +33,7 @@ function BoardPage() {
       toolManagerRef.current = mgr;
     }
 
-    initHistoryManager();
+    initCommandManager();
     initToolManager();
   }, []);
 
@@ -45,7 +46,7 @@ function BoardPage() {
         stageRef={stageRef}
         drawingLayerRef={drawingLayerRef}
         stageOperations={stageOperations}
-        historyOperations={historyOperations}
+        commandOperations={commandOperations}
       />
     </div>
   );

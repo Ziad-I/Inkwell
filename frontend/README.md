@@ -41,8 +41,8 @@ npm run preview
 - `src/` — frontend app source
   - `components/` — UI components and board components (canvas, toolbar, widgets)
   - `commands/` — command implementation for undo/redo (stroke, erase, select...)
-  - `core/` — history manager, tool loaders, tool manager
-  - `hooks/` — custom hooks (history operations, key bindings, stage ops, theming)
+  - `core/` — command manager, tool loaders, tool manager
+  - `hooks/` — custom hooks (command operations, key bindings, stage operations, theming)
   - `providers/` — React providers (theme, etc.)
   - `stores/` — simple state stores (settings, active tool)
   - `tools/` — tool implementations (brush, eraser, selection)

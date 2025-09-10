@@ -44,12 +44,12 @@ export class SelectionTool extends BaseTool {
         this.transformer!.nodes()
       );
       this.currentSelectCommand.setInitialState(this.transformer!.nodes());
-      this.ctx.historyOps.startCommand(this.currentSelectCommand);
+      this.ctx.commandOps.startCommand(this.currentSelectCommand);
     });
 
     this.transformer.on("transformend dragend", () => {
       this.currentSelectCommand?.setFinalState(this.transformer!.nodes());
-      this.ctx.historyOps.commitPendingCommand();
+      this.ctx.commandOps.commitPendingCommand();
     });
 
     this.ctx.stageOps.addDrawingNode(this.transformer);

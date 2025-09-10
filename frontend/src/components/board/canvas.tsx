@@ -15,12 +15,12 @@ import {
   DEFAULT_VIEWPOINT_POS,
   ZOOM_FACTOR,
 } from "@/lib/constants";
-import type { HistoryOperations, Point, StageOperations } from "@/types/common";
+import type { CommandOperations, Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
-  historyOperations: HistoryOperations;
+  commandOperations: CommandOperations;
   toolManagerRef: React.RefObject<ToolManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
@@ -29,7 +29,7 @@ interface InfiniteCanvasProps {
 
 function InfiniteCanvas({
   stageOperations,
-  historyOperations,
+  commandOperations,
   toolManagerRef,
   stageRef,
   drawingLayerRef,
@@ -192,10 +192,10 @@ function InfiniteCanvas({
       d: () => drawingLayerRef.current?.toggleHitCanvas(),
 
       // Undo / redo (include shift variants)
-      "ctrl+z": () => historyOperations.undo(),
-      "meta+z": () => historyOperations.undo(),
-      "ctrl+y": () => historyOperations.redo(),
-      "meta+y": () => historyOperations.redo(),
+      "ctrl+z": () => commandOperations.undo(),
+      "meta+z": () => commandOperations.undo(),
+      "ctrl+y": () => commandOperations.redo(),
+      "meta+y": () => commandOperations.redo(),
     },
     {
       allowRepeat: false,

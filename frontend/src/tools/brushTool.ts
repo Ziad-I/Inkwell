@@ -128,7 +128,7 @@ export class BrushTool extends BaseTool {
   onDeactivate() {
     // Cancel any pending operation when tool is deactivated
     if (this.isDrawing && this.currentDrawCommand) {
-      this.ctx.historyOps.cancelPendingCommand();
+      this.ctx.commandOps.cancelPendingCommand();
       this.isDrawing = false;
       this.line = null;
       this.pts = [];
@@ -152,7 +152,7 @@ export class BrushTool extends BaseTool {
 
     this.line = this.createLine();
     this.currentDrawCommand = new StrokeCommand(this.line, this.ctx.stageOps);
-    this.ctx.historyOps.startCommand(this.currentDrawCommand);
+    this.ctx.commandOps.startCommand(this.currentDrawCommand);
 
     // this.ctx.stageOps.addDrawingNode(this.line);
     // this.ctx.stageOps.redrawDrawingLayer();
@@ -180,7 +180,7 @@ export class BrushTool extends BaseTool {
 
     this.pts.push(wp);
     this.currentDrawCommand?.updatePoints(this.flattenPoints(this.pts));
-    this.ctx.historyOps.updatePendingCommand();
+    this.ctx.commandOps.updatePendingCommand();
 
     // this.line.points(this.flattenPoints(this.pts));
     // this.ctx.stageOps.redrawDrawingLayer();
@@ -197,7 +197,7 @@ export class BrushTool extends BaseTool {
     // this.ctx.stageOps.redrawDrawingLayer();
 
     this.currentDrawCommand?.updatePoints(this.flattenPoints(finalPoints));
-    this.ctx.historyOps.commitPendingCommand();
+    this.ctx.commandOps.commitPendingCommand();
 
     this.isDrawing = false;
     this.line = null;
