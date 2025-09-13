@@ -54,7 +54,6 @@ export class CommandManager {
     }
 
     this.pendingCommand = null;
-    // this.notifyChange();
     return true;
   }
 
@@ -63,7 +62,6 @@ export class CommandManager {
     if (this.pendingCommand) {
       this.pendingCommand.undo();
       this.pendingCommand = null;
-      // this.notifyChange();
     }
   }
 
@@ -85,7 +83,6 @@ export class CommandManager {
     command.undo();
     this.currentIndex--;
 
-    // this.notifyChange();
     return true;
   }
 
@@ -101,7 +98,6 @@ export class CommandManager {
       command.execute();
     }
 
-    // this.notifyChange();
     return true;
   }
 
@@ -124,12 +120,5 @@ export class CommandManager {
     this.cancelPendingCommand();
     this.history = [];
     this.currentIndex = -1;
-    // this.notifyChange();
   }
-
-  //   private notifyChange(): void {
-  //     // Emit events or update stores as needed
-  //     useHistoryStore.getState().setCanUndo(this.canUndo());
-  //     useHistoryStore.getState().setCanRedo(this.canRedo());
-  //   }
 }
