@@ -7,7 +7,7 @@ import {
   useEffect,
 } from "react";
 import { Circle } from "react-konva";
-import { useSettingsStore } from "@/stores/settingsStore";
+import { useUserStore } from "@/stores/userStore";
 
 export type PresenceDotHandle = {
   setPos: (p: Point) => void;
@@ -21,7 +21,7 @@ interface PresenceDotProps {
 
 const PresenceDot = forwardRef<PresenceDotHandle, PresenceDotProps>(
   function PresenceDot({ radius = 5, visible = true }, ref) {
-    const userColor = useSettingsStore((state) => state.userColor);
+    const userColor = useUserStore((state) => state.userColor);
     const [pos, setPosState] = useState<Point | null>({ x: 0, y: 0 });
 
     const latestPosRef = useRef<Point | null>(pos);

@@ -16,11 +16,6 @@ export type SettingsState = {
   // General settings
   showGrid: boolean;
 
-  // User Presence;
-  userId: string;
-  userName: string;
-  userColor: string;
-
   // Actions
   setColor: (c: string) => void;
   setStrokeWidth: (n: number) => void;
@@ -28,9 +23,7 @@ export type SettingsState = {
   setLineCap: (cap: LineCap) => void;
   setLineJoin: (join: LineJoin) => void;
   setShowGrid: (s: boolean) => void;
-  setUserId: (id: string) => void;
-  setUserName: (name: string) => void;
-  setUserColor: (color: string) => void;
+
   reset: () => void;
 };
 
@@ -41,10 +34,6 @@ const initialSettings = {
   lineCap: "round",
   lineJoin: "miter",
   showGrid: false,
-  userId: Math.random().toString(36).substring(2, 15),
-  userName: `User_${Math.random().toString(36).substring(2, 15)}`,
-  userColor:
-    "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0"),
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -59,9 +48,6 @@ export const useSettingsStore = create<SettingsState>()(
     setLineCap: (cap: LineCap) => set(() => ({ lineCap: cap })),
     setLineJoin: (join: LineJoin) => set(() => ({ lineJoin: join })),
     setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
-    setUserId: (id: string) => set(() => ({ userId: id })),
-    setUserName: (name: string) => set(() => ({ userName: name })),
-    setUserColor: (color: string) => set(() => ({ userColor: color })),
     reset: () => set(() => ({ ...initialSettings })),
   })
   //   {

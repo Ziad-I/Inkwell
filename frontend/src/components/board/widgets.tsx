@@ -3,6 +3,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Grid3X3, Minus, Moon, Plus, Sun } from "lucide-react";
 import { LINE_CAPS, PRESET_COLORS } from "@/lib/constants";
+import { useUserStore } from "@/stores/userStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 
@@ -169,9 +170,9 @@ export function GeneralSettings() {
 }
 
 export function PresenceSettings() {
-  const userName = useSettingsStore((s) => s.userName);
-  const userColor = useSettingsStore((s) => s.userColor);
-  const userId = useSettingsStore((s) => s.userId);
+  const userName = useUserStore((s) => s.userName);
+  const userColor = useUserStore((s) => s.userColor);
+  const userId = useUserStore((s) => s.userId);
 
   return (
     <div className="flex flex-col gap-3 w-[200px]">
