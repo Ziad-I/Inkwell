@@ -108,9 +108,9 @@ function InfiniteCanvas({
     
     // Throttle cursor position state updates to max 60fps (16ms)
     const now = performance.now();
-    if (now - lastCursorUpdateRef.current > 16) {
-      setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
+    if (now - lastCursorUpdateRef.current >= 16) {
       lastCursorUpdateRef.current = now;
+      setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
     }
 
     if (spaceRef.current) {

@@ -150,24 +150,15 @@ export default function useKeyBindings(
     return { downMap, upMap };
   }, [bindings]);
 
-  // Store maps in refs so effect handlers can access the latest version
-  const downMapRef = useRef(downMap);
-  const upMapRef = useRef(upMap);
-  downMapRef.current = downMap;
-  upMapRef.current = upMap;
-
   useEffect(() => {
     if (!target) return;
 
     const onKeyDown = (evt: Event) => {
       const e = evt as KeyboardEvent;
 
-      // run downMapRef -> note these entries were created as 'down' entries
-      const map = downMapRef.current;
+      // run downMap -> note these entries were created as 'down' entries
       // For down map, the entry.binding might be a function (treated as down) or object with .down
       // We need to run function or .down.
-      // Slightly adapt runMapHandlers: here we need to extract 'down' from object entries.
-      // We'll implement inline for correctness:
 
       if (ignoreInputs) {
         const targ = e.target && (e.target as HTMLElement);
@@ -177,7 +168,7 @@ export default function useKeyBindings(
 
       const { exact, modifiersOnly } = signatureFromEvent(e);
 
-      let bucket = map.get(exact);
+      let bucket = downMap.get(exact);
       if (bucket && bucket.length) {
         const entry = bucket[0];
         const binding = entry.binding;
@@ -195,7 +186,7 @@ export default function useKeyBindings(
         }
       }
 
-      bucket = map.get(modifiersOnly);
+      bucket = downMap.get(modifiersOnly);
       if (bucket && bucket.length) {
         const entry = bucket[0];
         const binding = entry.binding;
@@ -221,10 +212,9 @@ export default function useKeyBindings(
         if (targ && isTypingTarget(targ)) return;
       }
 
-      const map = upMapRef.current;
       const { exact, modifiersOnly } = signatureFromEvent(e);
 
-      let bucket = map.get(exact);
+      let bucket = upMap.get(exact);
       if (bucket && bucket.length) {
         const entry = bucket[0];
         const binding = entry.binding;
@@ -242,7 +232,7 @@ export default function useKeyBindings(
         }
       }
 
-      bucket = map.get(modifiersOnly);
+      bucket = upMap.get(modifiersOnly);
       if (bucket && bucket.length) {
         const entry = bucket[0];
         const binding = entry.binding;
@@ -277,5 +267,5 @@ export default function useKeyBindings(
         onKeyUp as EventListener
       );
     };
-  }, [target, ignoreInputs, preventDefault, allowRepeat]);
+  }, [target, ignoreInputs, preventDefault, allowRepeat, downMap, upMap]);
 }

@@ -78,14 +78,9 @@ export class BrushTool extends BaseTool {
       }
     }
 
-    // Build result from kept indices
-    const result: Point[] = [];
-    for (let i = 0; i < points.length; i++) {
-      if (keep.has(i)) {
-        result.push(points[i]);
-      }
-    }
-    return result;
+    // Build result from kept indices (sorted)
+    const keptIndices = Array.from(keep).sort((a, b) => a - b);
+    return keptIndices.map((i) => points[i]);
   }
 
   private chaikin(points: Point[]): Point[] {
