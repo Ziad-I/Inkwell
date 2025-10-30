@@ -5,16 +5,11 @@ import Konva from "konva";
 export class StrokeCommand extends BaseCommand {
   private node: Konva.Line | null = null;
   private stageOps: StageOperations;
-  private initialPoints: number[] = [];
 
   constructor(node: Konva.Line, stageOps: StageOperations) {
     super();
     this.node = node;
     this.stageOps = stageOps;
-
-    if (this.node.points().length > 0) {
-      this.initialPoints = [...this.node.points()];
-    }
   }
 
   execute(): void {

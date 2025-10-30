@@ -233,7 +233,7 @@ export class SelectionTool extends BaseTool {
     this.singleSelect();
   }
 
-  onPointerMove(event: KonvaEventObject<PointerEvent>) {
+  onPointerMove(_event: KonvaEventObject<PointerEvent>) {
     if (!this.isSelecting) return;
     this.updateSelection();
   }

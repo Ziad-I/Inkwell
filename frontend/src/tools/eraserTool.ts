@@ -28,7 +28,6 @@ export class EraserTool extends BaseTool {
   }
 
   private eraseAtPointer() {
-    this.ctx.stageOps.redrawDrawingLayer();
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
 
@@ -56,7 +55,7 @@ export class EraserTool extends BaseTool {
     // this.ctx.stageOps.getDrawingLayer()?.toggleHitCanvas();
   }
 
-  onPointerDown(event: KonvaEventObject<PointerEvent>) {
+  onPointerDown(_event: KonvaEventObject<PointerEvent>) {
     this.isErasing = true;
 
     this.currentEraseCommand = new EraseCommand(this.ctx.stageOps);
@@ -64,12 +63,12 @@ export class EraserTool extends BaseTool {
     this.eraseAtPointer();
   }
 
-  onPointerMove(event: KonvaEventObject<PointerEvent>) {
+  onPointerMove(_event: KonvaEventObject<PointerEvent>) {
     if (!this.isErasing) return;
     this.eraseAtPointer();
   }
 
-  onPointerUp(event: KonvaEventObject<PointerEvent>) {
+  onPointerUp(_event: KonvaEventObject<PointerEvent>) {
     this.isErasing = false;
     this.ctx.commandOps.commitPendingCommand();
   }

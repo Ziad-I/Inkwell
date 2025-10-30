@@ -14,7 +14,7 @@ import { useNavigate } from "react-router";
 export function ActionCards() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
-  const [isJoining, setIsJoining] = useState(false);
+  const [_isJoining, _setIsJoining] = useState(false);
 
   const handleCreateBoard = () => {
     const roomId = Math.random().toString(36).substring(2, 15);
@@ -72,9 +72,9 @@ export function ActionCards() {
               type="submit"
               variant="secondary"
               className="w-full"
-              disabled={!roomCode.trim() || isJoining}
+              disabled={!roomCode.trim() || _isJoining}
             >
-              {isJoining ? "Joining..." : "Join Board"}
+              {_isJoining ? "Joining..." : "Join Board"}
             </Button>
           </form>
         </CardContent>

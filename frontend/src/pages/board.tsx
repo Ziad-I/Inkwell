@@ -35,7 +35,7 @@ function BoardPage() {
 
     initCommandManager();
     initToolManager();
-  }, []);
+  }, [stageOperations, commandOperations]);
 
   return (
     <div>

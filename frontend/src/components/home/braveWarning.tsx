@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button"; // shadcn button
 import { X } from "lucide-react";
 
@@ -16,14 +16,14 @@ export function BraveShieldsNotice() {
     (async () => {
       try {
         // Preferred: Brave exposes navigator.brave.isBrave() returning a Promise<boolean>
-        const b = (navigator as any).brave;
+        const b = (navigator as { brave?: { isBrave?: () => Promise<boolean> } }).brave;
         if (b) {
           if (typeof b.isBrave === "function") {
             const isBrave = await b.isBrave();
             if (isBrave && mounted) setVisible(true);
           }
         }
-      } catch (err) {
+      } catch {
         // ignore - don't show banner if detection fails
       }
     })();

@@ -12,7 +12,7 @@ interface ToolButtonProps {
 }
 
 export default function ToolButton({
-  toolId,
+  toolId: _toolId,
   toolLabel,
   toolIcon: ToolIcon,
   isActive = false,

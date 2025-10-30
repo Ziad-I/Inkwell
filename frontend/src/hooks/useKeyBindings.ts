@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 type KeyHandler = (e: KeyboardEvent) => void;
 type Binding = KeyHandler | { down?: KeyHandler; up?: KeyHandler };
@@ -115,108 +115,49 @@ export default function useKeyBindings(
   const bindingsRef = useRef(bindings);
   bindingsRef.current = bindings;
 
-  // build lookup maps every render and store in refs so effect handlers see latest maps
+  // build lookup maps only when bindings change using useMemo
   type Entry = { raw: string; binding: Binding };
-  const downMapRef = useRef<Map<string, Entry[]>>(new Map());
-  const upMapRef = useRef<Map<string, Entry[]>>(new Map());
+  
+  const { downMap, upMap } = useMemo(() => {
+    const downMap = new Map<string, Entry[]>();
+    const upMap = new Map<string, Entry[]>();
+    
+    for (const raw of Object.keys(bindings)) {
+      const parsed = parseCombo(raw);
+      const sig = signatureFromParsed(parsed);
+      const entry: Entry = { raw, binding: bindings[raw] };
 
-  // rebuild maps from bindings
-  const downMap = new Map<string, Entry[]>();
-  const upMap = new Map<string, Entry[]>();
-  for (const raw of Object.keys(bindings)) {
-    const parsed = parseCombo(raw);
-    const sig = signatureFromParsed(parsed);
-    const entry: Entry = { raw, binding: bindings[raw] };
-
-    const b = bindings[raw];
-    if (typeof b === "function") {
-      // function -> 'down' handler
-      const list = downMap.get(sig) ?? [];
-      list.push(entry);
-      downMap.set(sig, list);
-    } else if (typeof b === "object") {
-      if (b.down) {
+      const b = bindings[raw];
+      if (typeof b === "function") {
+        // function -> 'down' handler
         const list = downMap.get(sig) ?? [];
         list.push(entry);
         downMap.set(sig, list);
-      }
-      if (b.up) {
-        const list = upMap.get(sig) ?? [];
-        list.push(entry);
-        upMap.set(sig, list);
+      } else if (typeof b === "object") {
+        if (b.down) {
+          const list = downMap.get(sig) ?? [];
+          list.push(entry);
+          downMap.set(sig, list);
+        }
+        if (b.up) {
+          const list = upMap.get(sig) ?? [];
+          list.push(entry);
+          upMap.set(sig, list);
+        }
       }
     }
-  }
-  // write into refs (cheap assignment)
+    
+    return { downMap, upMap };
+  }, [bindings]);
+
+  // Store maps in refs so effect handlers can access the latest version
+  const downMapRef = useRef(downMap);
+  const upMapRef = useRef(upMap);
   downMapRef.current = downMap;
   upMapRef.current = upMap;
 
   useEffect(() => {
     if (!target) return;
-
-    const runMapHandlers = (e: KeyboardEvent, map: Map<string, Entry[]>) => {
-      // ignore typing targets
-      if (ignoreInputs) {
-        const targ = e.target && (e.target as HTMLElement);
-        if (targ && isTypingTarget(targ)) return false;
-      }
-
-      if (!allowRepeat && e.repeat) return false;
-
-      const { exact, modifiersOnly } = signatureFromEvent(e);
-
-      // 1) exact signature (key + modifiers) match
-      let bucket = map.get(exact);
-      if (bucket && bucket.length) {
-        const entry = bucket[0]; // follow original semantics: first match wins
-        const binding = entry.binding;
-        let fn: KeyHandler | undefined;
-        if (typeof binding === "function") fn = binding;
-        else if (typeof binding === "object") {
-          // in down map we only stored entries that have down, in up map only up
-          fn =
-            (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
-            undefined;
-        }
-        // pick correct key for map type: for the downMap we'll call down handlers; for upMap the listener will use up handlers.
-        if (fn) {
-          if (preventDefault) e.preventDefault();
-          try {
-            fn(e);
-          } catch (err) {
-            console.error("Key handler error", err);
-          }
-          return true;
-        }
-      }
-
-      // 2) modifier-only signature (bindings that had no 'key' part)
-      bucket = map.get(modifiersOnly);
-      if (bucket && bucket.length) {
-        const entry = bucket[0];
-        const binding = entry.binding;
-        let fn: KeyHandler | undefined;
-        if (typeof binding === "function") {
-          // functions are treated as 'down' handlers in our design; only relevant when this is the downMap
-          fn = binding;
-        } else if (typeof binding === "object") {
-          fn =
-            (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
-            undefined;
-        }
-        if (fn) {
-          if (preventDefault) e.preventDefault();
-          try {
-            fn(e);
-          } catch (err) {
-            console.error("Key handler error", err);
-          }
-          return true;
-        }
-      }
-
-      return false;
-    };
 
     const onKeyDown = (evt: Event) => {
       const e = evt as KeyboardEvent;

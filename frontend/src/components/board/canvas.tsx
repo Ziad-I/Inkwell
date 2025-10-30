@@ -39,6 +39,7 @@ function InfiniteCanvas({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
+  const lastCursorUpdateRef = useRef(0);
 
   const dotRef = useRef<PresenceDotHandle>(null);
 
@@ -75,7 +76,7 @@ function InfiniteCanvas({
     } else {
       requestAnimationFrame(update);
     }
-  }, []);
+  }, [stageRef, stageOperations]);
 
   useEffect(() => {
     const onBlur = () => {
@@ -104,7 +105,13 @@ function InfiniteCanvas({
 
     const worldPos = stageOperations.screenToWorld(pointerPos.x, pointerPos.y);
     dotRef.current?.setPos(worldPos);
-    setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
+    
+    // Throttle cursor position state updates to max 60fps (16ms)
+    const now = performance.now();
+    if (now - lastCursorUpdateRef.current > 16) {
+      setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
+      lastCursorUpdateRef.current = now;
+    }
 
     if (spaceRef.current) {
       return;
@@ -135,7 +142,7 @@ function InfiniteCanvas({
       // Sync display after zoom
       syncDisplayState();
     },
-    [syncDisplayState]
+    [stageRef, stageOperations, syncDisplayState]
   );
 
   useGesture(
@@ -170,12 +177,12 @@ function InfiniteCanvas({
     {
       // Space: handle both down and up (no need to re-check inputs or call preventDefault if hook handles those)
       space: {
-        down: (e) => {
+        down: () => {
           spaceRef.current = true;
           const stage = stageRef.current;
           if (stage) stage.container().style.cursor = "grabbing";
         },
-        up: (e) => {
+        up: () => {
           spaceRef.current = false;
           const stage = stageRef.current;
           if (stage) {

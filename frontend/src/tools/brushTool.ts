@@ -48,27 +48,44 @@ export class BrushTool extends BaseTool {
   private rdp(points: Point[], epsilon: number): Point[] {
     if (points.length < 3) return points.slice();
 
-    let maxDist = 0;
-    let index = 0;
-    for (let i = 1; i < points.length - 1; i++) {
-      const d = this.perpendicularDistance(
-        points[i],
-        points[0],
-        points[points.length - 1]
-      );
-      if (d > maxDist) {
-        index = i;
-        maxDist = d;
+    // Iterative implementation using a stack to avoid deep recursion
+    const stack: { start: number; end: number }[] = [
+      { start: 0, end: points.length - 1 },
+    ];
+    const keep = new Set<number>([0, points.length - 1]);
+
+    while (stack.length > 0) {
+      const segment = stack.pop()!;
+      const { start, end } = segment;
+
+      if (end - start <= 1) continue;
+
+      let maxDist = 0;
+      let maxIndex = start;
+
+      for (let i = start + 1; i < end; i++) {
+        const d = this.perpendicularDistance(points[i], points[start], points[end]);
+        if (d > maxDist) {
+          maxIndex = i;
+          maxDist = d;
+        }
+      }
+
+      if (maxDist > epsilon) {
+        keep.add(maxIndex);
+        stack.push({ start, end: maxIndex });
+        stack.push({ start: maxIndex, end });
       }
     }
 
-    if (maxDist > epsilon) {
-      const left = this.rdp(points.slice(0, index + 1), epsilon);
-      const right = this.rdp(points.slice(index), epsilon);
-      return left.slice(0, -1).concat(right);
-    } else {
-      return [points[0], points[points.length - 1]];
+    // Build result from kept indices
+    const result: Point[] = [];
+    for (let i = 0; i < points.length; i++) {
+      if (keep.has(i)) {
+        result.push(points[i]);
+      }
     }
+    return result;
   }
 
   private chaikin(points: Point[]): Point[] {
@@ -136,7 +153,7 @@ export class BrushTool extends BaseTool {
     }
   }
 
-  onPointerDown(e: KonvaEventObject<PointerEvent>) {
+  onPointerDown(_e: KonvaEventObject<PointerEvent>) {
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
 
@@ -158,7 +175,7 @@ export class BrushTool extends BaseTool {
     // this.ctx.stageOps.redrawDrawingLayer();
   }
 
-  onPointerMove(e: KonvaEventObject<PointerEvent>) {
+  onPointerMove(_e: KonvaEventObject<PointerEvent>) {
     if (!this.isDrawing) return;
 
     const stage = this.ctx.stageOps.getStage();
@@ -186,7 +203,7 @@ export class BrushTool extends BaseTool {
     // this.ctx.stageOps.redrawDrawingLayer();
   }
 
-  onPointerUp(e: KonvaEventObject<PointerEvent>) {
+  onPointerUp(_e: KonvaEventObject<PointerEvent>) {
     if (!this.isDrawing || !this.line) return;
 
     const scale = this.ctx.stageOps.getScale();
