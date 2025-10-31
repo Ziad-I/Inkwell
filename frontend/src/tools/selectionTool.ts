@@ -264,6 +264,13 @@ export class SelectionTool extends BaseTool {
     this.removeTransformer();
     this.isSelecting = false;
     this.startPoint = null;
+    this.isTransforming = false;
+
+    if (this.transformCommandId && this.transformPayload) {
+      this.ctx.commandManager.finalizeCommand(this.transformCommandId);
+    }
+    this.transformPayload = null;
+    this.transformCommandId = null;
   }
 
   initPPayload() {

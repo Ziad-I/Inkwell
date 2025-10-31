@@ -47,7 +47,11 @@ export class TransformCommand extends BaseCommand {
   }
 
   canFinalize(): boolean {
-    return this.payload.transforms.length > 0;
+    if (!this.payload.transforms.length) return false;
+    for (const transform of this.payload.transforms) {
+      if (!transform.after || !transform.before) return false;
+    }
+    return true;
   }
 
   finalize(): void {
