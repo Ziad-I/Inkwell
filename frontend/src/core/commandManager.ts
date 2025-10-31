@@ -1,124 +1,142 @@
-import type { Command } from "@/types/command";
+import { CommandFactory } from "@/core/commandFactory";
+import type { StageOperations } from "@/types/common";
+import {
+  type CommandID,
+  type Command,
+  type CommandType,
+  type OperationPayload,
+} from "@/types/command";
+import type { BaseCommand } from "@/commands/baseCommand";
 
 export class CommandManager {
-  private history: Command[] = [];
-  private currentIndex = -1;
-  private maxHistorySize: number = 50;
-  private pendingCommand: Command | null = null;
+  private userId: string;
+  private stageOps: StageOperations;
+  // private networkOps: NetworkOperations;
+  private factory: CommandFactory;
 
-  // Start a new pending command
-  startCommand(command: Command): void {
-    // If there's already a pending command, commit it first
-    if (this.pendingCommand) {
-      this.commitPendingCommand();
+  // All commands by their ID
+  private commands = new Map<CommandID, Command>();
+  // Commands that have been successfully applied
+  private appliedCommands: Set<CommandID> = new Set();
+  // Commands that are in the process of being applied
+  private pendingCommands: Map<CommandID, BaseCommand> = new Map();
+
+  private undoStack: CommandID[] = [];
+  private redoStack: CommandID[] = [];
+
+  private MAX_UNDO_STACK_SIZE = 50;
+
+  constructor(
+    userId: string,
+    stageOps: StageOperations
+    // networkOps: NetworkOperations,
+    // factory: CommandFactory
+  ) {
+    this.userId = userId;
+    this.stageOps = stageOps;
+    // this.networkOps = networkOps;
+    this.factory = new CommandFactory();
+  }
+
+  public startCommand(type: CommandType, initialPayload: OperationPayload) {
+    const cmd = this.factory.createCommand(type, initialPayload, this.userId);
+    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
+
+    if (!cmdInstance) {
+      throw new Error(`Failed to create command instance for type: ${type}`);
     }
 
-    this.pendingCommand = command;
-    // Execute immediately to show visual feedback
-    command.execute();
+    this.commands.set(cmd.id, cmd);
+    this.pendingCommands.set(cmd.id, cmdInstance);
+
+    cmdInstance.apply();
+
+    // use networkOps to send command to server here...
+    // this.networkOps.sendCommand(cmd.id, cmdInstance.serialize());
+
+    return cmd.id;
   }
 
-  // Update the current pending command
-  updatePendingCommand(): void {
-    if (this.pendingCommand && this.pendingCommand.update) {
-      this.pendingCommand.update();
-    }
-  }
+  public updateCommand(
+    commandId: CommandID,
+    updatedPayload: Partial<OperationPayload>
+  ) {
+    const cmd = this.pendingCommands.get(commandId);
+    const cmdInstance = this.pendingCommands.get(commandId);
 
-  // Commit the pending command to history
-  commitPendingCommand(): boolean {
-    if (!this.pendingCommand) return false;
-
-    if (!this.pendingCommand.canCommit || !this.pendingCommand.canCommit()) {
-      // Cancel the command
-      this.cancelPendingCommand();
-      return false;
-    }
-
-    // Remove any commands after current index
-    this.history.splice(this.currentIndex + 1);
-
-    // Mark as committed and add to history
-    if (this.pendingCommand.commit) {
-      this.pendingCommand.commit();
+    if (!cmd || !cmdInstance) {
+      throw new Error(`No pending command found with ID: ${commandId}`);
     }
 
-    this.history.push(this.pendingCommand);
-    this.currentIndex++;
+    cmdInstance.update(updatedPayload);
+    this.commands.set(commandId, cmdInstance.serialize());
 
-    // Limit history size
-    if (this.history.length > this.maxHistorySize) {
-      const removed = this.history.shift();
-      if (removed) removed.destroy?.();
-      this.currentIndex--;
+    console.log("Updated command:", cmdInstance.serialize());
+    // use networkOps to send command update to server here...
+    // this.networkOps.updateCommand(commandId, cmdInstance.serialize());
+  }
+
+  public finalizeCommand(commandId: CommandID) {
+    const cmd = this.commands.get(commandId);
+    const cmdInstance = this.pendingCommands.get(commandId);
+
+    if (!cmd || !cmdInstance) {
+      throw new Error(`No pending command found with ID: ${commandId}`);
     }
 
-    this.pendingCommand = null;
-    return true;
-  }
-
-  // Cancel the pending command
-  cancelPendingCommand(): void {
-    if (this.pendingCommand) {
-      this.pendingCommand.undo();
-      this.pendingCommand = null;
-    }
-  }
-
-  execute(command: Command): void {
-    this.startCommand(command);
-    this.commitPendingCommand();
-  }
-
-  undo(): boolean {
-    // First, cancel any pending command
-    if (this.pendingCommand) {
-      this.cancelPendingCommand();
-      return true;
+    if (!cmdInstance.canFinalize()) {
+      throw new Error(`Command with ID: ${commandId} cannot be finalized yet`);
     }
 
-    if (!this.canUndo()) return false;
+    cmdInstance.finalize();
+    this.commands.set(commandId, cmdInstance.serialize());
 
-    const command = this.history[this.currentIndex];
-    command.undo();
-    this.currentIndex--;
+    this.appliedCommands.add(commandId);
+    this.pendingCommands.delete(commandId);
 
-    return true;
-  }
-
-  redo(): boolean {
-    if (!this.canRedo()) return false;
-
-    this.currentIndex++;
-    const command = this.history[this.currentIndex];
-
-    if (command.redo) {
-      command.redo();
-    } else {
-      command.execute();
+    this.undoStack.push(cmd.id);
+    this.redoStack = []; // Clear redo stack on new operation
+    if (this.undoStack.length > this.MAX_UNDO_STACK_SIZE) {
+      this.undoStack.shift();
     }
 
-    return true;
+    // use networkOps to send command finalization to server here...
+    // this.networkOps.finalizeCommand(commandId, cmdInstance.serialize());
   }
 
-  canUndo(): boolean {
-    return this.pendingCommand !== null || this.currentIndex >= 0;
+  public cancelCommand(commandId: CommandID) {
+    const cmd = this.commands.get(commandId);
+    const cmdInstance = this.pendingCommands.get(commandId);
+
+    if (!cmd || !cmdInstance) {
+      throw new Error(`No pending command found with ID: ${commandId}`);
+    }
+
+    cmdInstance.undo();
+    cmdInstance.destroy();
+
+    this.commands.delete(commandId);
+    this.pendingCommands.delete(commandId);
+
+    // use networkOps to send command cancellation to server here...
+    // this.networkOps.cancelCommand(commandId);
   }
 
-  canRedo(): boolean {
-    return (
-      this.pendingCommand === null &&
-      this.currentIndex < this.history.length - 1
-    );
+  public undo() {
+    throw new Error("Undo not implemented yet");
   }
 
-  hasPendingCommand(): boolean {
-    return this.pendingCommand !== null;
+  public redo() {
+    throw new Error("Redo not implemented yet");
   }
 
-  clear(): void {
-    this.cancelPendingCommand();
-    this.history = [];
-    this.currentIndex = -1;
+  public getUndoStack(): CommandID[] {
+    return [...this.undoStack];
+  }
+  public getRedoStack(): CommandID[] {
+    return [...this.redoStack];
+  }
+  public getOperation(id: CommandID): Command | undefined {
+    return this.commands.get(id);
   }
 }

@@ -1,48 +1,67 @@
-import { BaseCommand } from "@/commands/baseCommand";
 import type { StageOperations } from "@/types/common";
-import type Konva from "konva";
+import type {
+  EraseCommand as EraseCommandData,
+  ErasePayload,
+} from "@/types/command";
+import { BaseCommand } from "@/commands/baseCommand";
 
 export class EraseCommand extends BaseCommand {
-  private stageOps: StageOperations;
-  private erasedNodes: Map<Konva.Node, number> = new Map();
-
-  constructor(stageOps: StageOperations) {
-    super();
-    this.stageOps = stageOps;
+  private cmd: EraseCommandData;
+  constructor(cmd: EraseCommandData, stageOps: StageOperations) {
+    super(stageOps);
+    this.cmd = cmd;
   }
 
-  execute(): void {
-    this.erasedNodes.forEach((_, node) => {
-      this.stageOps.removeNode(node, false);
-    });
-    this.stageOps.redrawDrawingLayer();
+  private get payload(): ErasePayload {
+    return this.cmd.payload;
+  }
+
+  eraseNodes(): void {
+    for (const nodeId of this.payload.erasedNodes) {
+      this.stageOps.removeNodeById(nodeId, false);
+    }
+  }
+
+  apply(): void {
+    this.eraseNodes();
+  }
+
+  update(opdate: Partial<ErasePayload>): void {
+    this.cmd.payload = { ...this.cmd.payload, ...opdate };
+    this.eraseNodes();
+  }
+
+  redo(): void {
+    this.apply();
   }
 
   undo(): void {
-    this.erasedNodes.forEach((_, node) => {
-      this.stageOps.addDrawingNode(node);
-    });
-    this.stageOps.redrawDrawingLayer();
+    for (const nodeId of this.payload.erasedNodes) {
+      const node = this.stageOps.getNodeById(nodeId);
+      if (node) {
+        this.stageOps.addDrawingNode(node);
+      }
+    }
   }
 
   destroy(): void {
-    this.erasedNodes.forEach((_, node) => {
-      if (!node.getParent()) {
-        this.stageOps.removeNode(node, true);
+    for (const nodeId of this.payload.erasedNodes) {
+      const node = this.stageOps.getNodeById(nodeId);
+      if (node && !node.getParent()) {
+        this.stageOps.removeNodeById(nodeId, true);
       }
-    });
-    this.erasedNodes.clear();
-  }
-
-  canCommit(): boolean {
-    return this.erasedNodes.size > 0;
-  }
-
-  addErasedNode(node: Konva.Node): void {
-    if (this.isPending && !this.erasedNodes.has(node)) {
-      this.erasedNodes.set(node, this.erasedNodes.size);
     }
-    this.stageOps.removeNode(node, false);
-    this.stageOps.redrawDrawingLayer();
+  }
+
+  canFinalize(): boolean {
+    return this.payload.erasedNodes.length > 0;
+  }
+
+  finalize(): void {
+    this.finalized = true;
+  }
+
+  serialize(): EraseCommandData {
+    return this.cmd;
   }
 }

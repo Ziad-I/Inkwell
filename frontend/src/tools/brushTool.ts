@@ -1,10 +1,10 @@
-import Konva from "konva";
 import type { Point } from "@/types/common";
-import { StrokeCommand } from "@/commands/strokeCommand";
+import { type CommandID, type StrokePayload } from "@/types/command";
 import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
 import { Brush } from "lucide-react";
+import { generateId } from "@/lib/utils";
 
 export class BrushTool extends BaseTool {
   meta = {
@@ -15,10 +15,11 @@ export class BrushTool extends BaseTool {
     exclusive: true,
   };
 
-  private currentDrawCommand: StrokeCommand | null = null;
+  private strokeCommandId: CommandID | null = null;
+  private strokeCommandPayload: StrokePayload | null = null;
+
   private isDrawing = false;
   private pts: Point[] = [];
-  private line: Konva.Line | null = null;
 
   private readonly MIN_POINT_DISTANCE = 2; // px: Minimum distance between points to consider them distinct
   private readonly RDP_EPSILON = 1; // px: Ramer-Douglas-Peucker simplification threshold
@@ -96,44 +97,32 @@ export class BrushTool extends BaseTool {
     return pts;
   }
 
-  private createLine(): Konva.Line {
-    const { strokeWidth, color, lineCap, lineJoin, opacity } =
-      this.getSettings();
-
-    const line = new Konva.Line({
-      id: crypto.randomUUID(),
-      points: this.flattenPoints(this.pts),
-      stroke: color,
-      opacity: opacity,
-      strokeWidth: strokeWidth,
-      lineCap: (lineCap as CanvasLineCap) ?? "round",
-      lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
-      tension: 0.45,
-      listening: true,
-      hitStrokeWidth: (strokeWidth ?? 1) + 12,
-      // strokeScaleEnabled: false,
-
-      // optimizations
-      perfectDrawEnabled: false,
-      shadowForStrokeEnabled: false,
-    });
-    line.setAttr("erasable", true);
-    line.setAttr("selectable", true);
-
-    return line;
-  }
-
   onActivate() {}
 
   onDeactivate() {
     // Cancel any pending operation when tool is deactivated
-    if (this.isDrawing && this.currentDrawCommand) {
-      this.ctx.commandOps.cancelPendingCommand();
+    if (this.isDrawing && this.strokeCommandId) {
+      this.ctx.commandManager.cancelCommand(this.strokeCommandId);
       this.isDrawing = false;
-      this.line = null;
       this.pts = [];
-      this.currentDrawCommand = null;
+      this.strokeCommandId = null;
+      this.strokeCommandPayload = null;
     }
+  }
+
+  initPayload() {
+    const { strokeWidth, color, lineCap, lineJoin, opacity } =
+      this.getSettings();
+
+    this.strokeCommandPayload = {
+      nodeId: generateId(),
+      points: this.flattenPoints(this.pts),
+      color: color,
+      opacity: opacity,
+      strokeWidth: strokeWidth,
+      lineCap: (lineCap as CanvasLineCap) ?? "round",
+      lineJoin: (lineJoin as CanvasLineJoin) ?? "round",
+    } as StrokePayload;
   }
 
   onPointerDown(e: KonvaEventObject<PointerEvent>) {
@@ -150,19 +139,19 @@ export class BrushTool extends BaseTool {
     const layer = this.ctx.stageOps.getDrawingLayer();
     if (!layer) return;
 
-    this.line = this.createLine();
-    this.currentDrawCommand = new StrokeCommand(this.line, this.ctx.stageOps);
-    this.ctx.commandOps.startCommand(this.currentDrawCommand);
+    this.initPayload();
 
-    // this.ctx.stageOps.addDrawingNode(this.line);
-    // this.ctx.stageOps.redrawDrawingLayer();
+    this.strokeCommandId = this.ctx.commandManager.startCommand(
+      "stroke",
+      this.strokeCommandPayload!
+    );
   }
 
   onPointerMove(e: KonvaEventObject<PointerEvent>) {
-    if (!this.isDrawing) return;
+    if (!this.isDrawing || !this.strokeCommandId) return;
 
     const stage = this.ctx.stageOps.getStage();
-    if (!stage || !this.line) return;
+    if (!stage) return;
 
     const p = stage.getPointerPosition();
     if (!p) return;
@@ -179,29 +168,27 @@ export class BrushTool extends BaseTool {
     if (screenDist < this.MIN_POINT_DISTANCE) return; // skip close points
 
     this.pts.push(wp);
-    this.currentDrawCommand?.updatePoints(this.flattenPoints(this.pts));
-    this.ctx.commandOps.updatePendingCommand();
-
-    // this.line.points(this.flattenPoints(this.pts));
-    // this.ctx.stageOps.redrawDrawingLayer();
+    this.ctx.commandManager.updateCommand(this.strokeCommandId!, {
+      points: this.flattenPoints(this.pts),
+    });
   }
 
   onPointerUp(e: KonvaEventObject<PointerEvent>) {
-    if (!this.isDrawing || !this.line) return;
+    if (!this.isDrawing || !this.strokeCommandId) return;
 
     const scale = this.ctx.stageOps.getScale();
     const simplifiedPoints = this.rdp(this.pts, this.RDP_EPSILON / scale);
     const finalPoints = this.chaikin(simplifiedPoints);
 
-    // this.line.points(this.flattenPoints(finalPoints));
-    // this.ctx.stageOps.redrawDrawingLayer();
+    this.ctx.commandManager.updateCommand(this.strokeCommandId!, {
+      points: this.flattenPoints(finalPoints),
+    });
 
-    this.currentDrawCommand?.updatePoints(this.flattenPoints(finalPoints));
-    this.ctx.commandOps.commitPendingCommand();
+    this.ctx.commandManager.finalizeCommand(this.strokeCommandId!);
 
     this.isDrawing = false;
-    this.line = null;
     this.pts = [];
-    this.currentDrawCommand = null;
+    this.strokeCommandId = null;
+    this.strokeCommandPayload = null;
   }
 }

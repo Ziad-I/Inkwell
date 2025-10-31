@@ -4,7 +4,7 @@ import { Tools, type ToolContext } from "@/types/tool";
 import type { Point } from "@/types/common";
 import { BaseTool } from "./baseTool";
 import { Move } from "lucide-react";
-import { SelectCommand } from "@/commands/selectCommand";
+import type { CommandID, TransformPayload, NodeState } from "@/types/command";
 
 export class SelectionTool extends BaseTool {
   meta = {
@@ -16,7 +16,11 @@ export class SelectionTool extends BaseTool {
   };
 
   private readonly MIN_DRAG = 4; // px: minimum drag distance
-  private currentSelectCommand: SelectCommand | null = null;
+
+  private transformCommandId: CommandID | null = null;
+  private transformPayload: TransformPayload | null = null;
+
+  // private currentSelectCommand: TransformCommand | null = null;
   private isSelecting = false;
   private isTransforming = false;
   private startPoint: Point | null = null;
@@ -39,17 +43,46 @@ export class SelectionTool extends BaseTool {
     });
 
     this.transformer.on("transformstart dragstart", () => {
-      this.currentSelectCommand = new SelectCommand(
-        this.ctx.stageOps,
-        this.transformer!.nodes()
+      if (this.transformPayload || this.transformCommandId) return;
+
+      this.initPPayload();
+      this.transformCommandId = this.ctx.commandManager.startCommand(
+        "transform",
+        this.transformPayload!
       );
-      this.currentSelectCommand.setInitialState(this.transformer!.nodes());
-      this.ctx.commandOps.startCommand(this.currentSelectCommand);
+
+      // this.currentSelectCommand = new TransformCommand(
+      //   this.ctx.stageOps,
+      //   this.transformer!.nodes()
+      // );
+      // this.currentSelectCommand.setInitialState(this.transformer!.nodes());
+      // this.ctx.commandManager.startCommand(this.currentSelectCommand);
     });
 
     this.transformer.on("transformend dragend", () => {
-      this.currentSelectCommand?.setFinalState(this.transformer!.nodes());
-      this.ctx.commandOps.commitPendingCommand();
+      if (!this.transformPayload || !this.transformCommandId) return;
+
+      // for (const node of this.transformer!.nodes()) {
+      //   const afterState = this.getNodeState(node);
+      //   const transform = this.transformPayload.transforms.find(
+      //     (t) => t.nodeId === node.id()
+      //   );
+      //   if (transform) {
+      //     transform.after = afterState;
+      //   }
+      // }
+
+      for (const transform of this.transformPayload.transforms) {
+        const node = this.ctx.stageOps.getNodeById(transform.nodeId);
+        if (!node) continue;
+        const afterState = this.getNodeState(node);
+        transform.after = afterState;
+      }
+
+      this.ctx.commandManager.updateCommand(
+        this.transformCommandId,
+        this.transformPayload
+      );
     });
 
     this.ctx.stageOps.addDrawingNode(this.transformer);
@@ -61,6 +94,22 @@ export class SelectionTool extends BaseTool {
     this.ctx.stageOps.removeNode(this.transformer, true);
     this.transformer.off("transformstart transformend dragstart dragend");
     this.transformer = null;
+  }
+
+  private getNodeState(node: Konva.Node): NodeState {
+    return {
+      width: node.width(),
+      height: node.height(),
+      x: node.x(),
+      y: node.y(),
+      scaleX: node.scaleX(),
+      scaleY: node.scaleY(),
+      rotation: node.rotation(),
+      skewX: node.skewX(),
+      skewY: node.skewY(),
+      offsetX: node.offsetX(),
+      offsetY: node.offsetY(),
+    };
   }
 
   private createSelectionRect(x: number, y: number) {
@@ -199,6 +248,9 @@ export class SelectionTool extends BaseTool {
     if (this.transformer) {
       this.transformer.nodes([]);
       this.isTransforming = false;
+      this.ctx.commandManager.finalizeCommand(this.transformCommandId!);
+      this.transformPayload = null;
+      this.transformCommandId = null;
     }
     this.ctx.stageOps.redrawDrawingLayer();
   }
@@ -212,6 +264,19 @@ export class SelectionTool extends BaseTool {
     this.removeTransformer();
     this.isSelecting = false;
     this.startPoint = null;
+  }
+
+  initPPayload() {
+    this.transformPayload = { transforms: [] } as TransformPayload;
+
+    for (const node of this.transformer!.nodes()) {
+      const beforeState = this.getNodeState(node);
+      this.transformPayload!.transforms.push({
+        nodeId: node.id(),
+        before: beforeState,
+        after: {} as NodeState, // to be filled on transformend
+      });
+    }
   }
 
   onPointerDown(event: KonvaEventObject<PointerEvent>) {

@@ -1,4 +1,5 @@
-import type { CommandOperations, StageOperations } from "@/types/common";
+import type { StageOperations } from "@/types/common";
+import type { CommandManager } from "@/core/commandManager";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { LucideProps } from "lucide-react";
 
@@ -28,7 +29,7 @@ export interface Tool {
 
 export interface ToolContext {
   stageOps: StageOperations;
-  commandOps: CommandOperations;
+  commandManager: CommandManager;
 }
 
 export type ToolLoader = {

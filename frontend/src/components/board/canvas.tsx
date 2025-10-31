@@ -15,13 +15,14 @@ import {
   DEFAULT_VIEWPOINT_POS,
   ZOOM_FACTOR,
 } from "@/lib/constants";
-import type { CommandOperations, Point, StageOperations } from "@/types/common";
+import type { Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
+import type { CommandManager } from "@/core/commandManager";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
-  commandOperations: CommandOperations;
   toolManagerRef: React.RefObject<ToolManager | null>;
+  commandManagerRef: React.RefObject<CommandManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
   overlayLayerRef: React.RefObject<Konva.Layer | null>;
@@ -29,8 +30,8 @@ interface InfiniteCanvasProps {
 
 function InfiniteCanvas({
   stageOperations,
-  commandOperations,
   toolManagerRef,
+  commandManagerRef,
   stageRef,
   drawingLayerRef,
   overlayLayerRef,
@@ -170,12 +171,12 @@ function InfiniteCanvas({
     {
       // Space: handle both down and up (no need to re-check inputs or call preventDefault if hook handles those)
       space: {
-        down: (e) => {
+        down: () => {
           spaceRef.current = true;
           const stage = stageRef.current;
           if (stage) stage.container().style.cursor = "grabbing";
         },
-        up: (e) => {
+        up: () => {
           spaceRef.current = false;
           const stage = stageRef.current;
           if (stage) {
@@ -192,10 +193,10 @@ function InfiniteCanvas({
       d: () => drawingLayerRef.current?.toggleHitCanvas(),
 
       // Undo / redo (include shift variants)
-      "ctrl+z": () => commandOperations.undo(),
-      "meta+z": () => commandOperations.undo(),
-      "ctrl+y": () => commandOperations.redo(),
-      "meta+y": () => commandOperations.redo(),
+      "ctrl+z": () => commandManagerRef.current?.undo(),
+      "meta+z": () => commandManagerRef.current?.undo(),
+      "ctrl+y": () => commandManagerRef.current?.redo(),
+      "meta+y": () => commandManagerRef.current?.redo(),
     },
     {
       allowRepeat: false,

@@ -92,12 +92,22 @@ export function useStageOperations() {
       };
     },
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    createNode<CTOR extends new (...args: any[]) => any>(
+      Ctor: CTOR,
+      ...args: ConstructorParameters<CTOR>
+    ): InstanceType<CTOR> {
+      return new Ctor(...args) as InstanceType<CTOR>;
+    },
+
     addDrawingNode: (node: Konva.Node) => {
       drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+      stageOperations.current.redrawDrawingLayer();
     },
 
     addOverlayNode: (node: Konva.Node) => {
       overlayLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+      stageOperations.current.redrawOverlayLayer();
     },
 
     removeNode: (node: Konva.Node, destroy: boolean = true) => {
@@ -107,6 +117,21 @@ export function useStageOperations() {
       } else {
         node.remove();
       }
+      stageOperations.current.redrawDrawingLayer();
+    },
+
+    removeNodeById: (id: string, destroy: boolean = true) => {
+      const node = stageOperations.current.getNodeById(id);
+      if (node) {
+        stageOperations.current.removeNode(node, destroy);
+      }
+    },
+
+    getNodeById: (id: string): Konva.Node | null => {
+      const stage = stageRef.current;
+      if (!stage) return null;
+
+      return stage.findOne(`#${id}`) || null;
     },
 
     redrawDrawingLayer: () => {

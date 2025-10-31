@@ -2,8 +2,8 @@ import Konva from "konva";
 import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { BaseTool } from "./baseTool";
-import { EraseCommand } from "@/commands/eraseCommand";
 import { Eraser as EraserIcon } from "lucide-react";
+import type { CommandID, ErasePayload } from "@/types/command";
 
 export class EraserTool extends BaseTool {
   meta = {
@@ -14,7 +14,9 @@ export class EraserTool extends BaseTool {
     exclusive: true,
   };
 
-  private currentEraseCommand: EraseCommand | null = null;
+  private eraseCommandId: CommandID | null = null;
+  private eraseCommandPayload: ErasePayload | null = null;
+  private erasedNodeIds: string[] = [];
   private isErasing = false;
 
   constructor(ctx: ToolContext) {
@@ -40,9 +42,10 @@ export class EraserTool extends BaseTool {
 
     const shape = layer.getIntersection(pointer);
     if (shape && this.isErasableShape(shape)) {
-      this.currentEraseCommand?.addErasedNode(shape);
-      // this.ctx.stageOps.removeNode(shape!, true);
-      // this.ctx.stageOps.redrawDrawingLayer();
+      this.erasedNodeIds.push(shape.id());
+      this.ctx.commandManager.updateCommand(this.eraseCommandId!, {
+        erasedNodes: this.erasedNodeIds,
+      });
     }
   }
 
@@ -52,15 +55,29 @@ export class EraserTool extends BaseTool {
   }
 
   onDeactivate(): void {
-    this.isErasing = false;
-    // this.ctx.stageOps.getDrawingLayer()?.toggleHitCanvas();
+    if (this.isErasing && this.eraseCommandId) {
+      this.ctx.commandManager.cancelCommand(this.eraseCommandId);
+      this.erasedNodeIds = [];
+      this.isErasing = false;
+      this.eraseCommandId = null;
+      this.eraseCommandPayload = null;
+    }
+  }
+
+  initPayload() {
+    this.eraseCommandPayload = {
+      erasedNodes: this.erasedNodeIds,
+    } as ErasePayload;
   }
 
   onPointerDown(event: KonvaEventObject<PointerEvent>) {
     this.isErasing = true;
+    this.initPayload();
+    this.eraseCommandId = this.ctx.commandManager.startCommand(
+      "erase",
+      this.eraseCommandPayload!
+    );
 
-    this.currentEraseCommand = new EraseCommand(this.ctx.stageOps);
-    this.ctx.commandOps.startCommand(this.currentEraseCommand);
     this.eraseAtPointer();
   }
 
@@ -71,6 +88,6 @@ export class EraserTool extends BaseTool {
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
     this.isErasing = false;
-    this.ctx.commandOps.commitPendingCommand();
+    this.ctx.commandManager.finalizeCommand(this.eraseCommandId!);
   }
 }

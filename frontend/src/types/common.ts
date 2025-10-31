@@ -1,5 +1,4 @@
 import type Konva from "konva";
-import type { Command } from "@/types/command";
 
 export interface Point {
   x: number;
@@ -17,22 +16,18 @@ export interface StageOperations {
   screenToWorld: (sx: number, sy: number) => Point;
   worldToScreen: (wx: number, wy: number) => Point;
   translate: (dx: number, dy: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createNode<CTOR extends new (...args: any[]) => any>(
+    Ctor: CTOR,
+    ...args: ConstructorParameters<CTOR>
+  ): InstanceType<CTOR>;
+  getNodeById: (id: string) => Konva.Node | null;
   addDrawingNode: (node: Konva.Node) => void;
   addOverlayNode: (node: Konva.Node) => void;
   removeNode: (node: Konva.Node, destroy: boolean) => void;
+  removeNodeById: (id: string, destroy: boolean) => void;
   redrawDrawingLayer: () => void;
   redrawOverlayLayer: () => void;
-}
-
-export interface CommandOperations {
-  startCommand(command: Command): void;
-  updatePendingCommand(): void;
-  commitPendingCommand(): boolean;
-  cancelPendingCommand(): void;
-  hasPendingCommand(): boolean;
-  undo(): boolean;
-  redo(): boolean;
-  clear(): void;
 }
 
 export interface Settings {

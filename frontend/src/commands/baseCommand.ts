@@ -1,32 +1,25 @@
-import type { Command } from "@/types/command";
+import type { Command, OperationPayload } from "@/types/command";
+import type { StageOperations } from "@/types/common";
 
-export abstract class BaseCommand implements Command {
-  protected isPending = true;
+export abstract class BaseCommand {
+  protected stageOps: StageOperations;
+  protected finalized: boolean = false;
 
-  abstract execute(): void;
+  constructor(stageOps: StageOperations) {
+    this.stageOps = stageOps;
+  }
+
+  abstract apply(): void;
   abstract undo(): void;
+  abstract redo(): void;
   abstract destroy(): void;
+  abstract update(opdate: Partial<OperationPayload>): void;
+  abstract finalize(): void;
+  abstract canFinalize(): boolean;
 
-  redo(): void {
-    this.execute();
-  }
+  abstract serialize(): Command;
 
-  update(): void {
-    // Default implementation - just execute to update visuals
-    if (this.isPending) {
-      this.execute();
-    }
-  }
-
-  canCommit(): boolean {
-    return true;
-  }
-
-  commit(): void {
-    this.isPending = false;
-  }
-
-  get isCommitted(): boolean {
-    return !this.isPending;
+  get isFinalized(): boolean {
+    return this.finalized;
   }
 }

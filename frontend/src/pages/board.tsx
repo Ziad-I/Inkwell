@@ -5,36 +5,33 @@ import { useStageOperations } from "@/hooks/useStageOperations";
 import { ToolManager } from "@/core/toolManager";
 import type { ToolContext } from "@/types/tool";
 import { CommandManager } from "@/core/commandManager";
-import { useCommandOperations } from "@/hooks/useHistoryOperations";
+import { useUserStore } from "@/stores/userStore";
 
 function BoardPage() {
+  const userId = useUserStore((s) => s.userId);
+
   const toolManagerRef = useRef<ToolManager | null>(null);
   const commandManagerRef = useRef<CommandManager | null>(null);
+
   const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
     useStageOperations();
-  const { commandOperations: commandOperations } =
-    useCommandOperations(commandManagerRef);
 
   useEffect(() => {
-    async function initCommandManager() {
-      if (commandManagerRef.current) return;
-      commandManagerRef.current = new CommandManager();
-    }
+    async function initManagers() {
+      commandManagerRef.current = new CommandManager(userId, stageOperations);
 
-    async function initToolManager() {
-      if (toolManagerRef.current) return;
       const ctx: ToolContext = {
-        stageOps: stageOperations!,
-        commandOps: commandOperations!,
+        stageOps: stageOperations,
+        commandManager: commandManagerRef.current,
       };
-
       const mgr = new ToolManager(ctx);
-      await mgr.initTools();
       toolManagerRef.current = mgr;
+      await mgr.initTools();
+
+      console.log("Managers initialized");
     }
 
-    initCommandManager();
-    initToolManager();
+    initManagers();
   }, []);
 
   return (
@@ -43,10 +40,10 @@ function BoardPage() {
       <InfiniteCanvas
         overlayLayerRef={overlayLayerRef}
         toolManagerRef={toolManagerRef}
+        commandManagerRef={commandManagerRef}
         stageRef={stageRef}
         drawingLayerRef={drawingLayerRef}
         stageOperations={stageOperations}
-        commandOperations={commandOperations}
       />
     </div>
   );
