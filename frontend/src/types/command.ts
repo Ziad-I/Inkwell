@@ -47,13 +47,19 @@ export interface TransformPayload {
   }[];
 }
 
-export interface TombstonePayload {}
-export interface RestorePayload {}
+export interface TombstonePayload {
+  targetCommandId: CommandID;
+  reason?: string;
+}
+export interface RestorePayload {
+  targetCommandId: CommandID;
+  reason?: string;
+}
 
 export interface BaseCommand {
   id: CommandID;
   type: CommandType;
-  payload: OperationPayload;
+  payload: CommandPayload;
   owner: string;
   status: CommandStatus;
   timestamp: number;
@@ -85,7 +91,7 @@ export interface RestoreCommand extends BaseCommand {
   payload: RestorePayload;
 }
 
-export type OperationPayload =
+export type CommandPayload =
   | StrokePayload
   | ErasePayload
   | TransformPayload

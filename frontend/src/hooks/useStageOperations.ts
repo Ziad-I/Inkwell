@@ -14,6 +14,8 @@ export function useStageOperations() {
   const drawingLayerRef = useRef<Konva.Layer | null>(null);
   const overlayLayerRef = useRef<Konva.Layer | null>(null);
 
+  const removedNodesRegistry = useRef<Map<string, Konva.Node>>(new Map());
+
   const stageOperations = useRef<StageOperations>({
     getScale: () => stageRef.current?.scaleX() || DEFAULT_SCALE,
 
@@ -102,11 +104,17 @@ export function useStageOperations() {
 
     addDrawingNode: (node: Konva.Node) => {
       drawingLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+      if (removedNodesRegistry.current.has(node.id())) {
+        removedNodesRegistry.current.delete(node.id());
+      }
       stageOperations.current.redrawDrawingLayer();
     },
 
     addOverlayNode: (node: Konva.Node) => {
       overlayLayerRef.current?.add(node as unknown as Shape<ShapeConfig>);
+      if (removedNodesRegistry.current.has(node.id())) {
+        removedNodesRegistry.current.delete(node.id());
+      }
       stageOperations.current.redrawOverlayLayer();
     },
 
@@ -114,8 +122,10 @@ export function useStageOperations() {
       if (!node) return;
       if (destroy) {
         node.destroy();
+        removedNodesRegistry.current.delete(node.id());
       } else {
         node.remove();
+        removedNodesRegistry.current.set(node.id(), node);
       }
       stageOperations.current.redrawDrawingLayer();
     },
@@ -131,7 +141,15 @@ export function useStageOperations() {
       const stage = stageRef.current;
       if (!stage) return null;
 
-      return stage.findOne(`#${id}`) || null;
+      const node = stage.findOne(`#${id}`) || null;
+      if (node) {
+        return node;
+      }
+      const removedNode = removedNodesRegistry.current.get(id) || null;
+      if (removedNode) {
+        return removedNode;
+      }
+      return null;
     },
 
     redrawDrawingLayer: () => {

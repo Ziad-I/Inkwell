@@ -1,4 +1,4 @@
-import type { Command, OperationPayload } from "@/types/command";
+import type { Command, CommandPayload } from "@/types/command";
 import type { StageOperations } from "@/types/common";
 
 export abstract class BaseCommand {
@@ -13,7 +13,7 @@ export abstract class BaseCommand {
   abstract undo(): void;
   abstract redo(): void;
   abstract destroy(): void;
-  abstract update(opdate: Partial<OperationPayload>): void;
+  abstract update(opdate: Partial<CommandPayload>): void;
   abstract finalize(): void;
   abstract canFinalize(): boolean;
 

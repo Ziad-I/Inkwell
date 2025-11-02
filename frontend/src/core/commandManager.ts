@@ -4,7 +4,7 @@ import {
   type CommandID,
   type Command,
   type CommandType,
-  type OperationPayload,
+  type CommandPayload,
 } from "@/types/command";
 import type { BaseCommand } from "@/commands/baseCommand";
 
@@ -24,7 +24,7 @@ export class CommandManager {
   private undoStack: CommandID[] = [];
   private redoStack: CommandID[] = [];
 
-  private MAX_UNDO_STACK_SIZE = 50;
+  private readonly MAX_UNDO_STACK_SIZE = 50;
 
   constructor(
     userId: string,
@@ -38,7 +38,7 @@ export class CommandManager {
     this.factory = new CommandFactory();
   }
 
-  public startCommand(type: CommandType, initialPayload: OperationPayload) {
+  public startCommand(type: CommandType, initialPayload: CommandPayload) {
     const cmd = this.factory.createCommand(type, initialPayload, this.userId);
     const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
 
@@ -59,9 +59,9 @@ export class CommandManager {
 
   public updateCommand(
     commandId: CommandID,
-    updatedPayload: Partial<OperationPayload>
+    updatedPayload: Partial<CommandPayload>
   ) {
-    const cmd = this.pendingCommands.get(commandId);
+    const cmd = this.commands.get(commandId);
     const cmdInstance = this.pendingCommands.get(commandId);
 
     if (!cmd || !cmdInstance) {
@@ -88,16 +88,19 @@ export class CommandManager {
       throw new Error(`Command with ID: ${commandId} cannot be finalized yet`);
     }
 
-    cmdInstance.finalize();
-    this.commands.set(commandId, cmdInstance.serialize());
+    const serialized = cmdInstance.serialize();
+    const appliedCmd: Command = { ...serialized, status: "applied" };
+    this.commands.set(commandId, appliedCmd);
 
     this.appliedCommands.add(commandId);
     this.pendingCommands.delete(commandId);
 
-    this.undoStack.push(cmd.id);
-    this.redoStack = []; // Clear redo stack on new operation
-    if (this.undoStack.length > this.MAX_UNDO_STACK_SIZE) {
-      this.undoStack.shift();
+    if (cmd.owner === this.userId) {
+      this.undoStack.push(commandId);
+      this.redoStack = []; // Clear redo stack on new operation
+      if (this.undoStack.length > this.MAX_UNDO_STACK_SIZE) {
+        this.undoStack.shift();
+      }
     }
 
     // use networkOps to send command finalization to server here...
@@ -123,11 +126,47 @@ export class CommandManager {
   }
 
   public undo() {
-    throw new Error("Undo not implemented yet");
+    if (this.undoStack.length === 0) {
+      console.warn("Undo stack is empty");
+      return;
+    }
+    const commandId = this.undoStack.pop() as CommandID;
+    const cmd = this.commands.get(commandId);
+
+    if (!cmd) {
+      throw new Error(`No command found with ID: ${commandId}`);
+    }
+
+    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
+    if (!cmdInstance) {
+      throw new Error(`Failed to create command instance for ID: ${commandId}`);
+    }
+
+    cmdInstance.undo();
+    this.redoStack.push(commandId);
   }
 
   public redo() {
-    throw new Error("Redo not implemented yet");
+    if (this.redoStack.length === 0) {
+      console.warn("Redo stack is empty");
+      return;
+    }
+
+    const commandId = this.redoStack.pop() as CommandID;
+    const cmd = this.commands.get(commandId);
+
+    console.log("Redoing command:", commandId, cmd);
+    if (!cmd) {
+      throw new Error(`No command found with ID: ${commandId}`);
+    }
+
+    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
+    if (!cmdInstance) {
+      throw new Error(`Failed to create command instance for ID: ${commandId}`);
+    }
+
+    cmdInstance.redo();
+    this.undoStack.push(commandId);
   }
 
   public getUndoStack(): CommandID[] {
