@@ -26,6 +26,46 @@ export class CommandManager {
 
   private readonly MAX_UNDO_STACK_SIZE = 50;
 
+  private listeners = new Map<string, Set<() => void>>();
+
+  public on(events: string, handler: () => void) {
+    const eventList = events.split(" ");
+    for (const evt of eventList) {
+      let set = this.listeners.get(evt);
+      if (!set) {
+        set = new Set();
+        this.listeners.set(evt, set);
+      }
+      set.add(handler);
+    }
+  }
+
+  public off(events: string, handler: () => void) {
+    const eventList = events.split(" ");
+    for (const evt of eventList) {
+      const set = this.listeners.get(evt);
+      if (set) {
+        set.delete(handler);
+      }
+
+      if (set && set.size === 0) {
+        this.listeners.delete(evt);
+      }
+    }
+  }
+
+  private emit(events: string) {
+    const eventList = events.split(" ");
+    for (const evt of eventList) {
+      const set = this.listeners.get(evt);
+      if (!set) return;
+
+      for (const handler of set) {
+        handler();
+      }
+    }
+  }
+
   constructor(
     userId: string,
     stageOps: StageOperations
@@ -144,6 +184,8 @@ export class CommandManager {
 
     cmdInstance.undo();
     this.redoStack.push(commandId);
+
+    this.emit("undo");
   }
 
   public redo() {
@@ -167,6 +209,8 @@ export class CommandManager {
 
     cmdInstance.redo();
     this.undoStack.push(commandId);
+
+    this.emit("redo");
   }
 
   public getUndoStack(): CommandID[] {
