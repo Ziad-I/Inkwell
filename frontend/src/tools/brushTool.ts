@@ -184,7 +184,13 @@ export class BrushTool extends BaseTool {
       points: this.flattenPoints(finalPoints),
     });
 
-    this.ctx.commandManager.finalizeCommand(this.strokeCommandId!);
+    // Check if the stroke has enough points to finalize
+    if (finalPoints.length >= 2) {
+      this.ctx.commandManager.finalizeCommand(this.strokeCommandId!);
+    } else {
+      // Cancel the command if it doesn't meet the minimum requirements
+      this.ctx.commandManager.cancelCommand(this.strokeCommandId!);
+    }
 
     this.isDrawing = false;
     this.pts = [];

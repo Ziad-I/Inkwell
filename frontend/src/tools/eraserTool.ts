@@ -55,13 +55,16 @@ export class EraserTool extends BaseTool {
   }
 
   onDeactivate(): void {
+    // Only cancel if we have a pending command (isErasing means still in progress)
     if (this.isErasing && this.eraseCommandId) {
       this.ctx.commandManager.cancelCommand(this.eraseCommandId);
-      this.erasedNodeIds = [];
-      this.isErasing = false;
-      this.eraseCommandId = null;
-      this.eraseCommandPayload = null;
     }
+
+    // Clean up state
+    this.erasedNodeIds = [];
+    this.isErasing = false;
+    this.eraseCommandId = null;
+    this.eraseCommandPayload = null;
   }
 
   initPayload() {
@@ -87,7 +90,20 @@ export class EraserTool extends BaseTool {
   }
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
+    if (!this.isErasing || !this.eraseCommandId) return;
+
     this.isErasing = false;
-    this.ctx.commandManager.finalizeCommand(this.eraseCommandId!);
+
+    // Check if any nodes were actually erased
+    if (this.erasedNodeIds.length > 0) {
+      this.ctx.commandManager.finalizeCommand(this.eraseCommandId);
+    } else {
+      // Cancel the command if nothing was erased
+      this.ctx.commandManager.cancelCommand(this.eraseCommandId);
+    }
+
+    this.erasedNodeIds = [];
+    this.eraseCommandId = null;
+    this.eraseCommandPayload = null;
   }
 }

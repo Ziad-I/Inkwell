@@ -62,16 +62,7 @@ export class SelectionTool extends BaseTool {
     this.transformer.on("transformend dragend", () => {
       if (!this.transformPayload || !this.transformCommandId) return;
 
-      // for (const node of this.transformer!.nodes()) {
-      //   const afterState = this.getNodeState(node);
-      //   const transform = this.transformPayload.transforms.find(
-      //     (t) => t.nodeId === node.id()
-      //   );
-      //   if (transform) {
-      //     transform.after = afterState;
-      //   }
-      // }
-
+      // Update the current state (but don't finalize yet)
       for (const transform of this.transformPayload.transforms) {
         const node = this.ctx.stageOps.getNodeById(transform.nodeId);
         if (!node) continue;
@@ -83,6 +74,8 @@ export class SelectionTool extends BaseTool {
         this.transformCommandId,
         this.transformPayload
       );
+
+      // Don't finalize here - let clearSelection or onDeactivate handle it
     });
 
     this.ctx.stageOps.addDrawingNode(this.transformer);
@@ -248,7 +241,24 @@ export class SelectionTool extends BaseTool {
     if (this.transformer) {
       this.transformer.nodes([]);
       this.isTransforming = false;
-      this.ctx.commandManager.finalizeCommand(this.transformCommandId!);
+
+      // Only finalize if we have a pending command (not already finalized in transformend)
+      if (this.transformCommandId && this.transformPayload) {
+        // Update the final state before finalizing
+        for (const transform of this.transformPayload.transforms) {
+          const node = this.ctx.stageOps.getNodeById(transform.nodeId);
+          if (!node) continue;
+          const afterState = this.getNodeState(node);
+          transform.after = afterState;
+        }
+
+        this.ctx.commandManager.updateCommand(
+          this.transformCommandId,
+          this.transformPayload
+        );
+        this.ctx.commandManager.finalizeCommand(this.transformCommandId);
+      }
+
       this.transformPayload = null;
       this.transformCommandId = null;
     }
@@ -261,14 +271,28 @@ export class SelectionTool extends BaseTool {
 
   onDeactivate(): void {
     this.cleanupSelectionBox();
+
+    // Finalize any pending transform command before removing transformer
+    if (this.transformCommandId && this.transformPayload) {
+      // Update the transform with final state
+      for (const transform of this.transformPayload.transforms) {
+        const node = this.ctx.stageOps.getNodeById(transform.nodeId);
+        if (!node) continue;
+        const afterState = this.getNodeState(node);
+        transform.after = afterState;
+      }
+
+      this.ctx.commandManager.updateCommand(
+        this.transformCommandId,
+        this.transformPayload
+      );
+      this.ctx.commandManager.finalizeCommand(this.transformCommandId);
+    }
+
     this.removeTransformer();
     this.isSelecting = false;
     this.startPoint = null;
     this.isTransforming = false;
-
-    if (this.transformCommandId && this.transformPayload) {
-      this.ctx.commandManager.finalizeCommand(this.transformCommandId);
-    }
     this.transformPayload = null;
     this.transformCommandId = null;
   }
