@@ -239,9 +239,6 @@ export class SelectionTool extends BaseTool {
 
   private clearSelection() {
     if (this.transformer) {
-      this.transformer.nodes([]);
-      this.isTransforming = false;
-
       // Only finalize if we have a pending command (not already finalized in transformend)
       if (this.transformCommandId && this.transformPayload) {
         // Update the final state before finalizing
@@ -259,6 +256,8 @@ export class SelectionTool extends BaseTool {
         this.ctx.commandManager.finalizeCommand(this.transformCommandId);
       }
 
+      this.transformer.nodes([]);
+      this.isTransforming = false;
       this.transformPayload = null;
       this.transformCommandId = null;
     }
@@ -267,6 +266,7 @@ export class SelectionTool extends BaseTool {
 
   onActivate(): void {
     this.createTransformer();
+    this.ctx.commandManager.on("undo redo", this.clearSelection.bind(this));
   }
 
   onDeactivate(): void {
@@ -295,6 +295,7 @@ export class SelectionTool extends BaseTool {
     this.isTransforming = false;
     this.transformPayload = null;
     this.transformCommandId = null;
+    this.ctx.commandManager.off("undo redo", this.clearSelection.bind(this));
   }
 
   initPPayload() {
