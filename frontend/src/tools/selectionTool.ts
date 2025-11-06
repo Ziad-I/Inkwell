@@ -266,7 +266,10 @@ export class SelectionTool extends BaseTool {
 
   onActivate(): void {
     this.createTransformer();
-    this.ctx.commandManager.on("undo redo", this.clearSelection.bind(this));
+    this.ctx.commandManager.on(
+      ["command:undo", "command:redo"],
+      this.clearSelection.bind(this)
+    );
   }
 
   onDeactivate(): void {
@@ -295,7 +298,10 @@ export class SelectionTool extends BaseTool {
     this.isTransforming = false;
     this.transformPayload = null;
     this.transformCommandId = null;
-    this.ctx.commandManager.off("undo redo", this.clearSelection.bind(this));
+    this.ctx.commandManager.off(
+      ["command:undo", "command:redo"],
+      this.clearSelection.bind(this)
+    );
   }
 
   initPPayload() {

@@ -1,4 +1,5 @@
 import type Konva from "konva";
+import type { C } from "node_modules/react-router/dist/development/context-DohQKLID.d.mts";
 
 export interface Point {
   x: number;
@@ -38,3 +39,15 @@ export interface Settings {
   showGrid?: boolean;
   darkMode?: boolean;
 }
+
+export type RoomEvents = "room:join" | "room:leave" | "room:sync";
+export type CommandEvents =
+  | "command:create"
+  | "command:update"
+  | "command:finalize"
+  | "command:cancel"
+  | "command:undo"
+  | "command:redo"
+  | "command:reject";
+
+export type ServerEvents = CommandEvents | RoomEvents;

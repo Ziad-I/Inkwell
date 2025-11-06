@@ -1,5 +1,5 @@
 import { CommandFactory } from "@/core/commandFactory";
-import type { StageOperations } from "@/types/common";
+import type { CommandEvents, StageOperations } from "@/types/common";
 import {
   type CommandID,
   type Command,
@@ -26,10 +26,13 @@ export class CommandManager {
 
   private readonly MAX_UNDO_STACK_SIZE = 50;
 
-  private listeners = new Map<string, Set<() => void>>();
+  private listeners = new Map<CommandEvents, Set<() => void>>();
 
-  public on(events: string, handler: () => void) {
-    const eventList = events.split(" ");
+  public on(
+    events: CommandEvents | CommandEvents[],
+    handler: () => void
+  ): void {
+    const eventList = Array.isArray(events) ? events : [events];
     for (const evt of eventList) {
       let set = this.listeners.get(evt);
       if (!set) {
@@ -40,28 +43,36 @@ export class CommandManager {
     }
   }
 
-  public off(events: string, handler: () => void) {
-    const eventList = events.split(" ");
+  public off(
+    events: CommandEvents | CommandEvents[],
+    handler: () => void
+  ): void {
+    const eventList = Array.isArray(events) ? events : [events];
     for (const evt of eventList) {
       const set = this.listeners.get(evt);
       if (set) {
         set.delete(handler);
-      }
-
-      if (set && set.size === 0) {
-        this.listeners.delete(evt);
+        if (set.size === 0) {
+          this.listeners.delete(evt);
+        }
       }
     }
   }
 
-  private emit(events: string) {
-    const eventList = events.split(" ");
+  public emit(events: CommandEvents | CommandEvents[]): void {
+    const eventList = Array.isArray(events) ? events : [events];
     for (const evt of eventList) {
       const set = this.listeners.get(evt);
-      if (!set) return;
-
-      for (const handler of set) {
-        handler();
+      if (!set) continue; // continue instead of returning early
+      // copy handlers to avoid mutation issues if a handler calls off()
+      const handlers = Array.from(set);
+      for (const handler of handlers) {
+        try {
+          handler();
+        } catch (err) {
+          // swallow or log errors according to your policy
+          console.error("listener error for", evt, err);
+        }
       }
     }
   }
