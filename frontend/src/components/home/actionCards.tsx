@@ -14,6 +14,7 @@ import { useNavigate } from "react-router";
 export function ActionCards() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
+  const [name, setName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
   const handleCreateBoard = () => {
@@ -21,7 +22,17 @@ export function ActionCards() {
     navigate(`/board/${roomId}`);
   };
 
-  const handleJoinBoard = async () => {};
+  const handleJoinBoard = async () => {
+    if (!roomCode.trim()) return;
+    setIsJoining(true);
+    if (roomCode.includes("/")) {
+      const parts = roomCode.split("/");
+      const id = parts[parts.length - 1];
+      navigate(`/board/${id}`);
+    } else {
+      navigate(`/board/${roomCode.trim()}`);
+    }
+  };
 
   return (
     <div className="grid md:grid-cols-2 gap-6 max-w-2xl mx-auto mb-16">
@@ -66,6 +77,11 @@ export function ActionCards() {
               placeholder="Room code or board link..."
               value={roomCode}
               onChange={(e) => setRoomCode(e.target.value)}
+              className="w-full"
+            />
+            <Input
+              type="text"
+              placeholder="(Optional) Your name..."
               className="w-full"
             />
             <Button
