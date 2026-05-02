@@ -30,7 +30,7 @@ export class CommandManager {
 
   public on(
     events: CommandEvents | CommandEvents[],
-    handler: () => void
+    handler: () => void,
   ): void {
     const eventList = Array.isArray(events) ? events : [events];
     for (const evt of eventList) {
@@ -45,7 +45,7 @@ export class CommandManager {
 
   public off(
     events: CommandEvents | CommandEvents[],
-    handler: () => void
+    handler: () => void,
   ): void {
     const eventList = Array.isArray(events) ? events : [events];
     for (const evt of eventList) {
@@ -79,7 +79,7 @@ export class CommandManager {
 
   constructor(
     userId: string,
-    stageOps: StageOperations
+    stageOps: StageOperations,
     // networkOps: NetworkOperations,
     // factory: CommandFactory
   ) {
@@ -110,7 +110,7 @@ export class CommandManager {
 
   public updateCommand(
     commandId: CommandID,
-    updatedPayload: Partial<CommandPayload>
+    updatedPayload: Partial<CommandPayload>,
   ) {
     const cmd = this.commands.get(commandId);
     const cmdInstance = this.pendingCommands.get(commandId);
@@ -196,7 +196,7 @@ export class CommandManager {
     cmdInstance.undo();
     this.redoStack.push(commandId);
 
-    this.emit("undo");
+    this.emit("command:undo");
   }
 
   public redo() {
@@ -221,7 +221,7 @@ export class CommandManager {
     cmdInstance.redo();
     this.undoStack.push(commandId);
 
-    this.emit("redo");
+    this.emit("command:redo");
   }
 
   public getUndoStack(): CommandID[] {
