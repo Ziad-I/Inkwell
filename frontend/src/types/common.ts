@@ -1,5 +1,4 @@
 import type Konva from "konva";
-import type { C } from "node_modules/react-router/dist/development/context-DohQKLID.d.mts";
 
 export interface Point {
   x: number;

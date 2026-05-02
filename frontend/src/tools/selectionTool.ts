@@ -48,7 +48,7 @@ export class SelectionTool extends BaseTool {
       this.initPPayload();
       this.transformCommandId = this.ctx.commandManager.startCommand(
         "transform",
-        this.transformPayload!
+        this.transformPayload!,
       );
 
       // this.currentSelectCommand = new TransformCommand(
@@ -72,7 +72,7 @@ export class SelectionTool extends BaseTool {
 
       this.ctx.commandManager.updateCommand(
         this.transformCommandId,
-        this.transformPayload
+        this.transformPayload,
       );
 
       // Don't finalize here - let clearSelection or onDeactivate handle it
@@ -251,7 +251,7 @@ export class SelectionTool extends BaseTool {
 
         this.ctx.commandManager.updateCommand(
           this.transformCommandId,
-          this.transformPayload
+          this.transformPayload,
         );
         this.ctx.commandManager.finalizeCommand(this.transformCommandId);
       }
@@ -268,7 +268,7 @@ export class SelectionTool extends BaseTool {
     this.createTransformer();
     this.ctx.commandManager.on(
       ["command:undo", "command:redo"],
-      this.clearSelection.bind(this)
+      this.clearSelection.bind(this),
     );
   }
 
@@ -287,7 +287,7 @@ export class SelectionTool extends BaseTool {
 
       this.ctx.commandManager.updateCommand(
         this.transformCommandId,
-        this.transformPayload
+        this.transformPayload,
       );
       this.ctx.commandManager.finalizeCommand(this.transformCommandId);
     }
@@ -300,7 +300,7 @@ export class SelectionTool extends BaseTool {
     this.transformCommandId = null;
     this.ctx.commandManager.off(
       ["command:undo", "command:redo"],
-      this.clearSelection.bind(this)
+      this.clearSelection.bind(this),
     );
   }
 
