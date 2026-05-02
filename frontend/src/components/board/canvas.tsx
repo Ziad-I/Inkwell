@@ -43,39 +43,69 @@ function InfiniteCanvas({
 
   const dotRef = useRef<PresenceDotHandle>(null);
 
+  const frameCountRef = useRef(0);
+  const lastFpsUpdateRef = useRef(performance.now());
+
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
     viewpointPos: DEFAULT_VIEWPOINT_POS,
     cursorPos: DEFAULT_VIEWPOINT_POS as Point | null,
+    fps: 0,
   });
 
-  const syncDisplayState = useCallback((immediate: boolean = false) => {
-    const stage = stageRef.current;
-    if (!stage) return;
+  const syncDisplayState = useCallback(
+    (immediate: boolean = false) => {
+      const stage = stageRef.current;
+      if (!stage) return;
 
-    const update = () => {
-      const scale = stage.scaleX();
-      const viewpointPos = stage.position();
-      const pointer = stage.getPointerPosition();
+      const update = () => {
+        const scale = stage.scaleX();
+        const viewpointPos = stage.position();
+        const pointer = stage.getPointerPosition();
 
-      let cursorPos = null;
-      if (pointer) {
-        cursorPos = stageOperations.screenToWorld(pointer.x, pointer.y);
+        let cursorPos = null;
+        if (pointer) {
+          cursorPos = stageOperations.screenToWorld(pointer.x, pointer.y);
+        }
+
+        setDisplayState((prev) => ({
+          ...prev,
+          scale,
+          viewpointPos,
+          cursorPos,
+        }));
+      };
+
+      if (immediate) {
+        update();
+      } else {
+        requestAnimationFrame(update);
+      }
+    },
+    [stageOperations, stageRef],
+  );
+
+  useEffect(() => {
+    let rafId: number;
+
+    const tick = () => {
+      frameCountRef.current += 1;
+
+      const now = performance.now();
+      const elapsed = now - lastFpsUpdateRef.current;
+
+      if (elapsed >= 1000) {
+        const fps = Math.round((frameCountRef.current * 1000) / elapsed);
+        setDisplayState((prev) => ({ ...prev, fps }));
+        frameCountRef.current = 0;
+        lastFpsUpdateRef.current = now;
       }
 
-      setDisplayState((prev) => ({
-        ...prev,
-        scale,
-        viewpointPos,
-        cursorPos,
-      }));
+      rafId = requestAnimationFrame(tick);
     };
 
-    if (immediate) {
-      update();
-    } else {
-      requestAnimationFrame(update);
-    }
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
   }, []);
 
   useEffect(() => {
@@ -142,7 +172,7 @@ function InfiniteCanvas({
       // Sync display after zoom
       syncDisplayState();
     },
-    [syncDisplayState],
+    [stageOperations, stageRef, syncDisplayState],
   );
 
   useGesture(
@@ -213,7 +243,7 @@ function InfiniteCanvas({
 
   return (
     <>
-      <div className="fixed top-3 left-3 z-20 bg-muted p-2">
+      <div className="fixed top-3 right-3 z-20 bg-muted p-2">
         <div>Scale: {displayState.scale.toFixed(2)}</div>
         <div>
           World: {displayState.cursorPos?.x.toFixed(1)},{" "}
@@ -223,6 +253,7 @@ function InfiniteCanvas({
           Offset: {displayState.viewpointPos.x.toFixed(0)},{" "}
           {displayState.viewpointPos.y.toFixed(0)}
         </div>
+        <div>FPS: {displayState.fps}</div>
       </div>
       <div ref={containerRef} style={{ touchAction: "none" }}>
         <Stage
