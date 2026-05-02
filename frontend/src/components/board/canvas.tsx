@@ -117,6 +117,12 @@ function InfiniteCanvas({
   const onPointerUp = (e: KonvaEventObject<PointerEvent>) =>
     toolManagerRef.current?.handlePointerUp(e);
 
+  const onPointerCancel = (e: KonvaEventObject<PointerEvent>) =>
+    toolManagerRef.current?.handlePointerCancel(e);
+
+  const onPointerLeave = (e: KonvaEventObject<PointerEvent>) =>
+    toolManagerRef.current?.handlePointerLeave(e);
+
   const onWheel = useCallback(
     (e: KonvaEventObject<WheelEvent>) => {
       e.evt.preventDefault();
@@ -136,7 +142,7 @@ function InfiniteCanvas({
       // Sync display after zoom
       syncDisplayState();
     },
-    [syncDisplayState]
+    [syncDisplayState],
   );
 
   useGesture(
@@ -164,7 +170,7 @@ function InfiniteCanvas({
       target: containerRef,
       eventOptions: { passive: false },
       drag: { pointer: { touch: true } },
-    }
+    },
   );
 
   useKeyBindings(
@@ -181,7 +187,7 @@ function InfiniteCanvas({
           const stage = stageRef.current;
           if (stage) {
             toolManagerRef.current?.applyCursor(
-              toolManagerRef.current?.getEffectiveTool()?.meta.id ?? null
+              toolManagerRef.current?.getEffectiveTool()?.meta.id ?? null,
             );
           }
         },
@@ -202,7 +208,7 @@ function InfiniteCanvas({
       allowRepeat: false,
       ignoreInputs: true,
       preventDefault: true,
-    }
+    },
   );
 
   return (
@@ -228,6 +234,8 @@ function InfiniteCanvas({
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onPointerLeave={onPointerLeave}
         >
           <Layer ref={overlayLayerRef}>
             <PresenceDot ref={dotRef} />

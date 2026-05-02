@@ -32,7 +32,7 @@ export class ToolManager {
     if (id !== null && this.activeTool?.meta.id === id) return;
 
     this.activeTool?.onDeactivate?.();
-    this.activeTool = id ? this.tools.get(id) ?? null : null;
+    this.activeTool = id ? (this.tools.get(id) ?? null) : null;
     this.activeTool?.onActivate?.();
     this.applyCursor(this.getEffectiveTool()?.meta.id ?? null);
 
@@ -175,6 +175,14 @@ export class ToolManager {
 
   handlePointerUp(e: KonvaEventObject<PointerEvent>) {
     this.getEffectiveTool()?.onPointerUp?.(e);
+  }
+
+  handlePointerLeave(e: KonvaEventObject<PointerEvent>) {
+    // this.getEffectiveTool()?.onPointerLeave?.(e);
+  }
+
+  handlePointerCancel(e: KonvaEventObject<PointerEvent>) {
+    // this.getEffectiveTool()?.onPointerCancel?.(e);
   }
 
   getTools(): ToolMetadata[] {
