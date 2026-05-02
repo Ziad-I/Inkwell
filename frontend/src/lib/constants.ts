@@ -17,8 +17,25 @@ const PRESET_COLORS = [
   "#008000",
   "#000080",
 ];
-export const LINE_CAPS = ["butt", "round", "square"];
-export const LINE_JOINS = ["miter", "round", "bevel"];
+const LINE_CAPS = ["butt", "round", "square"];
+const LINE_JOINS = ["miter", "round", "bevel"];
+const BASE_GRID_SPACING = 50;
+const MIN_SCREEN_GRID_SPACING = 28;
+const MAX_SCREEN_GRID_SPACING = 96;
+const MAJOR_GRID_MULTIPLIER = 5;
+const GRID_OVERSCAN_MULTIPLIER = 5;
+const GRID_FALLBACK_PALETTE = {
+  dark: {
+    minorStroke: "rgba(255, 255, 255, 0.08)",
+    majorStroke: "rgba(255, 255, 255, 0.14)",
+    axisStroke: "rgba(255, 255, 255, 0.2)",
+  },
+  light: {
+    minorStroke: "rgba(15, 23, 42, 0.08)",
+    majorStroke: "rgba(15, 23, 42, 0.14)",
+    axisStroke: "rgba(15, 23, 42, 0.2)",
+  },
+};
 
 export {
   DEFAULT_SCALE,
@@ -27,4 +44,12 @@ export {
   DEFAULT_VIEWPOINT_POS,
   ZOOM_FACTOR,
   PRESET_COLORS,
+  LINE_CAPS,
+  LINE_JOINS,
+  BASE_GRID_SPACING,
+  MIN_SCREEN_GRID_SPACING,
+  MAX_SCREEN_GRID_SPACING,
+  MAJOR_GRID_MULTIPLIER,
+  GRID_OVERSCAN_MULTIPLIER,
+  GRID_FALLBACK_PALETTE,
 };

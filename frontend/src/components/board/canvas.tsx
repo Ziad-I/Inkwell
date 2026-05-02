@@ -18,6 +18,7 @@ import {
 import type { Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
 import type { CommandManager } from "@/core/commandManager";
+import GridLayer from "./gridLayer";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
@@ -268,6 +269,11 @@ function InfiniteCanvas({
           onPointerCancel={onPointerCancel}
           onPointerLeave={onPointerLeave}
         >
+          <GridLayer
+            stageRef={stageRef}
+            width={width - 1}
+            height={height - 1}
+          />
           <Layer ref={overlayLayerRef}>
             <PresenceDot ref={dotRef} />
           </Layer>
