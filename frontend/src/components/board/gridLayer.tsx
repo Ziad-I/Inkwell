@@ -40,6 +40,12 @@ function readPalette(theme: string): GridPalette {
     return fallbackPalette;
   }
 
+  const domIsDark = document.documentElement.classList.contains("dark");
+  const stateIsDark = theme === "dark";
+  if (domIsDark !== stateIsDark) {
+    return fallbackPalette;
+  }
+
   const styles = window.getComputedStyle(document.documentElement);
 
   return {
@@ -116,7 +122,11 @@ function GridLayer({ stageRef, width, height }: GridLayerProps) {
   const layerRef = useRef<Konva.Layer | null>(null);
   const frameRef = useRef<number | null>(null);
   const paletteFrameRef = useRef<number | null>(null);
-  const paletteRef = useRef<GridPalette>(getFallbackPalette(theme));
+  const paletteRef = useRef<GridPalette>(
+    typeof window === "undefined"
+      ? getFallbackPalette(theme)
+      : readPalette(theme),
+  );
   const sizeRef = useRef({ width, height });
   const showGridRef = useRef(showGrid);
 
