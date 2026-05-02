@@ -16,7 +16,7 @@ export class EraserTool extends BaseTool {
 
   private eraseCommandId: CommandID | null = null;
   private eraseCommandPayload: ErasePayload | null = null;
-  private erasedNodeIds: string[] = [];
+  private erasedNodeIds: Set<string> = new Set();
   private isErasing = false;
 
   constructor(ctx: ToolContext) {
@@ -42,7 +42,7 @@ export class EraserTool extends BaseTool {
 
     const shape = layer.getIntersection(pointer);
     if (shape && this.isErasableShape(shape)) {
-      this.erasedNodeIds.push(shape.id());
+      this.erasedNodeIds.add(shape.id());
       this.ctx.commandManager.updateCommand(this.eraseCommandId!, {
         erasedNodes: this.erasedNodeIds,
       });
@@ -61,7 +61,7 @@ export class EraserTool extends BaseTool {
     }
 
     // Clean up state
-    this.erasedNodeIds = [];
+    this.erasedNodeIds.clear();
     this.isErasing = false;
     this.eraseCommandId = null;
     this.eraseCommandPayload = null;
@@ -78,7 +78,7 @@ export class EraserTool extends BaseTool {
     this.initPayload();
     this.eraseCommandId = this.ctx.commandManager.startCommand(
       "erase",
-      this.eraseCommandPayload!
+      this.eraseCommandPayload!,
     );
 
     this.eraseAtPointer();
@@ -95,14 +95,14 @@ export class EraserTool extends BaseTool {
     this.isErasing = false;
 
     // Check if any nodes were actually erased
-    if (this.erasedNodeIds.length > 0) {
+    if (this.erasedNodeIds.size > 0) {
       this.ctx.commandManager.finalizeCommand(this.eraseCommandId);
     } else {
       // Cancel the command if nothing was erased
       this.ctx.commandManager.cancelCommand(this.eraseCommandId);
     }
 
-    this.erasedNodeIds = [];
+    this.erasedNodeIds.clear();
     this.eraseCommandId = null;
     this.eraseCommandPayload = null;
   }

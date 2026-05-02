@@ -54,7 +54,7 @@ export class EraseCommand extends BaseCommand {
   }
 
   canFinalize(): boolean {
-    return this.payload.erasedNodes.length > 0;
+    return this.payload.erasedNodes.size > 0;
   }
 
   finalize(): void {

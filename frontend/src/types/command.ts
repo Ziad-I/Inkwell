@@ -22,7 +22,7 @@ export interface StrokePayload {
 }
 
 export interface ErasePayload {
-  erasedNodes: string[];
+  erasedNodes: Set<string>;
 }
 
 export interface NodeState {
