@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { ArrowRight, Plus, Link2 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useUserStore } from "@/stores/userStore";
 
 export function ActionCards() {
   const navigate = useNavigate();
@@ -17,14 +18,21 @@ export function ActionCards() {
   const [name, setName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
 
+  const setUserName = useUserStore((state) => state.setUserName);
+
   const handleCreateBoard = () => {
     const roomId = Math.random().toString(36).substring(2, 15);
     navigate(`/board/${roomId}`);
   };
 
-  const handleJoinBoard = async () => {
+  const handleJoinBoard = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
     if (!roomCode.trim()) return;
     setIsJoining(true);
+    if (name.trim()) {
+      setUserName(name.trim());
+    }
     if (roomCode.includes("/")) {
       const parts = roomCode.split("/");
       const id = parts[parts.length - 1];
@@ -82,6 +90,8 @@ export function ActionCards() {
             <Input
               type="text"
               placeholder="(Optional) Your name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full"
             />
             <Button
