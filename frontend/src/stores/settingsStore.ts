@@ -1,4 +1,9 @@
-import type { LINE_CAPS, LINE_JOINS } from "@/lib/constants";
+import {
+  LINE_CAPS,
+  LINE_JOINS,
+  SHAPE_KINDS,
+  type ShapeKind,
+} from "@/lib/constants";
 import { create } from "zustand";
 // import { persist } from "zustand/middleware";
 
@@ -12,6 +17,7 @@ export type SettingsState = {
   opacity: number; // 0-1
   lineCap: LineCap;
   lineJoin: LineJoin;
+  shapeKind: ShapeKind;
 
   // General settings
   showGrid: boolean;
@@ -22,6 +28,7 @@ export type SettingsState = {
   setOpacity: (v: number) => void;
   setLineCap: (cap: LineCap) => void;
   setLineJoin: (join: LineJoin) => void;
+  setShapeKind: (kind: ShapeKind) => void;
   setShowGrid: (s: boolean) => void;
 
   reset: () => void;
@@ -33,6 +40,7 @@ const initialSettings = {
   opacity: 1,
   lineCap: "round",
   lineJoin: "miter",
+  shapeKind: SHAPE_KINDS[0],
   showGrid: false,
 };
 
@@ -47,9 +55,13 @@ export const useSettingsStore = create<SettingsState>()(
       set(() => ({ opacity: Math.max(0, Math.min(1, v)) })),
     setLineCap: (cap: LineCap) => set(() => ({ lineCap: cap })),
     setLineJoin: (join: LineJoin) => set(() => ({ lineJoin: join })),
+    setShapeKind: (kind: ShapeKind) =>
+      set(() => ({
+        shapeKind: SHAPE_KINDS.includes(kind) ? kind : SHAPE_KINDS[0],
+      })),
     setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
     reset: () => set(() => ({ ...initialSettings })),
-  })
+  }),
   //   {
   //     name: "whiteboard-settings", // localStorage key
   //     version: 1,

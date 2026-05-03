@@ -1,9 +1,13 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 
+import type { ShapeKind } from "@/lib/constants";
+import type { Point } from "@/types/common";
+
 export type CommandID = string;
 
 export type CommandType =
   | "stroke"
+  | "shape"
   | "erase"
   | "transform"
   | "tombstone"
@@ -14,6 +18,18 @@ export type CommandStatus = "pending" | "applied" | "reverted";
 export interface StrokePayload {
   nodeId: string;
   points: number[];
+  color: string;
+  strokeWidth: number;
+  lineCap: CanvasLineCap;
+  lineJoin: CanvasLineJoin;
+  opacity: number;
+}
+
+export interface ShapePayload {
+  nodeId: string;
+  kind: ShapeKind;
+  start: Point;
+  end: Point;
   color: string;
   strokeWidth: number;
   lineCap: CanvasLineCap;
@@ -71,6 +87,11 @@ export interface StrokeCommand extends BaseCommand {
   payload: StrokePayload;
 }
 
+export interface ShapeCommand extends BaseCommand {
+  type: "shape";
+  payload: ShapePayload;
+}
+
 export interface EraseCommand extends BaseCommand {
   type: "erase";
   payload: ErasePayload;
@@ -93,6 +114,7 @@ export interface RestoreCommand extends BaseCommand {
 
 export type CommandPayload =
   | StrokePayload
+  | ShapePayload
   | ErasePayload
   | TransformPayload
   | TombstonePayload
@@ -100,6 +122,7 @@ export type CommandPayload =
 
 export type Command =
   | StrokeCommand
+  | ShapeCommand
   | EraseCommand
   | TransformCommand
   | TombstoneCommand
@@ -108,6 +131,7 @@ export type Command =
 // helpers
 export interface CommandPayloadMap {
   stroke: StrokePayload;
+  shape: ShapePayload;
   erase: ErasePayload;
   transform: TransformPayload;
   tombstone: TombstonePayload;

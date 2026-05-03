@@ -41,7 +41,7 @@ export class ToolManager {
 
   async initTools() {
     const entries = Object.entries(this.loaders) as [Tools, ToolLoader][];
-    for (const [id, loader] of entries) {
+    for (const [, loader] of entries) {
       if (loader.eager) {
         const maybe = loader.load(this.ctx);
         const tool = maybe instanceof Promise ? await maybe : maybe;
@@ -178,11 +178,11 @@ export class ToolManager {
   }
 
   handlePointerLeave(e: KonvaEventObject<PointerEvent>) {
-    // this.getEffectiveTool()?.onPointerLeave?.(e);
+    this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
   handlePointerCancel(e: KonvaEventObject<PointerEvent>) {
-    // this.getEffectiveTool()?.onPointerCancel?.(e);
+    this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
   getTools(): ToolMetadata[] {

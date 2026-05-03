@@ -17,6 +17,7 @@ const PRESET_COLORS = [
   "#008000",
   "#000080",
 ];
+const SHAPE_KINDS = ["rectangle", "circle", "line", "arrow"] as const;
 const LINE_CAPS = ["butt", "round", "square"];
 const LINE_JOINS = ["miter", "round", "bevel"];
 const BASE_GRID_SPACING = 50;
@@ -44,6 +45,7 @@ export {
   DEFAULT_VIEWPOINT_POS,
   ZOOM_FACTOR,
   PRESET_COLORS,
+  SHAPE_KINDS,
   LINE_CAPS,
   LINE_JOINS,
   BASE_GRID_SPACING,
@@ -53,3 +55,5 @@ export {
   GRID_OVERSCAN_MULTIPLIER,
   GRID_FALLBACK_PALETTE,
 };
+
+export type ShapeKind = (typeof SHAPE_KINDS)[number];

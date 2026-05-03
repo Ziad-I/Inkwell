@@ -1,8 +1,23 @@
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Grid3X3, Minus, Moon, Plus, Sun } from "lucide-react";
-import { LINE_CAPS, PRESET_COLORS } from "@/lib/constants";
+import {
+  ArrowRight,
+  Circle as CircleIcon,
+  Grid3X3,
+  Minus,
+  Moon,
+  Plus,
+  Square,
+  Sun,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  LINE_CAPS,
+  PRESET_COLORS,
+  SHAPE_KINDS,
+  type ShapeKind,
+} from "@/lib/constants";
 import { useUserStore } from "@/stores/userStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
@@ -127,6 +142,41 @@ export function LineCapSettings() {
             {cap}
           </Button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+const SHAPE_KIND_META: Record<ShapeKind, { label: string; icon: LucideIcon }> =
+  {
+    rectangle: { label: "Rectangle", icon: Square },
+    circle: { label: "Circle", icon: CircleIcon },
+    line: { label: "Line", icon: Minus },
+    arrow: { label: "Arrow", icon: ArrowRight },
+  };
+
+export function ShapeKindSettings() {
+  const shapeKind = useSettingsStore((s) => s.shapeKind);
+  const setShapeKind = useSettingsStore((s) => s.setShapeKind);
+
+  return (
+    <div className="flex flex-col gap-3 w-[100px]">
+      <h3 className="text-sm font-medium">Shape Settings</h3>
+      <div className="grid grid-cols-2 gap-2">
+        {SHAPE_KINDS.map((kind) => {
+          const { label, icon: Icon } = SHAPE_KIND_META[kind];
+
+          return (
+            <Button
+              key={kind}
+              size="icon"
+              variant={shapeKind === kind ? "default" : "outline"}
+              onClick={() => setShapeKind(kind)}
+            >
+              <Icon size={14} />
+            </Button>
+          );
+        })}
       </div>
     </div>
   );

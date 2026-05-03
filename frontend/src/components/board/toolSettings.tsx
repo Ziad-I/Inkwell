@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -8,7 +8,10 @@ import {
   OpacitySettings,
   SizeSettings,
   PresenceSettings,
+  ShapeKindSettings,
 } from "@/components/board/widgets";
+import { useToolStore } from "@/stores/toolStore";
+import { Tools } from "@/types/tool";
 import {
   Blend,
   ChevronRight,
@@ -16,10 +19,11 @@ import {
   PercentCircle,
   Settings,
   SlidersHorizontal,
+  Square,
   User,
 } from "lucide-react";
 
-const settingButtons = [
+const baseSettingButtons = [
   { id: "color", icon: Palette, label: "Color", component: ColorSettings },
   {
     id: "size",
@@ -52,6 +56,13 @@ const settingButtons = [
     component: PresenceSettings,
   },
 ];
+
+const shapeSettingButton = {
+  id: "shapeKind",
+  icon: Square,
+  label: "Shape",
+  component: ShapeKindSettings,
+};
 
 interface FloatingWidgetProps {
   compact?: boolean;
@@ -90,6 +101,16 @@ interface ToolSettingsProps {
 
 export default function ToolSettings({ compact }: ToolSettingsProps) {
   const [openPanel, setOpenPanel] = useState<string | null>(null);
+  const activeTool = useToolStore((state) => state.activeToolId);
+
+  const settingButtons =
+    activeTool === Tools.Shapes
+      ? [shapeSettingButton, ...baseSettingButtons]
+      : baseSettingButtons;
+
+  useEffect(() => {
+    setOpenPanel(null);
+  }, [activeTool]);
 
   const handleButtonClick = (buttonId: string) => {
     setOpenPanel(openPanel === buttonId ? null : buttonId);

@@ -6,6 +6,7 @@ import type { LucideProps } from "lucide-react";
 export const Tools = {
   Brush: "brush",
   Eraser: "eraser",
+  Shapes: "shapes",
   Selection: "selection",
 };
 export type Tools = (typeof Tools)[keyof typeof Tools];
