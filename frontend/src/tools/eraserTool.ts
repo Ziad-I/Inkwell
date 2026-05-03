@@ -23,6 +23,12 @@ export class EraserTool extends BaseTool {
     super(ctx);
   }
 
+  private createPayloadSnapshot(): ErasePayload {
+    return {
+      erasedNodes: new Set(this.erasedNodeIds),
+    };
+  }
+
   private isErasableShape(shape: Konva.Shape | null): boolean {
     if (!shape) return false;
     const erasable = shape.getAttr("erasable");
@@ -42,9 +48,15 @@ export class EraserTool extends BaseTool {
 
     const shape = layer.getIntersection(pointer);
     if (shape && this.isErasableShape(shape)) {
+      const erasedCount = this.erasedNodeIds.size;
       this.erasedNodeIds.add(shape.id());
+
+      if (this.erasedNodeIds.size === erasedCount) {
+        return;
+      }
+
       this.ctx.commandManager.updateCommand(this.eraseCommandId!, {
-        erasedNodes: this.erasedNodeIds,
+        erasedNodes: new Set(this.erasedNodeIds),
       });
     }
   }
@@ -68,9 +80,7 @@ export class EraserTool extends BaseTool {
   }
 
   initPayload() {
-    this.eraseCommandPayload = {
-      erasedNodes: this.erasedNodeIds,
-    } as ErasePayload;
+    this.eraseCommandPayload = this.createPayloadSnapshot();
   }
 
   onPointerDown(event: KonvaEventObject<PointerEvent>) {

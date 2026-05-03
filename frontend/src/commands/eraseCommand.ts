@@ -7,13 +7,23 @@ import { BaseCommand } from "@/commands/baseCommand";
 
 export class EraseCommand extends BaseCommand {
   private cmd: EraseCommandData;
+
   constructor(cmd: EraseCommandData, stageOps: StageOperations) {
     super(stageOps);
-    this.cmd = cmd;
+    this.cmd = {
+      ...cmd,
+      payload: this.clonePayload(cmd.payload),
+    };
   }
 
   private get payload(): ErasePayload {
     return this.cmd.payload;
+  }
+
+  private clonePayload(payload: Partial<ErasePayload>): ErasePayload {
+    return {
+      erasedNodes: new Set(payload.erasedNodes ?? []),
+    };
   }
 
   eraseNodes(): void {
@@ -27,7 +37,7 @@ export class EraseCommand extends BaseCommand {
   }
 
   update(opdate: Partial<ErasePayload>): void {
-    this.cmd.payload = { ...this.cmd.payload, ...opdate };
+    this.cmd.payload = this.clonePayload({ ...this.cmd.payload, ...opdate });
     this.eraseNodes();
   }
 
@@ -62,6 +72,9 @@ export class EraseCommand extends BaseCommand {
   }
 
   serialize(): EraseCommandData {
-    return this.cmd;
+    return {
+      ...this.cmd,
+      payload: this.clonePayload(this.cmd.payload),
+    };
   }
 }
