@@ -147,25 +147,29 @@ export function LineCapSettings() {
   );
 }
 
-const SHAPE_KIND_META: Record<ShapeKind, { label: string; icon: LucideIcon }> =
-  {
-    rectangle: { label: "Rectangle", icon: Square },
-    circle: { label: "Circle", icon: CircleIcon },
-    line: { label: "Line", icon: Minus },
-    arrow: { label: "Arrow", icon: ArrowRight },
-  };
-
 export function ShapeKindSettings() {
   const shapeKind = useSettingsStore((s) => s.shapeKind);
   const setShapeKind = useSettingsStore((s) => s.setShapeKind);
 
+  function getIconForShapeKind(kind: ShapeKind): LucideIcon {
+    switch (kind) {
+      case "rectangle":
+        return Square;
+      case "circle":
+        return CircleIcon;
+      case "line":
+        return Minus;
+      case "arrow":
+        return ArrowRight;
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3 w-[100px]">
-      <h3 className="text-sm font-medium">Shape Settings</h3>
+      <h3 className="text-sm font-medium">Shapes</h3>
       <div className="grid grid-cols-2 gap-2">
         {SHAPE_KINDS.map((kind) => {
-          const { label, icon: Icon } = SHAPE_KIND_META[kind];
-
+          const Icon = getIconForShapeKind(kind);
           return (
             <Button
               key={kind}
