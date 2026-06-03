@@ -17,6 +17,8 @@ export type ClientEmitEvents = {
     ack?: Ack,
   ) => void;
   "command:cancel": (payload: { id: CommandID }, ack?: Ack) => void;
+  "command:undo": (payload: { id: CommandID }, ack?: Ack) => void;
+  "command:redo": (payload: { id: CommandID }, ack?: Ack) => void;
 };
 
 // Events the client listens for from the server
@@ -28,7 +30,7 @@ export type ClientListenEvents = {
   "command:undo": (commandId: CommandID, command: Command) => void;
   "command:redo": (commandId: CommandID, command: Command) => void;
   "command:reject": (commandId: CommandID, reason: string) => void;
-  "room:sync": (state: unknown) => void;
+  "room:sync": (state: Command[]) => void;
   "presence:join": (userId: string) => void;
   "presence:leave": (userId: string) => void;
   "presence:update": (userId: string, data: unknown) => void;
