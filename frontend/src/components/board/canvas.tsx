@@ -3,11 +3,10 @@ import { useGesture } from "@use-gesture/react";
 import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Rect, Stage, Text } from "react-konva";
-
+import { useBoardManagers } from "@/context/boardManagersContext";
 import PresenceDot, {
   type PresenceDotHandle,
 } from "@/components/board/presenceDot";
-import { ToolManager } from "@/core/toolManager";
 import useKeyBindings from "@/hooks/useKeyBindings";
 import useWindowSize from "@/hooks/useWindowSize";
 import {
@@ -17,13 +16,10 @@ import {
 } from "@/lib/constants";
 import type { Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
-import type { CommandManager } from "@/core/commandManager";
 import GridLayer from "./gridLayer";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
-  toolManagerRef: React.RefObject<ToolManager | null>;
-  commandManagerRef: React.RefObject<CommandManager | null>;
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
   overlayLayerRef: React.RefObject<Konva.Layer | null>;
@@ -31,13 +27,12 @@ interface InfiniteCanvasProps {
 
 function InfiniteCanvas({
   stageOperations,
-  toolManagerRef,
-  commandManagerRef,
   stageRef,
   drawingLayerRef,
   overlayLayerRef,
 }: InfiniteCanvasProps) {
   const { width, height } = useWindowSize();
+  const { toolManagerRef, commandManagerRef } = useBoardManagers();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
