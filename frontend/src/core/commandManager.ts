@@ -233,4 +233,14 @@ export class CommandManager {
   public getOperation(id: CommandID): Command | undefined {
     return this.commands.get(id);
   }
+
+  destroy() {
+    this.commands.clear();
+    this.appliedCommands.clear();
+    this.pendingCommands.forEach((instance) => instance.destroy());
+    this.pendingCommands.clear();
+    this.undoStack = [];
+    this.redoStack = [];
+    this.listeners.clear();
+  }
 }

@@ -188,4 +188,12 @@ export class ToolManager {
   getTools(): ToolMetadata[] {
     return Array.from(this.tools.values()).map((t) => t.meta);
   }
+
+  destroy() {
+    this.tools.forEach((tool) => tool.onDeactivate?.());
+    this.tools.clear();
+    this.activeTool = null;
+    this.overrideStack = [];
+    this.updateStore();
+  }
 }
