@@ -1,0 +1,36 @@
+{
+  "name": "inkwell-backend",
+  "version": "0.1.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --enable-source-maps ./dist/server.js",
+    "start:prod": "npm run build && npm run start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "winston": "^3.18.3",
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/helmet": "^0.0.48",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.10.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
