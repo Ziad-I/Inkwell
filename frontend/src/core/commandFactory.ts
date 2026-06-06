@@ -9,6 +9,7 @@ import type { StageOperations } from "@/types/common";
 import type { BaseCommand } from "@/commands/baseCommand";
 import { generateId } from "@/lib/utils";
 import { StrokeCommand } from "@/commands/strokeCommand";
+import { ShapeCommand } from "@/commands/shapeCommand";
 import { EraseCommand } from "@/commands/eraseCommand";
 import { TransformCommand } from "@/commands/transformCommand";
 
@@ -24,7 +25,7 @@ export class CommandFactory {
     payload: CommandPayloadMap[T],
     owner: string,
     status: CommandStatus = "pending",
-    timestamp: number = Date.now()
+    timestamp: number = Date.now(),
   ): CommandOf<T> {
     const id = generateId();
 
@@ -38,13 +39,15 @@ export class CommandFactory {
     };
 
     // TS: assert the narrowed return type
-    return base as CommandOf<T>;
+    return base as unknown as CommandOf<T>;
   }
 
   createInstance(operation: Command, stageOps: StageOperations): BaseCommand {
     switch (operation.type) {
       case "stroke":
         return new StrokeCommand(operation, stageOps);
+      case "shape":
+        return new ShapeCommand(operation, stageOps);
       case "erase":
         return new EraseCommand(operation, stageOps);
       case "transform":
