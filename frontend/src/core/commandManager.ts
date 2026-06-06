@@ -124,7 +124,7 @@ export class CommandManager {
     cmdInstance.update(updatedPayload);
     this.commands.set(commandId, cmdInstance.serialize());
 
-    console.log("Updated command:", cmdInstance.serialize());
+    // console.log("Updated command:", cmdInstance.serialize());
     // use networkOps to send command update to server here...
     // this.networkOps.updateCommand(commandId, cmdInstance.serialize());
     this.connectionManager.emit("command:update", {
@@ -206,6 +206,9 @@ export class CommandManager {
 
     cmdInstance.undo();
     this.redoStack.push(commandId);
+    const undoneCmd = this.commands.get(commandId);
+    if (undoneCmd)
+      this.commands.set(commandId, { ...undoneCmd, status: "reverted" });
 
     const ack = (success: boolean) => {
       if (!success) {
@@ -227,7 +230,7 @@ export class CommandManager {
     const commandId = this.redoStack.pop() as CommandID;
     const cmd = this.commands.get(commandId);
 
-    console.log("Redoing command:", commandId, cmd);
+    // console.log("Redoing command:", commandId, cmd);
     if (!cmd) {
       throw new Error(`No command found with ID: ${commandId}`);
     }
@@ -238,6 +241,9 @@ export class CommandManager {
     }
     cmdInstance.redo();
     this.undoStack.push(commandId);
+    const redoneCmd = this.commands.get(commandId);
+    if (redoneCmd)
+      this.commands.set(commandId, { ...redoneCmd, status: "applied" });
 
     const ack = (success: boolean) => {
       if (!success) {
@@ -282,7 +288,7 @@ export class CommandManager {
    * Initial board state from the server when joining a room.
    * Replays every finalized command that the client doesn't already have.
    */
-  private onRoomSync(state: Command[]): void {
+  private onRoomSync = (state: Command[]): void => {
     for (const command of state) {
       if (this.commands.has(command.id)) continue;
       const instance = this.factory.createInstance(command, this.stageOps);
@@ -291,32 +297,32 @@ export class CommandManager {
       this.commands.set(command.id, { ...command, status: "applied" });
       this.appliedCommands.add(command.id);
     }
-  }
+  };
 
   /** Another user started a new command — show it as a live preview. */
-  private onRemoteCreate(commandId: CommandID, command: Command): void {
+  private onRemoteCreate = (commandId: CommandID, command: Command): void => {
     if (command.owner === this.userId) return;
     if (this.commands.has(commandId)) return;
     const instance = this.factory.createInstance(command, this.stageOps);
     instance.apply();
     this.commands.set(commandId, command);
     this.pendingCommands.set(commandId, instance);
-  }
+  };
 
   /** Another user updated their in-flight command — update the live preview. */
-  private onRemoteUpdate(commandId: CommandID, command: Command): void {
+  private onRemoteUpdate = (commandId: CommandID, command: Command): void => {
     if (command.owner === this.userId) return;
     const instance = this.pendingCommands.get(commandId);
     if (!instance) return;
     instance.update(command.payload);
     this.commands.set(commandId, command);
-  }
+  };
 
   /**
    * Another user finalised their command.
    * If we missed the create (late join / reconnect), create and apply first.
    */
-  private onRemoteFinalize(commandId: CommandID, command: Command): void {
+  private onRemoteFinalize = (commandId: CommandID, command: Command): void => {
     if (command.owner === this.userId) return;
     let instance = this.pendingCommands.get(commandId);
     if (!instance) {
@@ -327,10 +333,10 @@ export class CommandManager {
     this.commands.set(commandId, { ...command, status: "applied" });
     this.appliedCommands.add(commandId);
     this.pendingCommands.delete(commandId);
-  }
+  };
 
   /** Another user cancelled their in-flight command — remove the preview. */
-  private onRemoteCancel(commandId: CommandID): void {
+  private onRemoteCancel = (commandId: CommandID): void => {
     const stored = this.commands.get(commandId);
     if (stored?.owner === this.userId) return;
     const instance = this.pendingCommands.get(commandId);
@@ -339,33 +345,35 @@ export class CommandManager {
     instance.destroy();
     this.commands.delete(commandId);
     this.pendingCommands.delete(commandId);
-  }
+  };
 
   /** Another user undid one of their commands — reverse its visual effect. */
-  private onRemoteUndo(commandId: CommandID, command: Command): void {
+  private onRemoteUndo = (commandId: CommandID, command: Command): void => {
     if (command.owner === this.userId) return;
     const stored = this.commands.get(commandId);
     if (!stored) return;
     const instance = this.factory.createInstance(stored, this.stageOps);
     instance.undo();
     this.appliedCommands.delete(commandId);
-  }
+    this.commands.set(commandId, { ...stored, status: "reverted" });
+  };
 
   /** Another user redid one of their commands — reapply its visual effect. */
-  private onRemoteRedo(commandId: CommandID, command: Command): void {
+  private onRemoteRedo = (commandId: CommandID, command: Command): void => {
     if (command.owner === this.userId) return;
     const stored = this.commands.get(commandId);
     if (!stored) return;
     const instance = this.factory.createInstance(stored, this.stageOps);
     instance.redo();
     this.appliedCommands.add(commandId);
-  }
+    this.commands.set(commandId, { ...stored, status: "applied" });
+  };
 
   /**
    * Server rejected one of our own commands — roll it back.
    * Handles both pending (not yet finalised) and optimistically-applied commands.
    */
-  private onCommandReject(commandId: CommandID, _reason: string): void {
+  private onCommandReject = (commandId: CommandID, _reason: string): void => {
     console.warn(
       `Command with ID ${commandId} was rejected by server: ${_reason}`,
     );
@@ -388,7 +396,7 @@ export class CommandManager {
       if (idx !== -1) this.undoStack.splice(idx, 1);
     }
     this.commands.delete(commandId);
-  }
+  };
 
   destroy() {
     this.commands.clear();
