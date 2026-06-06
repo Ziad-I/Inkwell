@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-object-type */
-
 import type { ShapeKind } from "@/lib/constants";
 import type { Point } from "@/types/common";
 
@@ -139,3 +137,8 @@ export interface CommandPayloadMap {
 }
 
 export type CommandOf<T extends CommandType> = Extract<Command, { type: T }>;
+
+export type PresenceMeta = {
+  userColor: string;
+  userName: string;
+};
