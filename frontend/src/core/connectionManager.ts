@@ -26,6 +26,7 @@ export class ConnectionManager<
   }
 
   disconnect() {
+    this.cleanup();
     this.socket.disconnect();
   }
 
