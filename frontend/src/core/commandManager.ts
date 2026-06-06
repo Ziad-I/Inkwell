@@ -291,11 +291,16 @@ export class CommandManager {
   private onRoomSync = (state: Command[]): void => {
     for (const command of state) {
       if (this.commands.has(command.id)) continue;
-      const instance = this.factory.createInstance(command, this.stageOps);
-      instance.apply();
-      instance.finalize();
-      this.commands.set(command.id, { ...command, status: "applied" });
-      this.appliedCommands.add(command.id);
+      if (command.status === "applied") {
+        const instance = this.factory.createInstance(command, this.stageOps);
+        instance.apply();
+        instance.finalize();
+        this.commands.set(command.id, { ...command, status: "applied" });
+        this.appliedCommands.add(command.id);
+      } else {
+        // Command exists on server but is reverted — store without applying
+        this.commands.set(command.id, command);
+      }
     }
   };
 
@@ -392,8 +397,10 @@ export class CommandManager {
       );
       rollbackInstance.undo();
       this.appliedCommands.delete(commandId);
-      const idx = this.undoStack.indexOf(commandId);
-      if (idx !== -1) this.undoStack.splice(idx, 1);
+      const undoIdx = this.undoStack.indexOf(commandId);
+      if (undoIdx !== -1) this.undoStack.splice(undoIdx, 1);
+      const redoIdx = this.redoStack.indexOf(commandId);
+      if (redoIdx !== -1) this.redoStack.splice(redoIdx, 1);
     }
     this.commands.delete(commandId);
   };
