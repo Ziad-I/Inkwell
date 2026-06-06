@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import ToolButton from "@/components/board/toolButton";
-import ToolSettings from "@/components/board/toolSettings";
+import ToolButton from "@/components/board/toolbar/toolButton";
+import ToolSettings from "@/components/board/toolbar/toolSettings";
 import { useBoardManagers } from "@/context/boardManagersContext";
 import type { Tools } from "@/types/tool";
 import { useToolStore } from "@/stores/toolStore";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
 
 export default function Toolbar() {
   const { toolManagerRef } = useBoardManagers();

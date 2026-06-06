@@ -20,7 +20,13 @@ export function ActionCards() {
 
   const setUserName = useUserStore((state) => state.setUserName);
 
-  const handleCreateBoard = () => {
+  const handleCreateBoard = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (name.trim()) {
+      setUserName(name.trim());
+    }
+
     const roomId = Math.random().toString(36).substring(2, 15);
     navigate(`/board/${roomId}`);
   };
@@ -56,14 +62,24 @@ export function ActionCards() {
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <Button
-            onClick={handleCreateBoard}
-            className="w-full group"
-            size="lg"
-          >
-            Create Board
-            <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <form onSubmit={handleCreateBoard} className="space-y-3">
+            <Input
+              type="text"
+              placeholder="(Optional) Your name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full"
+            />
+            <Button
+              type="submit"
+              className="w-full group"
+              size="lg"
+              disabled={isJoining}
+            >
+              Create Board
+              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </form>
         </CardContent>
       </Card>
 

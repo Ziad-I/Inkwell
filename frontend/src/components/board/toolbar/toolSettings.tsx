@@ -9,7 +9,7 @@ import {
   SizeSettings,
   PresenceSettings,
   ShapeKindSettings,
-} from "@/components/board/widgets";
+} from "@/components/board/toolbar/widgets";
 import {
   Blend,
   ChevronRight,

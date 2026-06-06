@@ -4,19 +4,20 @@ import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Rect, Stage, Text } from "react-konva";
 import { useBoardManagers } from "@/context/boardManagersContext";
-import PresenceDot, {
-  type PresenceDotHandle,
-} from "@/components/board/presenceDot";
+import type { PresenceDotHandle } from "@/components/board/presence/presenceDot";
+import LocalPresenceDot from "@/components/board/presence/localPresenceDot";
+import RemotePresenceDot from "@/components/board/presence/remotePresenceDot";
 import useKeyBindings from "@/hooks/useKeyBindings";
 import useWindowSize from "@/hooks/useWindowSize";
 import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
   ZOOM_FACTOR,
+  PRESENCE_EMIT_INTERVAL_MS,
 } from "@/lib/constants";
 import type { Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
-import GridLayer from "./gridLayer";
+import GridLayer from "@/components/board/canvas/gridLayer";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
@@ -32,7 +33,8 @@ function InfiniteCanvas({
   overlayLayerRef,
 }: InfiniteCanvasProps) {
   const { width, height } = useWindowSize();
-  const { toolManagerRef, commandManagerRef } = useBoardManagers();
+  const { toolManagerRef, commandManagerRef, connectionManagerRef } =
+    useBoardManagers();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
@@ -41,6 +43,7 @@ function InfiniteCanvas({
 
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(performance.now());
+  const lastEmitTimeRef = useRef(0);
 
   const [displayState, setDisplayState] = useState({
     scale: DEFAULT_SCALE,
@@ -132,6 +135,14 @@ function InfiniteCanvas({
     const worldPos = stageOperations.screenToWorld(pointerPos.x, pointerPos.y);
     dotRef.current?.setPos(worldPos);
     setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
+
+    if (
+      performance.now() - lastEmitTimeRef.current >
+      PRESENCE_EMIT_INTERVAL_MS
+    ) {
+      connectionManagerRef.current?.emit("presence:move", worldPos);
+      lastEmitTimeRef.current = performance.now();
+    }
 
     if (spaceRef.current) {
       return;
@@ -270,7 +281,8 @@ function InfiniteCanvas({
             height={height - 1}
           />
           <Layer ref={overlayLayerRef}>
-            <PresenceDot ref={dotRef} />
+            <LocalPresenceDot ref={dotRef} />
+            <RemotePresenceDot />
           </Layer>
           <Layer ref={drawingLayerRef}>
             <Text

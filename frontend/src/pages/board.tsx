@@ -1,5 +1,5 @@
-import InfiniteCanvas from "@/components/board/canvas";
-import Toolbar from "@/components/board/toolbar";
+import InfiniteCanvas from "@/components/board/canvas/canvas";
+import Toolbar from "@/components/board/toolbar/toolbar";
 import { useStageOperations } from "@/hooks/useStageOperations";
 import { useUserStore } from "@/stores/userStore";
 import { BoardManagersProvider } from "@/providers/managersProvider";
