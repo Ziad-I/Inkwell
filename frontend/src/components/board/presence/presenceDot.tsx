@@ -1,6 +1,6 @@
 import type { Point } from "@/types/common";
-import { forwardRef, useImperativeHandle, useRef } from "react";
-import { Circle, Group, Label, Tag, Text } from "react-konva";
+import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { Circle, Group, Rect, Text } from "react-konva";
 import type Konva from "konva";
 
 export type PresenceDotHandle = {
@@ -36,33 +36,47 @@ export const PresenceDot = forwardRef<PresenceDotHandle, PresenceDotProps>(
       [],
     );
 
+    const badgeWidth = useMemo(() => {
+      const estimated = userName.length * 7 + 32;
+      return Math.max(32, Math.min(160, estimated));
+    }, [userName]);
+
+    const badgeHeight = 22;
+    const badgeY = -radius - badgeHeight - 3;
+
     return (
       <Group ref={nodeRef} x={0} y={0} visible={visible} listening={false}>
-        <Label x={0} y={-radius - 22} listening={false}>
-          <Tag
-            fill={userColor}
-            cornerRadius={4}
-            opacity={0.9}
-            shadowColor="#000000"
-            shadowBlur={4}
-            shadowOpacity={0.25}
+        <Group x={0} y={badgeY} listening={false}>
+          <Rect
+            width={badgeWidth}
+            height={badgeHeight}
+            cornerRadius={8}
+            fill="#111827"
+            opacity={0.96}
+            stroke={userColor}
+            strokeWidth={1}
           />
+          <Circle x={11} y={11} radius={5} fill={userColor} />
           <Text
+            x={21}
+            y={7}
+            width={badgeWidth - 24}
+            height={16}
             text={userName}
             fontSize={11}
             fontFamily="Inter, sans-serif"
-            fill="#ffffff"
-            padding={4}
-            listening={false}
+            fontStyle="600"
+            fill="#F9FAFB"
+            ellipsis
           />
-        </Label>
+        </Group>
 
         <Circle
           x={0}
           y={0}
           radius={radius + 2}
           fill={userColor}
-          opacity={0.3}
+          opacity={0.22}
           listening={false}
         />
 
