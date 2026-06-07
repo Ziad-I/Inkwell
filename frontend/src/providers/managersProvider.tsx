@@ -31,6 +31,7 @@ export function BoardManagersProvider({
       if (!userId) return;
 
       connectionManagerRef.current = new ConnectionManager(url);
+      connectionManagerRef.current.connect();
 
       commandManagerRef.current = new CommandManager(
         userId,
