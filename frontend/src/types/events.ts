@@ -20,7 +20,7 @@ export type ClientEmitEvents = {
   "command:cancel": (payload: { id: CommandID }, ack?: Ack) => void;
   "command:undo": (payload: { id: CommandID }, ack?: Ack) => void;
   "command:redo": (payload: { id: CommandID }, ack?: Ack) => void;
-  "presence:move": (pos: Point, ack?: Ack) => void;
+  "presence:move": (payload: { userId: string; pos: Point }, ack?: Ack) => void;
 };
 
 // Events the client listens for from the server

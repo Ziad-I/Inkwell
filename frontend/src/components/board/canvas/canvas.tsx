@@ -18,6 +18,7 @@ import {
 import type { Point, StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
 import GridLayer from "@/components/board/canvas/gridLayer";
+import { useUserStore } from "@/stores/userStore";
 
 interface InfiniteCanvasProps {
   stageOperations: StageOperations;
@@ -32,6 +33,7 @@ function InfiniteCanvas({
   drawingLayerRef,
   overlayLayerRef,
 }: InfiniteCanvasProps) {
+  const userId = useUserStore((s) => s.userId);
   const { width, height } = useWindowSize();
   const { toolManagerRef, commandManagerRef, connectionManagerRef } =
     useBoardManagers();
@@ -136,12 +138,13 @@ function InfiniteCanvas({
     dotRef.current?.setPos(worldPos);
     setDisplayState((prev) => ({ ...prev, cursorPos: worldPos }));
 
-    if (
-      performance.now() - lastEmitTimeRef.current >
-      PRESENCE_EMIT_INTERVAL_MS
-    ) {
-      connectionManagerRef.current?.emit("presence:move", worldPos);
-      lastEmitTimeRef.current = performance.now();
+    const now = performance.now();
+    if (now - lastEmitTimeRef.current >= PRESENCE_EMIT_INTERVAL_MS) {
+      connectionManagerRef.current?.emit("presence:move", {
+        userId,
+        pos: worldPos,
+      });
+      lastEmitTimeRef.current = now;
     }
 
     if (spaceRef.current) {

@@ -3,7 +3,7 @@ const MIN_SCALE = 0.1;
 const MAX_SCALE = 10;
 const DEFAULT_VIEWPOINT_POS = { x: 0, y: 0 };
 const ZOOM_FACTOR = 1.06;
-const PRESENCE_EMIT_INTERVAL_MS = 50;
+const PRESENCE_EMIT_INTERVAL_MS = 100;
 const PRESET_COLORS = [
   "#000000",
   "#ffffff",
