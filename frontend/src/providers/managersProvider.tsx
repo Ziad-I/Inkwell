@@ -8,6 +8,8 @@ import { BoardManagersContext } from "@/context/boardManagersContext";
 
 interface BoardManagersProviderProps {
   userId: string;
+  userName: string;
+  userColor: string;
   url: string;
   stageOperations: StageOperations;
   children: ReactNode;
@@ -15,6 +17,8 @@ interface BoardManagersProviderProps {
 
 export function BoardManagersProvider({
   userId,
+  userName,
+  userColor,
   url,
   stageOperations,
   children,
@@ -30,7 +34,10 @@ export function BoardManagersProvider({
     async function initManagers() {
       if (!userId) return;
 
-      connectionManagerRef.current = new ConnectionManager(url);
+      connectionManagerRef.current = new ConnectionManager(url, {
+        auth: { userId, userName, userColor },
+      });
+
       connectionManagerRef.current.connect();
 
       commandManagerRef.current = new CommandManager(
@@ -62,7 +69,7 @@ export function BoardManagersProvider({
       toolManagerRef.current?.destroy?.();
       commandManagerRef.current?.destroy?.();
     };
-  }, [stageOperations, url, userId]);
+  }, [stageOperations, url, userColor, userId, userName]);
 
   const value = useMemo(
     () => ({

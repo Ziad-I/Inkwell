@@ -6,6 +6,8 @@ import { BoardManagersProvider } from "@/providers/managersProvider";
 
 function BoardPage() {
   const userId = useUserStore((s) => s.userId);
+  const userName = useUserStore((s) => s.userName);
+  const userColor = useUserStore((s) => s.userColor);
   const url = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 
   const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
@@ -14,6 +16,8 @@ function BoardPage() {
   return (
     <BoardManagersProvider
       userId={userId}
+      userName={userName}
+      userColor={userColor}
       url={url}
       stageOperations={stageOperations}
     >
