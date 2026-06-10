@@ -160,12 +160,24 @@ export class CommandManager {
       }
     }
 
-    // use networkOps to send command finalization to server here...
-    // this.networkOps.finalizeCommand(commandId, cmdInstance.serialize());
-    this.connectionManager.emit("command:finalize", {
-      id: commandId,
-      command: cmdInstance.serialize(),
-    });
+    const ack = (err?: unknown, resp?: { seq: number }) => {
+      if (err) {
+        console.error(`Server rejected command with ID: ${commandId}`, err);
+        // Rollback local state
+      }
+      const stored = this.commands.get(commandId);
+      if (stored && resp)
+        this.commands.set(commandId, { ...stored, seq: resp.seq });
+    };
+
+    this.connectionManager.emit(
+      "command:finalize",
+      {
+        id: commandId,
+        command: cmdInstance.serialize(),
+      },
+      ack,
+    );
   }
 
   public cancelCommand(commandId: CommandID) {
@@ -210,11 +222,16 @@ export class CommandManager {
     if (undoneCmd)
       this.commands.set(commandId, { ...undoneCmd, status: "reverted" });
 
-    const ack = (success: boolean) => {
-      if (!success) {
-        console.error(`Server rejected undo command with ID: ${commandId}`);
+    const ack = (err?: unknown, resp?: { seq: number }) => {
+      if (err) {
+        console.error(
+          `Server rejected undo command with ID: ${commandId}`,
+          err,
+        );
       }
-      //TODO: We could add logic here to revert the undo if the server rejects it, but that can be complex
+      const stored = this.commands.get(commandId);
+      if (stored && resp)
+        this.commands.set(commandId, { ...stored, seq: resp.seq });
     };
 
     this.emit("command:undo");
@@ -245,11 +262,16 @@ export class CommandManager {
     if (redoneCmd)
       this.commands.set(commandId, { ...redoneCmd, status: "applied" });
 
-    const ack = (success: boolean) => {
-      if (!success) {
-        console.error(`Server rejected redo command with ID: ${commandId}`);
+    const ack = (err?: unknown, resp?: { seq: number }) => {
+      if (err) {
+        console.error(
+          `Server rejected redo command with ID: ${commandId}`,
+          err,
+        );
       }
-      // TODO: We could add logic here to revert the redo if the server rejects it, but that can be complex
+      const stored = this.commands.get(commandId);
+      if (stored && resp)
+        this.commands.set(commandId, { ...stored, seq: resp.seq });
     };
 
     this.emit("command:redo");
