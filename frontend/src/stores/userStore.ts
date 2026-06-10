@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type UserState = {
   // User Presence;
@@ -22,17 +23,21 @@ const initialUser = {
 };
 
 export const useUserStore = create<UserState>()(
-  // persist(
-  (set) => ({
-    ...initialUser,
-    setUserId: (id: string) => set(() => ({ userId: id })),
-    setUserName: (name: string) => set(() => ({ userName: name })),
-    setUserColor: (color: string) => set(() => ({ userColor: color })),
-    reset: () => set(() => ({ ...initialUser })),
-  })
-  //   {
-  //     name: "whiteboard-settings", // localStorage key
-  //     version: 1,
-  //   }
-  // )
+  persist(
+    (set) => ({
+      ...initialUser,
+      setUserId: (id: string) => set(() => ({ userId: id })),
+      setUserName: (name: string) => set(() => ({ userName: name })),
+      setUserColor: (color: string) => set(() => ({ userColor: color })),
+      reset: () => set(() => ({ ...initialUser })),
+    }),
+    {
+      name: "inkwell-user", // localStorage key
+      partialize: (state) => ({
+        userId: state.userId,
+        userName: state.userName,
+      }),
+      version: 1,
+    },
+  ),
 );
