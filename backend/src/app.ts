@@ -4,9 +4,10 @@ import cors from "cors";
 import compression from "compression";
 
 import { morganMiddleware } from "@/middlewares/morgan.js";
+import { errorHandler } from "@/middlewares/errorHandler.js";
+import { notFound } from "@/middlewares/notFound.js";
 
-import { errorHandler } from "./middlewares/errorHandler.js";
-import { notFound } from "./middlewares/notFound.js";
+import boardRouter from "@/routers/board.js";
 
 export const app: Express = express();
 
@@ -26,6 +27,7 @@ app.get("/health", (_req: Request, res: Response) => {
 
 // Routers
 const apiRouter = express.Router();
+apiRouter.use("/boards", boardRouter);
 
 app.use("/api", apiRouter);
 
