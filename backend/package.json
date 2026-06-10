@@ -14,6 +14,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@mikro-orm/core": "^6.6.14",
+    "@mikro-orm/migrations": "^6.6.14",
+    "@mikro-orm/postgresql": "^6.6.14",
     "@socket.io/redis-adapter": "^8.3.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -28,6 +31,7 @@
     "zod": "^4.1.13"
   },
   "devDependencies": {
+    "@mikro-orm/cli": "^6.6.14",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
