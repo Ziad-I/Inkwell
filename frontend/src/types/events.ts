@@ -2,9 +2,13 @@ import type { Command, CommandID, PresenceMeta } from "@/types/command";
 import type { Point } from "./common";
 
 type Ack<T = void> = (err?: any, resp?: T) => void;
+type AckWithSeq = Ack<{ seq: number }>;
 
 export type ClientEmitEvents = {
-  "room:join": (payload: { roomId: string }, ack?: Ack) => void;
+  "room:join": (
+    payload: { roomId: string; lastSeq: number },
+    ack?: Ack,
+  ) => void;
   "command:create": (
     payload: { id: CommandID; command: Command },
     ack?: Ack,
@@ -15,12 +19,12 @@ export type ClientEmitEvents = {
   ) => void;
   "command:finalize": (
     payload: { id: CommandID; command: Command },
-    ack?: Ack,
+    ack?: AckWithSeq,
   ) => void;
   "command:cancel": (payload: { id: CommandID }, ack?: Ack) => void;
-  "command:undo": (payload: { id: CommandID }, ack?: Ack) => void;
-  "command:redo": (payload: { id: CommandID }, ack?: Ack) => void;
-  "presence:move": (payload: { userId: string; pos: Point }, ack?: Ack) => void;
+  "command:undo": (payload: { id: CommandID }, ack?: AckWithSeq) => void;
+  "command:redo": (payload: { id: CommandID }, ack?: AckWithSeq) => void;
+  "presence:move": (payload: { pos: Point }, ack?: Ack) => void;
 };
 
 // Events the client listens for from the server
