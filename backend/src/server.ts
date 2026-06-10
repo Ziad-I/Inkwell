@@ -3,10 +3,15 @@ import { app } from "@/app.js";
 import logger from "@/config/logger.js";
 import { createSocketServer } from "@/socket/server.js";
 import { connectRedis, disconnectRedis } from "./redis/client.js";
+import { RequestContext } from "@mikro-orm/core";
+import { connectDB, disconnectDB } from "@/db/index.js";
 
 async function startServer() {
   try {
     await connectRedis();
+    const db = await connectDB();
+
+    app.use((req, res, next) => RequestContext.create(db.em, next));
 
     const { io, httpServer } = createSocketServer(app);
 
@@ -21,6 +26,7 @@ async function startServer() {
       io.close();
       httpServer.close(async () => {
         await disconnectRedis();
+        await disconnectDB();
         logger.info("[server]: Server shutdown complete.");
         process.exit(0); // Exit the process with a success code
       });
