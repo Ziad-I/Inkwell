@@ -12,39 +12,66 @@ import { ArrowRight, Plus, Link2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useUserStore } from "@/stores/userStore";
 
+import api from "@/lib/api";
+
 export function ActionCards() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [name, setName] = useState("");
-  const [isJoining, setIsJoining] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const setUserName = useUserStore((state) => state.setUserName);
 
-  const handleCreateBoard = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateBoard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
+    setLoading(true);
 
-    if (name.trim()) {
-      setUserName(name.trim());
+    try {
+      if (name.trim()) {
+        setUserName(name.trim());
+      }
+
+      const boardName = name.trim()
+        ? `${name.trim()}'s Board`
+        : "Untitled Board";
+
+      const { data } = await api.post("/boards", {
+        name: boardName,
+      });
+
+      navigate(`/board/${data.id}`);
+    } catch (err) {
+      setError("Failed to create board. Please try again.");
+      console.error("Create Board Error:", err);
+    } finally {
+      setLoading(false);
     }
-
-    const roomId = Math.random().toString(36).substring(2, 15);
-    navigate(`/board/${roomId}`);
   };
 
   const handleJoinBoard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     if (!roomCode.trim()) return;
-    setIsJoining(true);
-    if (name.trim()) {
-      setUserName(name.trim());
-    }
-    if (roomCode.includes("/")) {
-      const parts = roomCode.split("/");
-      const id = parts[parts.length - 1];
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      if (name.trim()) {
+        setUserName(name.trim());
+      }
+
+      const id = roomCode.includes("/")
+        ? roomCode.split("/").at(-1)!
+        : roomCode.trim();
+
       navigate(`/board/${id}`);
-    } else {
-      navigate(`/board/${roomCode.trim()}`);
+    } catch (err) {
+      setError("Failed to join board.");
+      console.error("Join Board Error:", err);
+    } finally {
+      setLoading(false); // ← was missing
     }
   };
 
@@ -74,7 +101,7 @@ export function ActionCards() {
               type="submit"
               className="w-full group"
               size="lg"
-              disabled={isJoining}
+              disabled={loading}
             >
               Create Board
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -114,9 +141,9 @@ export function ActionCards() {
               type="submit"
               variant="secondary"
               className="w-full"
-              disabled={!roomCode.trim() || isJoining}
+              disabled={!roomCode.trim() || loading}
             >
-              {isJoining ? "Joining..." : "Join Board"}
+              {loading ? "Joining..." : "Join Board"}
             </Button>
           </form>
         </CardContent>
