@@ -36,7 +36,7 @@ export interface ShapePayload {
 }
 
 export interface ErasePayload {
-  erasedNodes: Set<string>;
+  erasedNodes: string[];
 }
 
 export interface NodeState {
