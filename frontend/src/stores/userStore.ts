@@ -19,7 +19,10 @@ const initialUser = {
   userId: Math.random().toString(36).substring(2, 15),
   userName: `User_${Math.random().toString(36).substring(2, 15)}`,
   userColor:
-    "#" + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, "0"),
+    "#" +
+    Math.floor(Math.random() * 0xffffff)
+      .toString(16)
+      .padStart(6, "0"),
 };
 
 export const useUserStore = create<UserState>()(
