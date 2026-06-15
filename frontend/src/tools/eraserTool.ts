@@ -25,7 +25,7 @@ export class EraserTool extends BaseTool {
 
   private createPayloadSnapshot(): ErasePayload {
     return {
-      erasedNodes: new Set(this.erasedNodeIds),
+      erasedNodes: [...this.erasedNodeIds],
     };
   }
 
@@ -56,7 +56,7 @@ export class EraserTool extends BaseTool {
       }
 
       this.ctx.commandManager.updateCommand(this.eraseCommandId!, {
-        erasedNodes: new Set(this.erasedNodeIds),
+        erasedNodes: [...this.erasedNodeIds],
       });
     }
   }
