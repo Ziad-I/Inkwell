@@ -31,7 +31,8 @@ app.get("/health", (_req: Request, res: Response) => {
 const apiRouter = express.Router();
 apiRouter.use("/boards", boardRouter);
 
-app.use("/api", apiRouter);
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+app.use("/api", apiLimiter, apiRouter);
 
 // Global error handler
 app.use(notFound);

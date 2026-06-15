@@ -3,11 +3,25 @@ import {
   createBoard as createBoardService,
   getBoardById,
 } from "@/services/board.js";
+import { z } from "zod";
+import { DrawPermissions } from "@/types/types.js";
+
+const createBoardSchema = z.object({
+  name: z.string().min(1).max(100),
+  drawPermission: z.enum(DrawPermissions).optional().default("anyone"),
+});
 
 export async function createBoard(req: Request, res: Response) {
-  const { name, drawPermission } = req.body;
+  const result = createBoardSchema.safeParse(req.body);
+  if (!result.success) {
+    res
+      .status(400)
+      .json({ message: "Invalid input", errors: result.error.format() });
+    return;
+  }
+  const { name, drawPermission } = result.data;
   const board = await createBoardService(name, drawPermission);
-  res.status(201).json(board);
+  res.status(201).json({ id: board.id });
 }
 
 export async function getBoard(req: Request, res: Response) {
