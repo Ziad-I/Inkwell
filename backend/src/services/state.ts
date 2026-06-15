@@ -1,5 +1,6 @@
 import { redisStateClient } from "@/redis/client.js";
 import type { Command, CommandID, BoardState } from "@/types/types.js";
+import logger from "@/config/logger.js";
 
 // ─── Redis key schema ─────────────────────────────────────────────────────────
 //
@@ -50,7 +51,11 @@ export async function getBoardState(roomId: string): Promise<BoardState> {
   }
 
   for (const [commandId, command] of Object.entries(entries)) {
-    state[commandId] = JSON.parse(command);
+    try {
+      state[commandId] = JSON.parse(command) as Command;
+    } catch {
+      logger.warn(`[state]: Failed to parse command ${commandId} — skipping`);
+    }
   }
   return state;
 }
@@ -104,7 +109,14 @@ export async function getCommandsInBuffer(roomId: string, afterSeq: number) {
     return null;
   }
 
-  return commands.map((m) => JSON.parse(m) as Command);
+  return commands.flatMap((m) => {
+    try {
+      return [JSON.parse(m) as Command];
+    } catch {
+      logger.warn(`[state]: Failed to parse buffered command — skipping`);
+      return [];
+    }
+  });
 }
 
 export async function getCommandById(roomId: string, commandId: CommandID) {
@@ -115,23 +127,44 @@ export async function getCommandById(roomId: string, commandId: CommandID) {
   return JSON.parse(commandStr);
 }
 
-export async function applyFinalize(roomId: string, command: Command) {
+export async function applyFinalize(
+  roomId: string,
+  command: Command,
+): Promise<Command & { seq: number }> {
   const seq = await nextSequence(roomId);
-  const finalizedCommand: Command = { ...command, status: "applied", seq };
+  const finalizedCommand: Command & { seq: number } = {
+    ...command,
+    status: "applied",
+    seq,
+  };
   await pushToBuffer(roomId, finalizedCommand);
   return finalizedCommand;
 }
 
-export async function applyUndo(roomId: string, command: Command) {
+export async function applyUndo(
+  roomId: string,
+  command: Command,
+): Promise<Command & { seq: number }> {
   const seq = await nextSequence(roomId);
-  const undoneCommand: Command = { ...command, status: "reverted", seq };
+  const undoneCommand: Command & { seq: number } = {
+    ...command,
+    status: "reverted",
+    seq,
+  };
   await pushToBuffer(roomId, undoneCommand);
   return undoneCommand;
 }
 
-export async function applyRedo(roomId: string, command: Command) {
+export async function applyRedo(
+  roomId: string,
+  command: Command,
+): Promise<Command & { seq: number }> {
   const seq = await nextSequence(roomId);
-  const redoneCommand: Command = { ...command, status: "applied", seq };
+  const redoneCommand: Command & { seq: number } = {
+    ...command,
+    status: "applied",
+    seq,
+  };
   await pushToBuffer(roomId, redoneCommand);
   return redoneCommand;
 }
