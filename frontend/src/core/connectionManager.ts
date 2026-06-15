@@ -25,6 +25,10 @@ export class ConnectionManager<
     this.socket.connect();
   }
 
+  onConnect(handler: () => void): void {
+    this.socket.on("connect", handler);
+  }
+
   disconnect() {
     this.cleanup();
     this.socket.disconnect();
