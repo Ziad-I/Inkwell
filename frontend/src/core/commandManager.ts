@@ -92,6 +92,14 @@ export class CommandManager {
     this.registerServerListeners();
   }
 
+  private throttledEmitUpdate = throttle(
+    (commandId: CommandID, command: Command) => {
+      this.connectionManager.emit("command:update", { id: commandId, command });
+    },
+    100,
+    { leading: true, trailing: true },
+  );
+
   public startCommand(type: CommandType, initialPayload: CommandPayload) {
     const cmd = this.factory.createCommand(type, initialPayload, this.userId);
     const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
@@ -129,16 +137,12 @@ export class CommandManager {
     cmdInstance.update(updatedPayload);
     this.commands.set(commandId, cmdInstance.serialize());
 
-    // console.log("Updated command:", cmdInstance.serialize());
-    // use networkOps to send command update to server here...
-    // this.networkOps.updateCommand(commandId, cmdInstance.serialize());
-    this.connectionManager.emit("command:update", {
-      id: commandId,
-      command: cmdInstance.serialize(),
-    });
+    this.throttledEmitUpdate(commandId, cmdInstance.serialize());
   }
 
   public finalizeCommand(commandId: CommandID) {
+    this.throttledEmitUpdate.flush();
+
     const cmd = this.commands.get(commandId);
     const cmdInstance = this.pendingCommands.get(commandId);
 
