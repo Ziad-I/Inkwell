@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGesture } from "@use-gesture/react";
-import Konva from "konva";
+import type Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Layer, Rect, Stage, Text } from "react-konva";
 import { useBoardManagers } from "@/context/boardManagersContext";
