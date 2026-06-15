@@ -20,6 +20,9 @@ export class SelectionTool extends BaseTool {
   private transformCommandId: CommandID | null = null;
   private transformPayload: TransformPayload | null = null;
 
+  // Stable bound reference so onActivate and onDeactivate use the same function instance
+  private readonly handleClearSelection = this.clearSelection.bind(this);
+
   // private currentSelectCommand: TransformCommand | null = null;
   private isSelecting = false;
   private isTransforming = false;
@@ -268,7 +271,7 @@ export class SelectionTool extends BaseTool {
     this.createTransformer();
     this.ctx.commandManager.on(
       ["command:undo", "command:redo"],
-      this.clearSelection.bind(this),
+      this.handleClearSelection,
     );
   }
 
@@ -300,7 +303,7 @@ export class SelectionTool extends BaseTool {
     this.transformCommandId = null;
     this.ctx.commandManager.off(
       ["command:undo", "command:redo"],
-      this.clearSelection.bind(this),
+      this.handleClearSelection,
     );
   }
 
