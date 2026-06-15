@@ -1,3 +1,4 @@
+import { throttle } from "lodash-es";
 import { CommandFactory } from "@/core/commandFactory";
 import type { StageOperations } from "@/types/common";
 import {
@@ -14,6 +15,7 @@ type EventKey = keyof ClientEmitEvents;
 
 export class CommandManager {
   private userId: string;
+  private roomId: string;
   private stageOps: StageOperations;
   // private networkOps: NetworkOperations;
   private connectionManager: ConnectionManager;
@@ -78,13 +80,16 @@ export class CommandManager {
 
   constructor(
     userId: string,
+    roomId: string,
     stageOps: StageOperations,
     connectionManager: ConnectionManager,
   ) {
     this.userId = userId;
+    this.roomId = roomId;
     this.stageOps = stageOps;
     this.connectionManager = connectionManager;
     this.factory = new CommandFactory();
+    this.registerServerListeners();
   }
 
   public startCommand(type: CommandType, initialPayload: CommandPayload) {
@@ -284,6 +289,15 @@ export class CommandManager {
   public getRedoStack(): CommandID[] {
     return [...this.redoStack];
   }
+
+  public getLastSeq(): number {
+    let max = 0;
+    for (const cmd of this.commands.values()) {
+      if (cmd.seq !== undefined && cmd.seq > max) max = cmd.seq;
+    }
+    return max;
+  }
+
   public getOperation(id: CommandID): Command | undefined {
     return this.commands.get(id);
   }
@@ -296,6 +310,7 @@ export class CommandManager {
    * ConnectionManager.cleanup() (removeAllListeners) on unmount.
    */
   public registerServerListeners(): void {
+    this.connectionManager.onConnect(this.onConnect);
     this.connectionManager.on("room:sync", this.onRoomSync);
     this.connectionManager.on("command:create", this.onRemoteCreate);
     this.connectionManager.on("command:update", this.onRemoteUpdate);
@@ -305,6 +320,16 @@ export class CommandManager {
     this.connectionManager.on("command:redo", this.onRemoteRedo);
     this.connectionManager.on("command:reject", this.onCommandReject);
   }
+
+  private onConnect = (): void => {
+    this.connectionManager.emit(
+      "room:join",
+      { roomId: this.roomId, lastSeq: this.getLastSeq() },
+      (err?: unknown) => {
+        if (err) console.error("[room:join] failed:", err);
+      },
+    );
+  };
 
   /**
    * Initial board state from the server when joining a room.

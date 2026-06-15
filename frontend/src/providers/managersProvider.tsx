@@ -11,6 +11,7 @@ interface BoardManagersProviderProps {
   userName: string;
   userColor: string;
   url: string;
+  roomId: string;
   stageOperations: StageOperations;
   children: ReactNode;
 }
@@ -20,6 +21,7 @@ export function BoardManagersProvider({
   userName,
   userColor,
   url,
+  roomId,
   stageOperations,
   children,
 }: BoardManagersProviderProps) {
@@ -29,32 +31,38 @@ export function BoardManagersProvider({
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!userId || !roomId) return;
+
     let cancelled = false;
 
     async function initManagers() {
       if (!userId) return;
 
-      connectionManagerRef.current = new ConnectionManager(url, {
+      const connection = new ConnectionManager(url, {
         auth: { userId, userName, userColor },
       });
 
-      connectionManagerRef.current.connect();
-
-      commandManagerRef.current = new CommandManager(
+      const commandMgr = new CommandManager(
         userId,
+        roomId,
         stageOperations,
-        connectionManagerRef.current,
+        connection,
       );
-      commandManagerRef.current.registerServerListeners();
 
       const ctx: ToolContext = {
         stageOps: stageOperations,
-        commandManager: commandManagerRef.current,
+        commandManager: commandMgr,
       };
 
       const mgr = new ToolManager(ctx);
+
+      // Assign refs before initiating the connection
+      connectionManagerRef.current = connection;
+      commandManagerRef.current = commandMgr;
       toolManagerRef.current = mgr;
+
       await mgr.initTools();
+      connection.connect();
 
       if (!cancelled) {
         setReady(true);
@@ -69,7 +77,7 @@ export function BoardManagersProvider({
       toolManagerRef.current?.destroy?.();
       commandManagerRef.current?.destroy?.();
     };
-  }, [stageOperations, url, userColor, userId, userName]);
+  }, [stageOperations, url, userColor, userId, userName, roomId]);
 
   const value = useMemo(
     () => ({
