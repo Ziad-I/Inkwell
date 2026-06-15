@@ -21,6 +21,7 @@ const envSchema = z.object({
     .string()
     .default("postgresql://username:password@localhost:5432/inkwell_db"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
+  CORS_ORIGIN: z.string().default("http://localhost:5173"),
   SNAPSHOT_INTERVAL: z.preprocess(
     preprocessNum,
     z.number().int().positive().default(60000),

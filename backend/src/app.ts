@@ -2,7 +2,9 @@ import express, { type Express, type Request, type Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import compression from "compression";
+import rateLimit from "express-rate-limit";
 
+import { env } from "@/config/config.js";
 import { morganMiddleware } from "@/middlewares/morgan.js";
 import { errorHandler } from "@/middlewares/errorHandler.js";
 import { notFound } from "@/middlewares/notFound.js";
@@ -14,7 +16,7 @@ export const app: Express = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 
-app.use(cors());
+app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
 app.use(compression());
 app.use(helmet());
 app.use(express.json());
