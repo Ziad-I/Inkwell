@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 
 import logger from "@/config/logger.js";
+import { env } from "@/config/config.js";
 
 type HttpError = Error & {
   statusCode?: number;
@@ -22,7 +23,7 @@ export const errorHandler = (
 
   res.status(statusCode).json({
     message: err.message || "Internal Server Error",
-    ...(process.env.NODE_ENV !== "production" && {
+    ...(env.NODE_ENV !== "production" && {
       stack: err.stack,
     }),
   });
