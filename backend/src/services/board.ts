@@ -1,24 +1,26 @@
 import { db } from "@/db/index.js";
-import { BoardSchema } from "@/db/entities/board.js";
+import { boards } from "@/db/schema.js";
+import { eq } from "drizzle-orm";
 import type { DrawPermission } from "@/types/types.js";
 
 export async function getBoardById(roomId: string) {
-  const board = await db.em.findOne(BoardSchema, {
-    id: roomId,
-  });
-  return board;
+  const result = await db
+    .select()
+    .from(boards)
+    .where(eq(boards.id, roomId))
+    .limit(1);
+  return result[0] ?? null;
 }
 
 export async function createBoard(
   name: string,
   drawPermission: DrawPermission,
 ) {
-  const board = db.em.create(BoardSchema, {
-    title: name,
-    drawPermission,
-  });
-  await db.em.flush();
-  return board;
+  const result = await db
+    .insert(boards)
+    .values({ title: name, drawPermission })
+    .returning();
+  return result[0]!;
 }
 
 export async function updateBoard(
@@ -28,13 +30,18 @@ export async function updateBoard(
     drawPermission: DrawPermission;
   }>,
 ) {
-  const board = db.em.getReference(BoardSchema, roomId);
-  board.title = updates.title ?? board.title;
-  board.drawPermission = updates.drawPermission ?? board.drawPermission;
-  await db.em.flush();
+  const setValues = Object.fromEntries(
+    Object.entries(updates).filter(([, v]) => v !== undefined),
+  ) as Partial<typeof boards.$inferInsert>;
+
+  if (Object.keys(setValues).length === 0) return;
+
+  await db
+    .update(boards)
+    .set({ ...setValues, updatedAt: new Date() })
+    .where(eq(boards.id, roomId));
 }
 
 export async function deleteBoard(roomId: string) {
-  const board = db.em.getReference(BoardSchema, roomId);
-  await db.em.remove(board).flush();
+  await db.delete(boards).where(eq(boards.id, roomId));
 }
