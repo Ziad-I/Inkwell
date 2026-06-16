@@ -118,16 +118,16 @@ export function ActionCards() {
           <form onSubmit={handleJoinBoard} className="space-y-3">
             <Input
               type="text"
-              placeholder="Room code or board link..."
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
+              placeholder="(Optional) Your name..."
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full"
             />
             <Input
               type="text"
-              placeholder="(Optional) Your name..."
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="Room code or board link..."
+              value={roomCode}
+              onChange={(e) => setRoomCode(e.target.value)}
               className="w-full"
             />
             <Button
