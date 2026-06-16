@@ -8,45 +8,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowRight, Plus, Link2 } from "lucide-react";
+import { Plus, Link2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useUserStore } from "@/stores/userStore";
 
 import api from "@/lib/api";
+import { toast } from "sonner";
 
 export function ActionCards() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [name, setName] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
 
   const setUserName = useUserStore((state) => state.setUserName);
 
   const handleCreateBoard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
-    setLoading(true);
+    setIsCreating(true);
 
     try {
-      if (name.trim()) {
-        setUserName(name.trim());
-      }
-
-      const boardName = name.trim()
-        ? `${name.trim()}'s Board`
-        : "Untitled Board";
+      if (name.trim()) setUserName(name.trim());
 
       const { data } = await api.post("/boards", {
-        name: boardName,
+        name: name.trim() ? `${name.trim()}'s Board` : "Untitled Board",
       });
 
-      navigate(`/board/${data.id}`);
-    } catch (err) {
-      setError("Failed to create board. Please try again.");
-      console.error("Create Board Error:", err);
+      navigate(`/board/${data.id}`, { state: { skipValidation: true } });
+    } catch {
+      toast.error("Failed to create board. Please try again.");
     } finally {
-      setLoading(false);
+      setIsCreating(false);
     }
   };
 
@@ -54,24 +48,24 @@ export function ActionCards() {
     event.preventDefault();
     if (!roomCode.trim()) return;
 
-    setError(null);
-    setLoading(true);
+    setIsJoining(true);
 
     try {
-      if (name.trim()) {
-        setUserName(name.trim());
-      }
+      if (name.trim()) setUserName(name.trim());
 
       const id = roomCode.includes("/")
         ? roomCode.split("/").at(-1)!
         : roomCode.trim();
 
-      navigate(`/board/${id}`);
+      await api.get(`/boards/${id}`);
+      navigate(`/board/${id}`, { state: { skipValidation: true } });
     } catch (err) {
-      setError("Failed to join board.");
-      console.error("Join Board Error:", err);
+      console.error(err);
+      toast.error(
+        "Failed to join board. Please check the room code and try again.",
+      );
     } finally {
-      setLoading(false); // ← was missing
+      setIsJoining(false);
     }
   };
 
@@ -101,10 +95,9 @@ export function ActionCards() {
               type="submit"
               className="w-full group"
               size="lg"
-              disabled={loading}
+              disabled={isCreating}
             >
-              Create Board
-              <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              {isCreating ? "Creating..." : "Create Board"}
             </Button>
           </form>
         </CardContent>
@@ -141,9 +134,9 @@ export function ActionCards() {
               type="submit"
               variant="secondary"
               className="w-full"
-              disabled={!roomCode.trim() || loading}
+              disabled={!roomCode.trim() || isJoining}
             >
-              {loading ? "Joining..." : "Join Board"}
+              {isJoining ? "Joining..." : "Join Board"}
             </Button>
           </form>
         </CardContent>

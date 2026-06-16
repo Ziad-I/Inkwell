@@ -2,25 +2,32 @@ import InfiniteCanvas from "@/components/board/canvas/canvas";
 import Toolbar from "@/components/board/toolbar/toolbar";
 import { useStageOperations } from "@/hooks/useStageOperations";
 import { useUserStore } from "@/stores/userStore";
+import { LoadingSpinner } from "@/components/home/LoadingSpinner";
 import { BoardManagersProvider } from "@/providers/managersProvider";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
 
 type ValidationState = "pending" | "valid" | "invalid";
 
 function BoardPage() {
+  const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
+    useStageOperations();
+
   const { roomId } = useParams<{ roomId: string }>();
+
   const navigate = useNavigate();
-  const [validation, setValidation] = useState<ValidationState>("pending");
+  const location = useLocation();
+  const skipValidation = location.state?.skipValidation || false;
 
   const userId = useUserStore((s) => s.userId);
   const userName = useUserStore((s) => s.userName);
   const userColor = useUserStore((s) => s.userColor);
   const url = import.meta.env.VITE_BACKEND_WS_URL;
 
-  const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
-    useStageOperations();
+  const [validation, setValidation] = useState<ValidationState>(
+    skipValidation ? "valid" : "pending",
+  );
 
   useEffect(() => {
     if (!roomId) {
@@ -28,12 +35,13 @@ function BoardPage() {
       return;
     }
 
+    if (validation === "valid") return;
+
     const ensureBoardExists = async () => {
       try {
-        const response = await api.get(`/boards/${roomId}`);
+        await api.get(`/boards/${roomId}`);
         setValidation("valid");
-      } catch (error) {
-        console.error(error);
+      } catch {
         setValidation("invalid");
         navigate("/", { replace: true });
       }
@@ -43,7 +51,7 @@ function BoardPage() {
   }, [roomId, navigate]);
 
   if (validation !== "valid") {
-    return null;
+    return <LoadingSpinner />;
   }
 
   return (
