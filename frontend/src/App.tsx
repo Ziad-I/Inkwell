@@ -16,7 +16,7 @@ export default function App() {
           <Route path="*" element={<ErrorPage />} />
         </Routes>
       </BrowserRouter>
-      <Toaster richColors />
+      <Toaster richColors closeButton />
     </ThemeProvider>
   );
 }
