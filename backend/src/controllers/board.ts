@@ -8,6 +8,7 @@ import { DrawPermissions } from "@/types/types.js";
 
 const createBoardSchema = z.object({
   name: z.string().min(1).max(100),
+  userId: z.string().min(1).max(100),
   drawPermission: z.enum(DrawPermissions).optional().default("anyone"),
 });
 
@@ -19,8 +20,8 @@ export async function createBoard(req: Request, res: Response) {
       .json({ message: "Invalid input", errors: result.error.format() });
     return;
   }
-  const { name, drawPermission } = result.data;
-  const board = await createBoardService(name, drawPermission);
+  const { name, userId, drawPermission } = result.data;
+  const board = await createBoardService(name, userId, drawPermission);
   res.status(201).json({ id: board.id });
 }
 

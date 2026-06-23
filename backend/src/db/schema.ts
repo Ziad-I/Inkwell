@@ -27,9 +27,7 @@ export const boards = pgTable("board", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   title: text("title").notNull().default("Untitled Board"),
-  //   ownerId: uuid("owner_id")
-  //     .notNull()
-  //     .references(() => users.id),
+  ownerId: text("owner_id").notNull(),
   drawPermission: drawPermissionEnum("draw_permission")
     .notNull()
     .default("anyone"),

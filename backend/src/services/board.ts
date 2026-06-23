@@ -14,11 +14,12 @@ export async function getBoardById(roomId: string) {
 
 export async function createBoard(
   name: string,
+  ownerId: string,
   drawPermission: DrawPermission,
 ) {
   const result = await db
     .insert(boards)
-    .values({ title: name, drawPermission })
+    .values({ title: name, ownerId, drawPermission })
     .returning();
   return result[0]!;
 }

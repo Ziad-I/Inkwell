@@ -1,0 +1,1 @@
+ALTER TABLE "board" ADD COLUMN "owner_id" text NOT NULL;
