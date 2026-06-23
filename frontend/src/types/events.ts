@@ -3,11 +3,12 @@ import type { Point } from "./common";
 
 type Ack<T = void> = (err?: any, resp?: T) => void;
 type AckWithSeq = Ack<{ seq: number }>;
+type AckDrawPerm = Ack<{ canDraw: boolean }>;
 
 export type ClientEmitEvents = {
   "room:join": (
     payload: { roomId: string; lastSeq: number },
-    ack?: Ack,
+    ack?: AckDrawPerm,
   ) => void;
   "command:create": (
     payload: { id: CommandID; command: Command },

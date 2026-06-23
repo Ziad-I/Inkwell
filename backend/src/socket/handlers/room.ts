@@ -4,29 +4,32 @@ import {
   initBoardState,
   getCommandsInBuffer,
   getBoardStateArr,
-  clearBoardState,
 } from "@/services/state.js";
 import type { Ack, DrawPermission, SocketData } from "@/types/types.js";
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
-import { writeBoardSnapshot, getLatestSnapshot } from "@/services/snapshot.js";
+import { getLatestSnapshot } from "@/services/snapshot.js";
 import logger from "@/config/logger.js";
 
 export function resolveCanDraw(
   drawPermission: string,
-  // ownerId: string,
-  // userId: string,
+  ownerId: string,
+  userId: string,
 ): boolean {
-  return true; //TODO: implement draw permissions
-  // if (drawPermission === "anyone") return true;
-  // if (drawPermission === "owner") return userId === ownerId;
-  // return false;
+  if (drawPermission === "anyone") return true;
+  if (drawPermission === "owner") return userId === ownerId;
+  return false;
 }
+
+type AckWithDrawPerm = Ack<{ canDraw: boolean }>;
 
 export function registerRoomHandlers(socket: Socket, io: Server) {
   socket.on(
     "room:join",
-    async (payload: { roomId: string; lastSeq?: number }, ack?: Ack) => {
+    async (
+      payload: { roomId: string; lastSeq?: number },
+      ack?: AckWithDrawPerm,
+    ) => {
       try {
         const { roomId } = payload;
 
@@ -43,7 +46,13 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
 
         socket.join(roomId);
 
-        const canDraw = resolveCanDraw(board.drawPermission as DrawPermission);
+        const userId = (socket.data as SocketData).userId;
+
+        const canDraw = resolveCanDraw(
+          board.drawPermission as DrawPermission,
+          board.ownerId,
+          userId,
+        );
 
         (socket.data as SocketData).roomId = roomId;
         (socket.data as SocketData).canDraw = canDraw;
@@ -55,10 +64,14 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
             .emit("presence:join", socketData.userId, socketData.meta);
         }
 
+        ack?.(undefined, { canDraw });
+
         const existing = await io.in(roomId).fetchSockets();
         for (const peer of existing) {
           if (peer.id !== socket.id) {
             const peerData = peer.data as SocketData;
+            if (!peerData.canDraw) continue;
+
             socket.emit("presence:join", peerData.userId, peerData.meta);
           }
         }
@@ -77,7 +90,6 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
         }
 
         socket.emit("room:sync", syncState);
-        ack?.();
       } catch (err) {
         logger.error(`[room:join] error:`, err);
         ack?.("Internal server error");

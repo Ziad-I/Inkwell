@@ -28,6 +28,7 @@ export interface StageOperations {
   removeNodeById: (id: string, destroy: boolean) => void;
   redrawDrawingLayer: () => void;
   redrawOverlayLayer: () => void;
+  toggleDrawing: (enabled: boolean) => void;
 }
 
 export interface Settings {

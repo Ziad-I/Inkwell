@@ -165,6 +165,13 @@ export function useStageOperations() {
         layer.batchDraw();
       }
     },
+
+    toggleDrawing: (enabled: boolean) => {
+      const layer = drawingLayerRef.current;
+      if (layer) {
+        layer.listening(enabled);
+      }
+    },
   });
 
   return {

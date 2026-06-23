@@ -16,6 +16,7 @@ type EventKey = keyof ClientEmitEvents;
 export class CommandManager {
   private userId: string;
   private roomId: string;
+  private canDraw: boolean = false;
   private stageOps: StageOperations;
   // private networkOps: NetworkOperations;
   private connectionManager: ConnectionManager;
@@ -100,7 +101,16 @@ export class CommandManager {
     { leading: true, trailing: true },
   );
 
+  public setCanDraw(value: boolean): void {
+    this.canDraw = value;
+  }
+
   public startCommand(type: CommandType, initialPayload: CommandPayload) {
+    if (!this.canDraw) {
+      console.warn("User does not have permission to draw in this room");
+      return;
+    }
+
     const cmd = this.factory.createCommand(type, initialPayload, this.userId);
     const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
 
@@ -209,6 +219,10 @@ export class CommandManager {
   }
 
   public undo() {
+    if (!this.canDraw) {
+      console.warn("User does not have permission to draw in this room");
+    }
+
     if (this.undoStack.length === 0) {
       console.warn("Undo stack is empty");
       return;
@@ -248,6 +262,10 @@ export class CommandManager {
   }
 
   public redo() {
+    if (!this.canDraw) {
+      console.warn("User does not have permission to draw in this room");
+    }
+
     if (this.redoStack.length === 0) {
       console.warn("Redo stack is empty");
       return;
@@ -326,12 +344,18 @@ export class CommandManager {
   }
 
   private onConnect = (): void => {
+    const ack = (err?: unknown, resp?: { canDraw: boolean }) => {
+      if (err) console.error("[room:join] failed:", err);
+
+      const canDraw = resp?.canDraw ?? false;
+      this.setCanDraw(canDraw);
+      this.stageOps.toggleDrawing(canDraw);
+    };
+
     this.connectionManager.emit(
       "room:join",
       { roomId: this.roomId, lastSeq: this.getLastSeq() },
-      (err?: unknown) => {
-        if (err) console.error("[room:join] failed:", err);
-      },
+      ack,
     );
   };
 
