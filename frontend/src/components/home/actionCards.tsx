@@ -14,16 +14,28 @@ import { useUserStore } from "@/stores/userStore";
 
 import api from "@/lib/api";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+
+type DrawPermission = "anyone" | "owner";
 
 export function ActionCards() {
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [name, setName] = useState("");
+  const [drawPermission, setDrawPermission] =
+    useState<DrawPermission>("anyone");
 
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
   const setUserName = useUserStore((state) => state.setUserName);
+  const userId = useUserStore((state) => state.userId);
 
   const handleCreateBoard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -34,6 +46,8 @@ export function ActionCards() {
 
       const { data } = await api.post("/boards", {
         name: name.trim() ? `${name.trim()}'s Board` : "Untitled Board",
+        userId,
+        drawPermission,
       });
 
       navigate(`/board/${data.id}`, { state: { skipValidation: true } });
@@ -91,6 +105,19 @@ export function ActionCards() {
               onChange={(e) => setName(e.target.value)}
               className="w-full"
             />
+            <Select
+              onValueChange={(value) =>
+                setDrawPermission(value as DrawPermission)
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Who can draw?" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="anyone">Anyone can draw</SelectItem>
+                <SelectItem value="owner">Only me</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               type="submit"
               className="w-full group"
