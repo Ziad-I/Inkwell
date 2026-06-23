@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-inkwell_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - inkwell
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-inkwell_db}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - inkwell
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-inkwell_db}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      LOG_LEVEL: ${LOG_LEVEL:-warn}
+      SNAPSHOT_INTERVAL: ${SNAPSHOT_INTERVAL:-60000}
+      SNAPSHOT_RETENTION: ${SNAPSHOT_RETENTION:-3}
+    ports:
+      - "3000:3000"
+    networks:
+      - inkwell
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_BACKEND_API_URL: ${VITE_BACKEND_API_URL}
+        VITE_BACKEND_WS_URL: ${VITE_BACKEND_WS_URL}
+    restart: always
+    environment:
+      PORT: 3001
+    ports:
+      - "80:3001"
+    networks:
+      - inkwell
+    depends_on:
+      - backend
+
+networks:
+  inkwell:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
