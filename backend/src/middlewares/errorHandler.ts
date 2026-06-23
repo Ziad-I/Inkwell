@@ -21,10 +21,11 @@ export const errorHandler = (
     stack: err.stack,
   });
 
+  const isProduction = env.NODE_ENV === "production";
+  const responseMessage =
+    isProduction && statusCode === 500 ? "Internal Server Error" : err.message;
   res.status(statusCode).json({
-    message: err.message || "Internal Server Error",
-    ...(env.NODE_ENV !== "production" && {
-      stack: err.stack,
-    }),
+    message: responseMessage,
+    ...(!isProduction && { stack: err.stack }),
   });
 };
