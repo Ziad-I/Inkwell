@@ -1,70 +1,150 @@
 # Inkwell
 
-Inkwell is an in-progress real-time collaborative whiteboard project. The goal is to provide a performant, low-latency experience for multiple users to draw, select, and manipulate strokes on a shared canvas.
+Inkwell is a real-time collaborative whiteboard. Multiple users can draw, erase, select, and undo/redo strokes on a shared infinite canvas with live presence cursors and persistent board state.
 
-This repository contains both frontend and backend code. Work is currently focused on the frontend implementation (see the `frontend/` folder).
+## Stack
 
-## Current status
+| Layer             | Technology                           |
+| ----------------- | ------------------------------------ |
+| Frontend          | React 19 + TypeScript + Vite + Konva |
+| Backend           | Node.js + Express 5 + Socket.IO      |
+| Database          | PostgreSQL + Drizzle ORM             |
+| Cache / In-Memory | Redis                                |
+| Pub-Sub           | Redis Pub-Sub                        |
+| Containerization  | Docker + Docker Compose              |
 
-- Project goal: a full real-time collaborative whiteboard with presence, history/undo, selection tools, and persistence.
-- Active work: Frontend UI and core drawing/interaction logic implemented using React + Konva.
-- Backend: planned (real-time networking, conflict resolution, persistence). Not yet implemented.
+## Features
 
-## Frontend (what you can run today)
+- **Infinite canvas** — pan and zoom with world-space coordinate transforms
+- **Drawing tools** — brush (stroke simplification + Chaikin smoothing), shapes (rectangle, circle, line, arrow), eraser
+- **Selection tool** — Konva Transformer for move, scale, and rotate
+- **Undo / Redo** — command-based history with local stack approach for distributed conflict resolution
+- **Presence** — live cursor positions and join/leave events for connected users
+- **Persistence** — Board state snapshots saved to PostgreSQL, with Redis in-memory buffer for commands
+- **Sync on join** — full state sync on first join, delta sync on reconnect via `lastSeq`
+- **Draw permissions** — per-board `anyone` / `owner` access control
+- **Horizontal scaling** — Socket.IO Redis adapter routes broadcasts across multiple backend instances
 
-The frontend lives in the `frontend/` directory and is a Vite + React + TypeScript app.
+## Project structure
 
-Quick start (from the repository root):
-
-1. Change into the frontend directory:
-
-```cmd
-cd frontend
+```
+frontend/   React + Vite app
+backend/    Express + Socket.IO server
 ```
 
-1. Install dependencies:
+## Getting started
 
-```cmd
+### With Docker (recommended)
+
+Copy the example env file and fill in values, then start all services:
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.dev.yml up --build
+```
+
+| Service    | URL                   |
+| ---------- | --------------------- |
+| Frontend   | http://localhost:5173 |
+| Backend    | http://localhost:5000 |
+| PostgreSQL | localhost:5432        |
+| Redis      | localhost:6379        |
+
+### Without Docker
+
+**Backend**
+
+```bash
+cd backend
+cp .env.example ./backend/.env   # fill in backend values
 npm install
-```
-
-3. Start the development server:
-
-```cmd
+npm run db:migrate
 npm run dev
 ```
 
-This will start Vite and open the app at http://localhost:5173 by default.
+**Frontend**
 
-Available scripts (see `frontend/package.json`):
+```bash
+cd frontend
+cp .env.example ./frontend/.env   # fill in frontend values
+npm install
+npm run dev
+```
 
-- `dev` - start dev server (Vite)
-- `build` - compile TypeScript project and build the frontend for production
-- `lint` - run ESLint over the frontend code
-- `preview` - preview the production build
+The frontend dev server starts at http://localhost:5173. Set `VITE_BACKEND_API_URL` and `VITE_BACKEND_WS_URL` in `frontend/.env` to point at the backend.
 
-## Architecture highlights
+### Frontend scripts
 
-- Frontend: React + TypeScript + Konva for canvas/stage rendering.
-- State: lightweight stores and hooks (Zustand + custom hooks) to manage tools, history, and settings.
-- Backend: Not yet implemented.
+```bash
+npm run dev       # Vite dev server
+npm run build     # TypeScript check + production build
+npm run lint      # ESLint
+npm run preview   # Preview production build locally
+```
 
-## TODO
+### Backend scripts
 
-- [x] Infinite canvas viewport (pan + zoom + world coords)
-- [x] Local pen tool with path capture & simplification
-- [x] Vertical side toolbar (icons, active state, tooltips. etc...)
-- [x] Eraser (whole-stroke removal)
-- [x] Stroke-based selection & move (lasso / multi-select)
-- [x] Undo / Redo (local + broadcast hooks; tombstone approach)
-- [x] Presence cursors (client-only simulation)
-- [ ] Shape Tool (rectangle, circle, arrow, etc...)
-- [ ] Implement a backend WebSocket server to broadcast drawing events.
-- [ ] Show live cursors for connected users.
-- [ ] Add room/session management and server-side persistence of whiteboards.
-- [ ] Implement canvas loading on user join.
-- [ ] Tests, CI, and deployment.
+```bash
+npm run dev          # tsx watch (hot reload)
+npm run build        # tsc compile to dist/
+npm run start        # run compiled dist/server.js
+npm run db:generate  # generate Drizzle migration
+npm run db:migrate   # apply migrations
+npm run db:studio    # Drizzle Studio
+```
+
+## Environment variables
+
+See [`.env.example`](.env.example) for all required variables. Key ones:
+
+| Variable               | Description                        |
+| ---------------------- | ---------------------------------- |
+| `DATABASE_URL`         | PostgreSQL connection string       |
+| `REDIS_URL`            | Redis connection string            |
+| `CORS_ORIGIN`          | Allowed frontend origin            |
+| `VITE_BACKEND_API_URL` | Backend HTTP base URL (build-time) |
+| `VITE_BACKEND_WS_URL`  | Backend WebSocket URL (build-time) |
+
+## Architecture
+
+### Frontend
+
+- **Tools** — `BrushTool`, `ShapesTool`, `EraserTool`, `SelectionTool`; all lazy-loaded via `ToolManager`
+- **Commands** — `StrokeCommand`, `ShapeCommand`, `EraseCommand`, `TransformCommand`; serializable, apply/undo/redo
+- **CommandManager** — local history stack with network broadcast hooks
+- **ConnectionManager** — typed Socket.IO client wrapper; tracks `lastSeq` for delta sync
+- **Stores** — Zustand: `settingsStore` (tool settings), `userStore` (identity + color), `toolStore` (active tool)
+
+### Backend
+
+- **REST** — `POST /api/boards` (create board), `GET /api/boards/:roomId` (lookup)
+- **Socket.IO events**
+
+  | Event                              | Direction       | Description                              |
+  | ---------------------------------- | --------------- | ---------------------------------------- |
+  | `room:join`                        | client → server | Join room, receive full or delta sync    |
+  | `room:sync`                        | server → client | Board state on join / reconnect          |
+  | `command:create`                   | client → server | Broadcast new command to room            |
+  | `command:update`                   | client → server | Broadcast in-progress update             |
+  | `command:finalize`                 | client → server | Persist command, broadcast with sequence |
+  | `command:cancel`                   | client → server | Remove pending command                   |
+  | `command:undo` / `command:redo`    | client → server | Broadcast undo/redo                      |
+  | `command:reject`                   | server → client | Notify originator of rejected command    |
+  | `presence:join` / `presence:leave` | server → room   | User joined or left                      |
+  | `presence:move`                    | client → server | Cursor position update                   |
+
+- **State service** — Redis-backed in-memory command buffer per room; snapshot written periodically and on room idle
+- **Auth** — anonymous; `userId`, `userName`, `userColor` passed in Socket.IO handshake auth
+
+## Production deployment
+
+```bash
+cp .env.example .env   # fill in production values
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+Frontend is served by nginx on port 80. Backend runs on port 3000.
 
 ## License
 
-See the repository `LICENSE` file for license terms.
+See [`LICENSE`](LICENSE) for license terms.
