@@ -1,11 +1,5 @@
 import type { Server, Socket } from "socket.io";
-import type {
-  Command,
-  CommandID,
-  SocketData,
-  Ack,
-  AckWithSeq,
-} from "@/types/types.js";
+import type { Command, CommandID, SocketData, Ack } from "@/types/types.js";
 import {
   getCommandById,
   applyFinalize,
@@ -23,6 +17,8 @@ export function reject(
   socket.emit("command:reject", commandId, reason);
   ack?.(reason);
 }
+
+type AckWithSeq = Ack<{ seq: number }>;
 
 export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
@@ -133,6 +129,15 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
       }
       if (!canDraw) {
         reject(socket, commandId, "User does not have permission to draw", ack);
+        return;
+      }
+      const command = await getCommandById(roomId, commandId);
+      if (!command) {
+        reject(socket, commandId, "Command not found", ack);
+        return;
+      }
+      if (command.owner !== userId) {
+        reject(socket, commandId, "User does not own the command", ack);
         return;
       }
       socket.to(roomId).emit("command:cancel", commandId);

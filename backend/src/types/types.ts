@@ -1,5 +1,4 @@
 export type Ack<T = void> = (err?: unknown, resp?: T) => void;
-export type AckWithSeq = Ack<{ seq: number }>;
 
 export type CommandID = string;
 
