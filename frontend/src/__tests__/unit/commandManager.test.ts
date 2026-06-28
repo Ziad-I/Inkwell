@@ -116,7 +116,9 @@ describe("CommandManager", async () => {
         opacity: 1,
       });
 
-      expect(manager.getUndoStack()).toEqual([]);
+      manager.finalizeCommand(cmdId);
+
+      expect(manager.getUndoStack()).toEqual([cmdId]);
       expect(manager.getRedoStack()).toEqual([]);
     });
 
