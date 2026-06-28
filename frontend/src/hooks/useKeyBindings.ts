@@ -27,7 +27,7 @@ function parseCombo(combo: string) {
         "shift",
         "alt",
         "option",
-      ].includes(p)
+      ].includes(p),
   );
 
   return {
@@ -102,7 +102,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 export default function useKeyBindings(
   bindings: Record<string, Binding>,
-  options?: HookOptions
+  options?: HookOptions,
 ) {
   const {
     target = typeof window !== "undefined" ? window : null,
@@ -154,69 +154,69 @@ export default function useKeyBindings(
   useEffect(() => {
     if (!target) return;
 
-    const runMapHandlers = (e: KeyboardEvent, map: Map<string, Entry[]>) => {
-      // ignore typing targets
-      if (ignoreInputs) {
-        const targ = e.target && (e.target as HTMLElement);
-        if (targ && isTypingTarget(targ)) return false;
-      }
+    // const runMapHandlers = (e: KeyboardEvent, map: Map<string, Entry[]>) => {
+    //   // ignore typing targets
+    //   if (ignoreInputs) {
+    //     const targ = e.target && (e.target as HTMLElement);
+    //     if (targ && isTypingTarget(targ)) return false;
+    //   }
 
-      if (!allowRepeat && e.repeat) return false;
+    //   if (!allowRepeat && e.repeat) return false;
 
-      const { exact, modifiersOnly } = signatureFromEvent(e);
+    //   const { exact, modifiersOnly } = signatureFromEvent(e);
 
-      // 1) exact signature (key + modifiers) match
-      let bucket = map.get(exact);
-      if (bucket && bucket.length) {
-        const entry = bucket[0]; // follow original semantics: first match wins
-        const binding = entry.binding;
-        let fn: KeyHandler | undefined;
-        if (typeof binding === "function") fn = binding;
-        else if (typeof binding === "object") {
-          // in down map we only stored entries that have down, in up map only up
-          fn =
-            (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
-            undefined;
-        }
-        // pick correct key for map type: for the downMap we'll call down handlers; for upMap the listener will use up handlers.
-        if (fn) {
-          if (preventDefault) e.preventDefault();
-          try {
-            fn(e);
-          } catch (err) {
-            console.error("Key handler error", err);
-          }
-          return true;
-        }
-      }
+    //   // 1) exact signature (key + modifiers) match
+    //   let bucket = map.get(exact);
+    //   if (bucket && bucket.length) {
+    //     const entry = bucket[0]; // follow original semantics: first match wins
+    //     const binding = entry.binding;
+    //     let fn: KeyHandler | undefined;
+    //     if (typeof binding === "function") fn = binding;
+    //     else if (typeof binding === "object") {
+    //       // in down map we only stored entries that have down, in up map only up
+    //       fn =
+    //         (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
+    //         undefined;
+    //     }
+    //     // pick correct key for map type: for the downMap we'll call down handlers; for upMap the listener will use up handlers.
+    //     if (fn) {
+    //       if (preventDefault) e.preventDefault();
+    //       try {
+    //         fn(e);
+    //       } catch (err) {
+    //         console.error("Key handler error", err);
+    //       }
+    //       return true;
+    //     }
+    //   }
 
-      // 2) modifier-only signature (bindings that had no 'key' part)
-      bucket = map.get(modifiersOnly);
-      if (bucket && bucket.length) {
-        const entry = bucket[0];
-        const binding = entry.binding;
-        let fn: KeyHandler | undefined;
-        if (typeof binding === "function") {
-          // functions are treated as 'down' handlers in our design; only relevant when this is the downMap
-          fn = binding;
-        } else if (typeof binding === "object") {
-          fn =
-            (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
-            undefined;
-        }
-        if (fn) {
-          if (preventDefault) e.preventDefault();
-          try {
-            fn(e);
-          } catch (err) {
-            console.error("Key handler error", err);
-          }
-          return true;
-        }
-      }
+    //   // 2) modifier-only signature (bindings that had no 'key' part)
+    //   bucket = map.get(modifiersOnly);
+    //   if (bucket && bucket.length) {
+    //     const entry = bucket[0];
+    //     const binding = entry.binding;
+    //     let fn: KeyHandler | undefined;
+    //     if (typeof binding === "function") {
+    //       // functions are treated as 'down' handlers in our design; only relevant when this is the downMap
+    //       fn = binding;
+    //     } else if (typeof binding === "object") {
+    //       fn =
+    //         (binding as { down?: KeyHandler; up?: KeyHandler }).down ??
+    //         undefined;
+    //     }
+    //     if (fn) {
+    //       if (preventDefault) e.preventDefault();
+    //       try {
+    //         fn(e);
+    //       } catch (err) {
+    //         console.error("Key handler error", err);
+    //       }
+    //       return true;
+    //     }
+    //   }
 
-      return false;
-    };
+    //   return false;
+    // };
 
     const onKeyDown = (evt: Event) => {
       const e = evt as KeyboardEvent;
@@ -322,18 +322,18 @@ export default function useKeyBindings(
     (target as EventTarget).addEventListener(
       "keydown",
       onKeyDown as EventListener,
-      { passive: false }
+      { passive: false },
     );
     (target as EventTarget).addEventListener("keyup", onKeyUp as EventListener);
 
     return () => {
       (target as EventTarget).removeEventListener(
         "keydown",
-        onKeyDown as EventListener
+        onKeyDown as EventListener,
       );
       (target as EventTarget).removeEventListener(
         "keyup",
-        onKeyUp as EventListener
+        onKeyUp as EventListener,
       );
     };
   }, [target, ignoreInputs, preventDefault, allowRepeat]);

@@ -1,13 +1,7 @@
 "use client";
 
 import * as React from "react";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  Group,
-  Icon,
-} from "lucide-react";
+import { CheckIcon, ChevronDownIcon, ChevronUpIcon, Group } from "lucide-react";
 import {
   Content,
   Item,

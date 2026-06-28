@@ -1,6 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { CommandFactory } from "@/core/commandFactory";
-import type { StageOperations } from "@/types/common";
 import type { ConnectionManager } from "@/core/connectionManager";
 
 const mockStageOps = {
@@ -44,7 +42,7 @@ describe("CommandManager", async () => {
   describe("constructor", () => {
     it("registers server listeners on creation", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
+      new CommandManager("user-1", "room-1", mockStageOps, cm);
       expect(cm.on).toHaveBeenCalledWith("room:sync", expect.any(Function));
       expect(cm.on).toHaveBeenCalledWith(
         "command:create",
@@ -116,7 +114,7 @@ describe("CommandManager", async () => {
         opacity: 1,
       });
 
-      manager.finalizeCommand(cmdId);
+      manager.finalizeCommand(cmdId!);
 
       expect(manager.getUndoStack()).toEqual([cmdId]);
       expect(manager.getRedoStack()).toEqual([]);
