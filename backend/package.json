@@ -60,10 +60,6 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
-    "vitest": {
-      "vite": {
-        "esbuild": "0.28.1"
-      }
-    }
+    "esbuild": "0.28.1"
   }
 }
