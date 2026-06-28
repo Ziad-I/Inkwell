@@ -30,13 +30,15 @@ export async function seedBoard(overrides?: {
 }
 
 export async function cleanupTestData(boardId: string) {
-  await _db.delete(snapshots).where(eq(snapshots.boardId, boardId));
-  await _db.delete(boards).where(eq(boards.id, boardId));
-
+  // Clear Redis state first so writeBoardSnapshot finds nothing to persist
   await _redisStateClient.del(`board:${boardId}:state`);
   await _redisStateClient.del(`board:${boardId}:seq`);
   await _redisStateClient.del(`board:${boardId}:buffer`);
   await _redisStateClient.srem("dirty:rooms", boardId);
+
+  // Then delete DB records (board must exist when snapshot cleanup fires)
+  await _db.delete(snapshots).where(eq(snapshots.boardId, boardId));
+  await _db.delete(boards).where(eq(boards.id, boardId));
 }
 
 beforeAll(async () => {
