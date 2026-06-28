@@ -108,7 +108,7 @@ export class CommandManager {
   public startCommand(type: CommandType, initialPayload: CommandPayload) {
     if (!this.canDraw) {
       console.warn("User does not have permission to draw in this room");
-      return;
+      return null;
     }
 
     const cmd = this.factory.createCommand(type, initialPayload, this.userId);

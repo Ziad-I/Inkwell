@@ -53,13 +53,6 @@ export class SelectionTool extends BaseTool {
         "transform",
         this.transformPayload!,
       );
-
-      // this.currentSelectCommand = new TransformCommand(
-      //   this.ctx.stageOps,
-      //   this.transformer!.nodes()
-      // );
-      // this.currentSelectCommand.setInitialState(this.transformer!.nodes());
-      // this.ctx.commandManager.startCommand(this.currentSelectCommand);
     });
 
     this.transformer.on("transformend dragend", () => {
@@ -339,12 +332,14 @@ export class SelectionTool extends BaseTool {
     this.singleSelect();
   }
 
-  onPointerMove(event: KonvaEventObject<PointerEvent>) {
-    if (!this.isSelecting) return;
+  onPointerMove(_event: KonvaEventObject<PointerEvent>) {
+    if (!this.isSelecting || !this.transformCommandId) return;
     this.updateSelection();
   }
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
+    if (!this.transformCommandId) return;
+
     if (this.isSelecting) {
       this.endSelection();
       return;
