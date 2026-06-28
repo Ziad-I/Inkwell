@@ -6,7 +6,7 @@ import { getBoardState } from "@/services/state.js";
 
 export async function writeBoardSnapshot(roomId: string) {
   const state = await getBoardState(roomId);
-  if (!state) return;
+  if (!state || Object.keys(state).length === 0) return;
   await saveSnapshot(roomId, state);
 }
 
