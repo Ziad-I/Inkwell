@@ -11,7 +11,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest --project unit",
+    "test:coverage": "vitest run --coverage",
+    "test:coverage:unit": "vitest run --project unit --coverage"
   },
   "keywords": [],
   "author": "",
@@ -41,8 +47,16 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.13.2",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "drizzle-kit": "^0.31.10",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.2.2",
+    "@testcontainers/postgresql": "^12.0.3",
+    "@testcontainers/redis": "^12.0.3",
+    "testcontainers": "^12.0.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
   }
 }
