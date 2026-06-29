@@ -158,36 +158,49 @@ jobs:
           cache-dependency-path: |
             frontend/package-lock.json
             backend/package-lock.json
+
       - name: Install backend deps
         run: npm ci
         working-directory: backend
+
       - name: Install frontend deps
         run: npm ci
         working-directory: frontend
+
       - name: Build backend
         run: npm run build
         working-directory: backend
         env:
           DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
           REDIS_URL: redis://localhost:6380
+
       - name: Build frontend
         run: npm run build
         working-directory: frontend
+
       - name: Run migrations
         run: npx drizzle-kit migrate
         working-directory: backend
         env:
           DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
-      - name: Start backend & frontend
+
+      - name: Start backend
         run: |
-          node backend/dist/server.js &
-          (cd frontend && npx vite preview --port 4173 --host 0.0.0.0) &
-          npx wait-on tcp:localhost:3000 tcp:localhost:4173 --timeout 30000
+          npm run start &
+          npx wait-on http://localhost:3000/health --timeout 30000
+        working-directory: backend
         env:
           DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
           REDIS_URL: redis://localhost:6380
           PORT: "3000"
           NODE_ENV: production
+
+      - name: Start frontend
+        run: |
+          npm run preview --port 4173 --host 0.0.0.0 &
+          npx wait-on http://localhost:4173 --timeout 30000
+        working-directory: frontend
+
       - name: Cypress run
         uses: cypress-io/github-action@v6
         with:
