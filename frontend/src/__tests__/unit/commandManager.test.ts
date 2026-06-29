@@ -90,7 +90,7 @@ describe("CommandManager", async () => {
         opacity: 1,
       });
 
-      expect(result).toBeUndefined();
+      expect(result).toBeNull();
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("permission"),
       );
