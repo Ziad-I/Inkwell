@@ -26,7 +26,8 @@ export async function createBoard(req: Request, res: Response) {
 }
 
 export async function getBoard(req: Request, res: Response) {
-  const { roomId } = req.params;
+  const { roomId } = req.params as { roomId: string };
+
   if (!roomId) {
     res.status(400).json({ message: "Room ID is required" });
     return;

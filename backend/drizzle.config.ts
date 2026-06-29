@@ -1,6 +1,10 @@
 import { defineConfig } from "drizzle-kit";
 
-process.loadEnvFile();
+try {
+  process.loadEnvFile();
+} catch (e: any) {
+  if (e.code !== "ENOENT") throw e;
+}
 
 export default defineConfig({
   schema: "./src/db/schema.ts",

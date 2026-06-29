@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button"; // shadcn button
 import { X } from "lucide-react";
 
 const STORAGE_KEY = "dismiss_brave_shields_notice_v1";
+
+type BraveNavigator = Navigator & {
+  brave?: {
+    isBrave?: () => Promise<boolean>;
+  };
+};
 
 export function BraveShieldsNotice() {
   const [visible, setVisible] = useState(false);
@@ -15,15 +21,13 @@ export function BraveShieldsNotice() {
 
     (async () => {
       try {
-        // Preferred: Brave exposes navigator.brave.isBrave() returning a Promise<boolean>
-        const b = (navigator as any).brave;
-        if (b) {
-          if (typeof b.isBrave === "function") {
-            const isBrave = await b.isBrave();
-            if (isBrave && mounted) setVisible(true);
-          }
+        const { brave } = navigator as BraveNavigator;
+
+        const isBrave = await brave?.isBrave?.();
+        if (isBrave && mounted) {
+          setVisible(true);
         }
-      } catch (err) {
+      } catch {
         // ignore - don't show banner if detection fails
       }
     })();

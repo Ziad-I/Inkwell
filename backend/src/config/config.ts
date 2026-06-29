@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-process.loadEnvFile();
+try {
+  process.loadEnvFile();
+} catch (e: any) {
+  if (e.code !== "ENOENT") throw e;
+}
 
 function preprocessNum(val: unknown): number | undefined {
   if (typeof val === "string" && val.trim() !== "") return Number(val);

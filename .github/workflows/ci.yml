@@ -1,0 +1,211 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+    branches: [main, master, dev]
+
+jobs:
+  lint-typecheck-backend:
+    name: Backend Lint & TypeCheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit
+
+  lint-typecheck-frontend:
+    name: Frontend Lint & TypeCheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc -b
+      - run: npm run lint
+
+  test-backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-backend
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run test:unit
+
+  test-backend-integration:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-backend
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run test:integration
+
+  test-frontend:
+    name: Frontend Unit, Component & Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-frontend
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs:
+      [
+        lint-typecheck-backend,
+        lint-typecheck-frontend,
+        test-backend-unit,
+        test-backend-integration,
+        test-frontend,
+      ]
+    strategy:
+      matrix:
+        dir: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: ${{ matrix.dir }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: ${{ matrix.dir }}
+
+      - name: Build
+        run: npm run build
+        working-directory: ${{ matrix.dir }}
+
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [build, test-backend-unit, test-backend-integration, test-frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: inkwell_test
+          POSTGRES_USER: inkwell
+          POSTGRES_PASSWORD: inkwell_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U inkwell -d inkwell_test"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build backend
+        run: npm run build
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
+          REDIS_URL: redis://localhost:6380
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Run migrations
+        run: npx drizzle-kit migrate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
+
+      - name: Start backend
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000/health --timeout 30000
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://inkwell:inkwell_test@localhost:5433/inkwell_test
+          REDIS_URL: redis://localhost:6380
+          PORT: "3000"
+          NODE_ENV: production
+
+      - name: Start frontend
+        run: |
+          npm run preview -- --port 4173 --host 0.0.0.0 &
+          npx wait-on http://localhost:4173 --timeout 30000
+        working-directory: frontend
+
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          config-file: cypress.config.ts
+          browser: chrome
+        env:
+          CYPRESS_BASE_URL: http://localhost:4173

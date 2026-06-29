@@ -1,7 +1,7 @@
 import type { Command, CommandID, PresenceMeta } from "@/types/command";
 import type { Point } from "./common";
 
-type Ack<T = void> = (err?: any, resp?: T) => void;
+type Ack<T = void> = (err?: unknown, resp?: T) => void;
 type AckWithSeq = Ack<{ seq: number }>;
 type AckDrawPerm = Ack<{ canDraw: boolean }>;
 

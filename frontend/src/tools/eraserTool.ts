@@ -83,9 +83,10 @@ export class EraserTool extends BaseTool {
     this.eraseCommandPayload = this.createPayloadSnapshot();
   }
 
-  onPointerDown(event: KonvaEventObject<PointerEvent>) {
+  onPointerDown(_event: KonvaEventObject<PointerEvent>) {
     this.isErasing = true;
     this.initPayload();
+
     this.eraseCommandId = this.ctx.commandManager.startCommand(
       "erase",
       this.eraseCommandPayload!,
@@ -94,12 +95,12 @@ export class EraserTool extends BaseTool {
     this.eraseAtPointer();
   }
 
-  onPointerMove(event: KonvaEventObject<PointerEvent>) {
-    if (!this.isErasing) return;
+  onPointerMove(_event: KonvaEventObject<PointerEvent>) {
+    if (!this.isErasing || !this.eraseCommandId) return;
     this.eraseAtPointer();
   }
 
-  onPointerUp(event: KonvaEventObject<PointerEvent>) {
+  onPointerUp(_event: KonvaEventObject<PointerEvent>) {
     if (!this.isErasing || !this.eraseCommandId) return;
 
     this.isErasing = false;

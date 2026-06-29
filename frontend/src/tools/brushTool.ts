@@ -55,7 +55,7 @@ export class BrushTool extends BaseTool {
       const d = this.perpendicularDistance(
         points[i],
         points[0],
-        points[points.length - 1]
+        points[points.length - 1],
       );
       if (d > maxDist) {
         index = i;
@@ -125,7 +125,7 @@ export class BrushTool extends BaseTool {
     } as StrokePayload;
   }
 
-  onPointerDown(e: KonvaEventObject<PointerEvent>) {
+  onPointerDown(_event: KonvaEventObject<PointerEvent>) {
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
 
@@ -143,11 +143,11 @@ export class BrushTool extends BaseTool {
 
     this.strokeCommandId = this.ctx.commandManager.startCommand(
       "stroke",
-      this.strokeCommandPayload!
+      this.strokeCommandPayload!,
     );
   }
 
-  onPointerMove(e: KonvaEventObject<PointerEvent>) {
+  onPointerMove(_event: KonvaEventObject<PointerEvent>) {
     if (!this.isDrawing || !this.strokeCommandId) return;
 
     const stage = this.ctx.stageOps.getStage();
@@ -173,7 +173,7 @@ export class BrushTool extends BaseTool {
     });
   }
 
-  onPointerUp(e: KonvaEventObject<PointerEvent>) {
+  onPointerUp(_event: KonvaEventObject<PointerEvent>) {
     if (!this.isDrawing || !this.strokeCommandId) return;
 
     const scale = this.ctx.stageOps.getScale();

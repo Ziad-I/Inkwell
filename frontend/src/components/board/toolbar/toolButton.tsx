@@ -20,6 +20,7 @@ export default function ToolButton({
 }: ToolButtonProps) {
   return (
     <Button
+      key={toolId}
       variant={isActive ? "default" : "secondary"}
       size="icon"
       className="flex flex-col gap-1 p-1 border-2"
