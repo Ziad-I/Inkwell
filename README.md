@@ -186,10 +186,10 @@ Frontend is served by nginx on port 80. Backend runs on port 3000.
 - [ ] Add backup and restore procedures
 
 ### Testing / DevOps
-- [ ] Add unit tests for core logic
-- [ ] Add integration tests for API and socket flows
-- [ ] Add E2E tests for main user journeys
-- [ ] Add CI for lint, typecheck, test, and build
+- [x] Add unit tests for core logic
+- [x] Add integration tests for API and socket flows
+- [x] Add E2E tests for main user journeys
+- [x] Add CI for lint, typecheck, test, and build
 - [ ] Add release workflow
 - [ ] Add live demo deployment
 - [ ] Expand README with setup, architecture, data model, and demo GIF
