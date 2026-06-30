@@ -2,9 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [main, master, dev]
+    branches: [main, master]
+    paths:
+      - "**"
+      - ".github/workflows/**"
+      - "!**/*.md"
+      - "!**/*.yml"
+      - "!**/*.yaml"
+      - "!docs/**"
   pull_request:
     branches: [main, master, dev]
+    paths:
+      - "**"
+      - ".github/workflows/**"
+      - "!**/*.md"
+      - "!**/*.yml"
+      - "!**/*.yaml"
+      - "!docs/**"
 
 jobs:
   lint-typecheck-backend:
