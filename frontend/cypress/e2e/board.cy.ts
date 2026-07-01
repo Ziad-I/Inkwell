@@ -18,29 +18,32 @@ describe("Board Page", () => {
     cy.contains("eraser").should("be.visible");
   });
 
-  it("collapses and expands the toolbar", () => {
-    cy.get('button[aria-label="Collapse toolbar"]').click();
-    cy.get('button[aria-label="Expand toolbar"]').should("be.visible");
-    cy.get('button[aria-label="Expand toolbar"]').click();
-    cy.get('button[aria-label="Collapse toolbar"]').should("be.visible");
+  it("collapses and expands tool settings", () => {
+    cy.get('button[aria-label="Collapse settings"]').click();
+    cy.get('button[aria-label="Expand settings"]').should("be.visible");
+    cy.get('button[aria-label="Expand settings"]').click();
+    cy.get('button[aria-label="Collapse settings"]').should("be.visible");
   });
 
   it("opens color settings panel", () => {
     cy.contains("Color").click();
     cy.contains("Color Settings").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Color Settings").should("not.exist");
   });
 
   it("opens size settings panel", () => {
     cy.contains("Size").click();
     cy.contains("Size Settings").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Size Settings").should("not.exist");
   });
 
   it("opens opacity settings panel", () => {
     cy.contains("Opacity").click();
     cy.contains("Opacity Settings").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Opacity Settings").should("not.exist");
   });
 
   it("opens line cap settings panel", () => {
@@ -50,12 +53,14 @@ describe("Board Page", () => {
     cy.contains("round").should("be.visible");
     cy.contains("square").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Line Cap Settings").should("not.exist");
   });
 
   it("opens shape kind settings panel", () => {
     cy.contains("Shape").click();
     cy.contains("Shapes").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Shapes").should("not.exist");
   });
 
   it("opens general settings panel", () => {
@@ -63,11 +68,13 @@ describe("Board Page", () => {
     cy.contains("General Settings").should("be.visible");
     cy.contains("Show Grid").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("General Settings").should("not.exist");
   });
 
   it("opens presence info panel", () => {
     cy.contains("Presence").click();
     cy.contains("Presence Info").should("be.visible");
     cy.get("body").click(0, 0);
+    cy.contains("Presence Info").should("not.exist");
   });
 });

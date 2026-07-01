@@ -1,5 +1,6 @@
 import InfiniteCanvas from "@/components/board/canvas/canvas";
 import Toolbar from "@/components/board/toolbar/toolbar";
+import ToolSettings from "@/components/board/toolbar/toolSettings";
 import { useStageOperations } from "@/hooks/useStageOperations";
 import { useUserStore } from "@/stores/userStore";
 import { LoadingSpinner } from "@/components/home/LoadingSpinner";
@@ -65,6 +66,7 @@ function BoardPage() {
     >
       <div>
         <Toolbar />
+        <ToolSettings />
         <InfiniteCanvas
           stageRef={stageRef}
           drawingLayerRef={drawingLayerRef}

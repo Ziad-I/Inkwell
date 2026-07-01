@@ -250,7 +250,7 @@ function InfiniteCanvas({
 
   return (
     <>
-      <div className="fixed top-3 right-3 z-20 bg-muted p-2">
+      <div className="fixed bottom-3 right-3 z-20 bg-muted p-2">
         <div>Scale: {displayState.scale.toFixed(2)}</div>
         <div>
           World: {displayState.cursorPos?.x.toFixed(1)},{" "}
