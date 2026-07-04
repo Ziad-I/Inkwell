@@ -105,7 +105,13 @@ export async function getCommandsInBuffer(roomId: string, afterSeq: number) {
 
   // oldestRaw is [member, score] when WITHSCORES is used
   const oldestSeq = oldestRaw[1] ? parseInt(oldestRaw[1], 10) : null;
-  const clientIsBehindBuffer = oldestSeq !== null && afterSeq < oldestSeq - 1;
+
+  // Buffer has no entries at all — caller should fall back to full state
+  if (oldestSeq === null) {
+    return null;
+  }
+
+  const clientIsBehindBuffer = afterSeq < oldestSeq - 1;
 
   if (clientIsBehindBuffer) {
     // Signal to caller: buffer gap detected, fall back to full state
