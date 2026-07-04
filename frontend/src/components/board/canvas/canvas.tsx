@@ -12,7 +12,6 @@ import useWindowSize from "@/hooks/useWindowSize";
 import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
-  ZOOM_FACTOR,
   PRESENCE_EMIT_INTERVAL_MS,
 } from "@/lib/constants";
 import type { Point, StageOperations } from "@/types/common";
@@ -169,12 +168,11 @@ function InfiniteCanvas({
       const pointer = stage.getPointerPosition();
       if (!pointer) return;
 
-      const oldScale = stage.scaleX();
-      const newScale =
-        e.evt.deltaY < 0 ? oldScale * ZOOM_FACTOR : oldScale / ZOOM_FACTOR;
-
-      // Direct stage manipulation
-      stageOperations.setScale(newScale, pointer);
+      if (e.evt.deltaY < 0) {
+        stageOperations.zoomIn(pointer);
+      } else {
+        stageOperations.zoomOut(pointer);
+      }
 
       // Sync display after zoom
       syncDisplayState();
