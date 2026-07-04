@@ -21,6 +21,7 @@ export type SettingsState = {
 
   // General settings
   showGrid: boolean;
+  showGuides: boolean;
 
   // Actions
   setColor: (c: string) => void;
@@ -30,6 +31,7 @@ export type SettingsState = {
   setLineJoin: (join: LineJoin) => void;
   setShapeKind: (kind: ShapeKind) => void;
   setShowGrid: (s: boolean) => void;
+  setShowGuides: (s: boolean) => void;
 
   reset: () => void;
 };
@@ -42,6 +44,7 @@ const initialSettings = {
   lineJoin: "miter",
   shapeKind: SHAPE_KINDS[0],
   showGrid: false,
+  showGuides: true,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -60,6 +63,7 @@ export const useSettingsStore = create<SettingsState>()(
           shapeKind: SHAPE_KINDS.includes(kind) ? kind : SHAPE_KINDS[0],
         })),
       setShowGrid: (s: boolean) => set(() => ({ showGrid: s })),
+      setShowGuides: (s: boolean) => set(() => ({ showGuides: s })),
       reset: () => set(() => ({ ...initialSettings })),
     }),
     {

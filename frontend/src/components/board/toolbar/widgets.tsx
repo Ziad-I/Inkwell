@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Circle as CircleIcon,
   Grid3X3,
+  Ruler,
   Minus,
   Moon,
   Plus,
@@ -218,6 +219,8 @@ export function ShapeKindSettings({ title }: WidgetProps) {
 export function GeneralSettings({ title }: WidgetProps) {
   const showGrid = useSettingsStore((s) => s.showGrid);
   const setShowGrid = useSettingsStore((s) => s.setShowGrid);
+  const showGuides = useSettingsStore((s) => s.showGuides);
+  const setShowGuides = useSettingsStore((s) => s.setShowGuides);
   const { theme, setTheme } = useTheme();
 
   const handleThemeToggle = (checked: boolean) => {
@@ -230,15 +233,6 @@ export function GeneralSettings({ title }: WidgetProps) {
         <PopoverTitle>{title}</PopoverTitle>
       </PopoverHeader>
       <div className="flex flex-col gap-3">
-        {/* Grid Toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Grid3X3 size={14} />
-            <span className="text-sm">Show Grid</span>
-          </div>
-          <Switch checked={showGrid} onCheckedChange={setShowGrid} />
-        </div>
-
         {/* Dark Mode Toggle */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -249,6 +243,24 @@ export function GeneralSettings({ title }: WidgetProps) {
             checked={theme === "dark"}
             onCheckedChange={handleThemeToggle}
           />
+        </div>
+
+        {/* Grid Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Grid3X3 size={14} />
+            <span className="text-sm">Show Grid</span>
+          </div>
+          <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+        </div>
+
+        {/* Guides Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Ruler size={14} />
+            <span className="text-sm">Show Guides</span>
+          </div>
+          <Switch checked={showGuides} onCheckedChange={setShowGuides} />
         </div>
       </div>
     </PopoverContent>

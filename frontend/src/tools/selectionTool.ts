@@ -5,6 +5,14 @@ import type { Point } from "@/types/common";
 import { BaseTool } from "./baseTool";
 import { Move } from "lucide-react";
 import type { CommandID, TransformPayload, NodeState } from "@/types/command";
+import {
+  getSnapStops,
+  getNodeSnapEdges,
+  getClosestGuides,
+  applyGuideSnap,
+  drawGuides,
+  clearGuides,
+} from "@/lib/guidelines";
 
 export class SelectionTool extends BaseTool {
   meta = {
@@ -74,14 +82,59 @@ export class SelectionTool extends BaseTool {
       // Don't finalize here - let clearSelection or onDeactivate handle it
     });
 
+    this.transformer.on("dragmove.guide", () => {
+      const overlayLayer = this.ctx.stageOps.getOverlayLayer();
+      const drawingLayer = this.ctx.stageOps.getDrawingLayer();
+      if (!overlayLayer || !drawingLayer) return;
+
+      // Always clear first — ensures stale guides are removed even when
+      // the setting is toggled off mid-drag.
+      clearGuides(overlayLayer);
+      this.ctx.stageOps.redrawOverlayLayer();
+
+      if (!this.getSettings().showGuides) return;
+
+      // Only show guides for single-node drags to avoid ambiguity
+      const selectedNodes = this.transformer!.nodes();
+      if (selectedNodes.length !== 1) return;
+
+      const draggedNode = selectedNodes[0];
+      const stops = getSnapStops(drawingLayer, selectedNodes);
+      const nodeBounds = getNodeSnapEdges(draggedNode);
+      const guides = getClosestGuides(stops, nodeBounds);
+
+      if (guides.length > 0) {
+        applyGuideSnap(draggedNode, guides);
+        drawGuides(guides, overlayLayer);
+        this.ctx.stageOps.redrawOverlayLayer();
+      }
+    });
+
+    this.transformer.on("dragend.guide", () => {
+      const overlayLayer = this.ctx.stageOps.getOverlayLayer();
+      if (overlayLayer) {
+        clearGuides(overlayLayer);
+        this.ctx.stageOps.redrawOverlayLayer();
+      }
+    });
+
     this.ctx.stageOps.addDrawingNode(this.transformer);
     this.ctx.stageOps.redrawDrawingLayer();
   }
 
   private removeTransformer() {
     if (!this.transformer) return;
+
+    // Clear any visible guides before tearing down
+    const overlayLayer = this.ctx.stageOps.getOverlayLayer();
+    if (overlayLayer) {
+      clearGuides(overlayLayer);
+      this.ctx.stageOps.redrawOverlayLayer();
+    }
+
     this.ctx.stageOps.removeNode(this.transformer, true);
     this.transformer.off("transformstart transformend dragstart dragend");
+    this.transformer.off(".guide");
     this.transformer = null;
   }
 
@@ -234,6 +287,13 @@ export class SelectionTool extends BaseTool {
   }
 
   private clearSelection() {
+    // Discard any visible guide lines (e.g. user clicks away mid-drag)
+    const overlayLayer = this.ctx.stageOps.getOverlayLayer();
+    if (overlayLayer) {
+      clearGuides(overlayLayer);
+      this.ctx.stageOps.redrawOverlayLayer();
+    }
+
     if (this.transformer) {
       // Only finalize if we have a pending command (not already finalized in transformend)
       if (this.transformCommandId && this.transformPayload) {
