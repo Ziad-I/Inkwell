@@ -48,8 +48,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/drizzle:/app/drizzle
+      - ./backend:/app
+      - /app/node_modules
     networks:
       - inkwell
     depends_on:
@@ -69,8 +69,8 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - inkwell
     depends_on:
