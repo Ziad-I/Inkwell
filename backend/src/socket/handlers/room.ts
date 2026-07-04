@@ -80,7 +80,7 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
 
         if (payload.lastSeq !== undefined) {
           const missed = await getCommandsInBuffer(roomId, payload.lastSeq);
-          if (missed) {
+          if (missed && missed.length > 0) {
             syncState = missed;
           } else {
             syncState = await getBoardStateArr(roomId);

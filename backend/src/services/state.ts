@@ -18,7 +18,10 @@ const keys = {
   dirty: `dirty:rooms`,
 };
 
-export async function initBoardState(roomId: string, initialState: BoardState) {
+export async function initBoardState(
+  roomId: string,
+  initialState: BoardState,
+): Promise<void> {
   const maxSeq = Object.values(initialState).reduce(
     (m, c) => Math.max(m, c.seq ?? 0),
     0,
@@ -37,7 +40,7 @@ export async function initBoardState(roomId: string, initialState: BoardState) {
   await pipeline.exec();
 }
 
-export async function isRoomInitialized(roomId: string) {
+export async function isRoomInitialized(roomId: string): Promise<boolean> {
   const exists = await redisStateClient.exists(keys.seq(roomId));
   return exists === 1;
 }
