@@ -333,13 +333,11 @@ export class SelectionTool extends BaseTool {
   }
 
   onPointerMove(_event: KonvaEventObject<PointerEvent>) {
-    if (!this.isSelecting || !this.transformCommandId) return;
+    if (!this.isSelecting) return;
     this.updateSelection();
   }
 
   onPointerUp(event: KonvaEventObject<PointerEvent>) {
-    if (!this.transformCommandId) return;
-
     if (this.isSelecting) {
       this.endSelection();
       return;
