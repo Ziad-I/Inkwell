@@ -33,6 +33,23 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_URL: postgresql://inkwell:inkwell@postgres:5432/inkwell_db
+    volumes:
+      - ./backend/drizzle:/app/drizzle
+    networks:
+      - inkwell
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npm", "run", "db:migrate"]
+    restart: "no"
+    profiles: ["tools"]
+
   backend:
     build:
       context: ./backend
@@ -48,8 +65,8 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/drizzle:/app/drizzle
+      - ./backend:/app
+      - /app/node_modules
     networks:
       - inkwell
     depends_on:
@@ -69,8 +86,8 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend/src:/app/src
-      - ./frontend/index.html:/app/index.html
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - inkwell
     depends_on:

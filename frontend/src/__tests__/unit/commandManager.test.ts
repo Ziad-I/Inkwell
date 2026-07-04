@@ -1,27 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ConnectionManager } from "@/core/connectionManager";
-
-const mockStageOps = {
-  getNodeById: vi.fn(),
-  createNode: vi.fn(),
-  addDrawingNode: vi.fn(),
-  addOverlayNode: vi.fn(),
-  removeNodeById: vi.fn(),
-  removeNode: vi.fn(),
-  redrawDrawingLayer: vi.fn(),
-  redrawOverlayLayer: vi.fn(),
-  getStage: vi.fn(),
-  getDrawingLayer: vi.fn(),
-  getOverlayLayer: vi.fn(),
-  getViewpointPos: vi.fn(),
-  getScale: vi.fn(),
-  setScale: vi.fn(),
-  setViewpointPos: vi.fn(),
-  screenToWorld: vi.fn(),
-  worldToScreen: vi.fn(),
-  translate: vi.fn(),
-  toggleDrawing: vi.fn(),
-};
+import type { StageOperations } from "@/types/common";
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 function createMockConnectionManager(): ConnectionManager {
   return {
@@ -37,7 +17,12 @@ function createMockConnectionManager(): ConnectionManager {
 }
 
 describe("CommandManager", async () => {
+  let mockStageOps: StageOperations;
   const { CommandManager } = await import("@/core/commandManager");
+
+  beforeEach(() => {
+    mockStageOps = createMockStageOps();
+  });
 
   describe("constructor", () => {
     it("registers server listeners on creation", () => {

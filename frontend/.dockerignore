@@ -26,3 +26,7 @@ Thumbs.db
 # Docker
 Dockerfile
 .dockerignore
+
+# Tests (optional)
+*.test.ts
+*.spec.ts

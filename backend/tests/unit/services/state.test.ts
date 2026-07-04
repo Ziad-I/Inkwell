@@ -217,7 +217,7 @@ describe("getCommandById", () => {
 
 describe("getCommandsInBuffer", () => {
   it("returns commands after given sequence", async () => {
-    mockRedisClient.zrange.mockResolvedValue([JSON.stringify(mockCommand)]);
+    mockRedisClient.zrange.mockResolvedValue([JSON.stringify(mockCommand), String(mockCommand.seq)]);
     mockRedisClient.zrangebyscore.mockResolvedValue([JSON.stringify(mockCommand)]);
     const { getCommandsInBuffer } = await loadState();
 

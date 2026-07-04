@@ -18,7 +18,10 @@ const keys = {
   dirty: `dirty:rooms`,
 };
 
-export async function initBoardState(roomId: string, initialState: BoardState) {
+export async function initBoardState(
+  roomId: string,
+  initialState: BoardState,
+): Promise<void> {
   const maxSeq = Object.values(initialState).reduce(
     (m, c) => Math.max(m, c.seq ?? 0),
     0,
@@ -37,7 +40,7 @@ export async function initBoardState(roomId: string, initialState: BoardState) {
   await pipeline.exec();
 }
 
-export async function isRoomInitialized(roomId: string) {
+export async function isRoomInitialized(roomId: string): Promise<boolean> {
   const exists = await redisStateClient.exists(keys.seq(roomId));
   return exists === 1;
 }
@@ -102,7 +105,13 @@ export async function getCommandsInBuffer(roomId: string, afterSeq: number) {
 
   // oldestRaw is [member, score] when WITHSCORES is used
   const oldestSeq = oldestRaw[1] ? parseInt(oldestRaw[1], 10) : null;
-  const clientIsBehindBuffer = oldestSeq !== null && afterSeq < oldestSeq - 1;
+
+  // Buffer has no entries at all — caller should fall back to full state
+  if (oldestSeq === null) {
+    return null;
+  }
+
+  const clientIsBehindBuffer = afterSeq < oldestSeq - 1;
 
   if (clientIsBehindBuffer) {
     // Signal to caller: buffer gap detected, fall back to full state

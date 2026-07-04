@@ -364,7 +364,12 @@ export class CommandManager {
    * Replays every finalized command that the client doesn't already have.
    */
   private onRoomSync = (state: Command[]): void => {
-    for (const command of state) {
+    //TODO: find a better way to handle this instead of sorting.
+    //! this is a temporary solution to ensure that
+    //! the commands are applied in the correct order.
+    const sorted = [...state].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+
+    for (const command of sorted) {
       if (this.commands.has(command.id)) continue;
       if (command.status === "applied") {
         const instance = this.factory.createInstance(command, this.stageOps);

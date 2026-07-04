@@ -12,6 +12,10 @@ export interface StageOperations {
   getOverlayLayer: () => Konva.Layer | null;
   getViewpointPos: () => Point;
   setScale: (newScale: number, pivot?: Point) => void;
+  zoomBy: (factor: number, pivotPoint?: Point) => void;
+  zoomIn: (pivotPoint?: Point) => void;
+  zoomOut: (pivotPoint?: Point) => void;
+  resetZoom: () => void;
   setViewpointPos: (newPos: Point) => void;
   screenToWorld: (sx: number, sy: number) => Point;
   worldToScreen: (wx: number, wy: number) => Point;

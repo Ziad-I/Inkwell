@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import {
   ColorSettings,
   GeneralSettings,
@@ -12,6 +14,7 @@ import {
 } from "@/components/board/toolbar/widgets";
 import {
   Blend,
+  ChevronLeft,
   ChevronRight,
   Palette,
   PercentCircle,
@@ -22,129 +25,110 @@ import {
 } from "lucide-react";
 
 const settingButtons = [
-  { id: "color", icon: Palette, label: "Color", component: ColorSettings },
+  {
+    id: "color",
+    icon: Palette,
+    label: "Color",
+    title: "Color Settings",
+    component: ColorSettings,
+  },
   {
     id: "shape",
     icon: Square,
     label: "Shape",
+    title: "Shapes",
     component: ShapeKindSettings,
   },
   {
     id: "size",
     icon: SlidersHorizontal,
     label: "Size",
+    title: "Size Settings",
     component: SizeSettings,
   },
   {
     id: "opacity",
     icon: Blend,
     label: "Opacity",
+    title: "Opacity Settings",
     component: OpacitySettings,
   },
   {
     id: "lineCap",
     icon: PercentCircle,
     label: "Line Cap",
+    title: "Line Cap Settings",
     component: LineCapSettings,
   },
   {
     id: "general",
     icon: Settings,
     label: "General",
+    title: "General Settings",
     component: GeneralSettings,
   },
   {
     id: "presence",
     icon: User,
     label: "Presence",
+    title: "Presence Info",
     component: PresenceSettings,
   },
 ];
 
-interface FloatingWidgetProps {
-  compact?: boolean;
-  isOpen: boolean;
-  onClose: () => void;
-  children: React.ReactNode;
-}
-
-function FloatingWidget({
-  compact,
-  isOpen,
-  onClose,
-  children,
-}: FloatingWidgetProps) {
-  if (!isOpen) return null;
+export default function ToolSettings() {
+  const [collapsed, setCollapsed] = useState(false);
+  const [openPanel, setOpenPanel] = useState<string | null>(null);
 
   return (
     <>
-      {/* Backdrop (slightly lower z so it sits behind the panel) */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      {/* Panel (higher z so it is always above the toolbar) */}
-      <Card
-        className={` ${
-          compact ? "left-20" : "left-34"
-        } fixed z-50 p-3 bg-muted border shadow-lg transform -translate-y-10 `}
-      >
-        {children}
-      </Card>
-    </>
-  );
-}
+      {openPanel && (
+        <div className="fixed inset-0 z-25" />
+      )}
+      <Card className="fixed top-1/2 left-4 transform -translate-y-1/2 z-30 p-2 bg-muted">
+      <div className="flex flex-col items-center gap-2">
+        <Button
+          aria-label={collapsed ? "Expand settings" : "Collapse settings"}
+          variant="outline"
+          size="icon"
+          onClick={() => setCollapsed((s) => !s)}
+          className="rounded-full"
+        >
+          {collapsed ? <ChevronRight /> : <ChevronLeft />}
+        </Button>
 
-interface ToolSettingsProps {
-  compact?: boolean;
-}
+        <Separator orientation="horizontal" />
 
-export default function ToolSettings({ compact }: ToolSettingsProps) {
-  const [openPanel, setOpenPanel] = useState<string | null>(null);
-
-  const handleButtonClick = (buttonId: string) => {
-    setOpenPanel(openPanel === buttonId ? null : buttonId);
-  };
-
-  return (
-    <div className="flex flex-col gap-1 w-full">
-      {settingButtons.map(({ id, icon: Icon, label, component: Component }) => (
-        <div key={id}>
-          {!compact ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleButtonClick(id)}
-              className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={12} />
-                <span className="text-xs font-medium">{label}</span>
-              </div>
-              <ChevronRight size={10} />
-            </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleButtonClick(id)}
-              title={label}
-              aria-label={label}
-              className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
-            >
-              <div className="flex items-center gap-2">
-                <Icon size={12} />
-              </div>
-              <ChevronRight size={10} />
-            </Button>
+        <div className="flex flex-col gap-1 w-full">
+          {settingButtons.map(
+            ({ id, icon: Icon, label, title, component: Component }) => (
+              <Popover
+                key={id}
+                open={openPanel === id}
+                onOpenChange={(open) => setOpenPanel(open ? id : null)}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon size={12} />
+                      {!collapsed && (
+                        <span className="text-xs font-medium">{label}</span>
+                      )}
+                    </div>
+                    <ChevronRight size={10} />
+                  </Button>
+                </PopoverTrigger>
+                <Component title={title} />
+              </Popover>
+            ),
           )}
-
-          <FloatingWidget
-            compact={compact}
-            isOpen={openPanel === id}
-            onClose={() => setOpenPanel(null)}
-          >
-            <Component />
-          </FloatingWidget>
         </div>
-      ))}
-    </div>
+      </div>
+    </Card>
+    </>
   );
 }
