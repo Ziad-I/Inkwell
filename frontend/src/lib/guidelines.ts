@@ -1,9 +1,5 @@
 import Konva from "konva";
-
-/** Screen-pixel distance within which a snap fires. */
-const GUIDELINE_OFFSET = 5;
-const GUIDE_COLOR = "blue";
-const GUIDE_NAME = "guide-line";
+import { GUIDELINE_OFFSET, GUIDE_COLOR, GUIDE_NAME } from "./constants";
 
 type SnapEdge = "start" | "center" | "end";
 type Orientation = "V" | "H";
