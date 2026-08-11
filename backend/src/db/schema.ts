@@ -27,7 +27,9 @@ export const boards = pgTable("board", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   title: text("title").notNull().default("Untitled Board"),
-  ownerId: text("owner_id").notNull(),
+  ownerId: uuid("owner_id")
+    .notNull()
+    .references(() => users.id),
   drawPermission: drawPermissionEnum("draw_permission")
     .notNull()
     .default("anyone"),
@@ -38,6 +40,21 @@ export const boards = pgTable("board", {
     .notNull()
     .$defaultFn(() => new Date())
     .$onUpdateFn(() => new Date()),
+});
+
+export const refreshTokens = pgTable("refresh_token", {
+  id: uuid("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at")
+    .notNull()
+    .$defaultFn(() => new Date()),
 });
 
 export const snapshots = pgTable("snapshot", {
@@ -56,3 +73,4 @@ export const snapshots = pgTable("snapshot", {
 export type User = typeof users.$inferSelect;
 export type Board = typeof boards.$inferSelect;
 export type Snapshot = typeof snapshots.$inferSelect;
+export type RefreshToken = typeof refreshTokens.$inferSelect;

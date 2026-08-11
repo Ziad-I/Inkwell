@@ -15,6 +15,20 @@
       "when": 1782212472408,
       "tag": "0001_ancient_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786271728136,
+      "tag": "0002_purple_wrecking_crew",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786447010722,
+      "tag": "0003_tearful_slayback",
+      "breakpoints": true
     }
   ]
 }
