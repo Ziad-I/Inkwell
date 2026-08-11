@@ -24,9 +24,9 @@ import {
   SHAPE_KINDS,
   type ShapeKind,
 } from "@/lib/constants";
-import { useUserStore } from "@/stores/userStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
+import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 
 interface WidgetProps {
   title: string;
@@ -268,9 +268,7 @@ export function GeneralSettings({ title }: WidgetProps) {
 }
 
 export function PresenceSettings({ title }: WidgetProps) {
-  const userName = useUserStore((s) => s.userName);
-  const userColor = useUserStore((s) => s.userColor);
-  const userId = useUserStore((s) => s.userId);
+  const { id: userId, name: userName, color: userColor } = useCollabIdentity();
 
   return (
     <PopoverContent side="right" align="start" className="w-52 p-3">

@@ -2,7 +2,7 @@ import InfiniteCanvas from "@/components/board/canvas/canvas";
 import Toolbar from "@/components/board/toolbar/toolbar";
 import ToolSettings from "@/components/board/toolbar/toolSettings";
 import { useStageOperations } from "@/hooks/useStageOperations";
-import { useUserStore } from "@/stores/userStore";
+import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 import { LoadingSpinner } from "@/components/home/LoadingSpinner";
 import { BoardManagersProvider } from "@/providers/managersProvider";
 import { useParams, useNavigate, useLocation } from "react-router";
@@ -21,9 +21,7 @@ function BoardPage() {
   const location = useLocation();
   const skipValidation = location.state?.skipValidation || false;
 
-  const userId = useUserStore((s) => s.userId);
-  const userName = useUserStore((s) => s.userName);
-  const userColor = useUserStore((s) => s.userColor);
+  const { id: userId, name: userName, color: userColor } = useCollabIdentity();
   const url = import.meta.env.VITE_BACKEND_WS_URL;
 
   const [validation, setValidation] = useState<ValidationState>(
