@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 import { env } from "@/config/config.js";
@@ -10,6 +11,8 @@ import { errorHandler } from "@/middlewares/errorHandler.js";
 import { notFound } from "@/middlewares/notFound.js";
 
 import boardRouter from "@/routers/board.js";
+import authRouter from "@/routers/auth.js";
+import usersRouter from "@/routers/users.js";
 
 export const app: Express = express();
 
@@ -21,6 +24,7 @@ app.use(compression());
 app.use(helmet());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(morganMiddleware);
 
 app.get("/health", (_req: Request, res: Response) => {
@@ -30,6 +34,8 @@ app.get("/health", (_req: Request, res: Response) => {
 // Routers
 const apiRouter = express.Router();
 apiRouter.use("/boards", boardRouter);
+apiRouter.use("/auth", authRouter);
+apiRouter.use("/users", usersRouter);
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use("/api", apiLimiter, apiRouter);

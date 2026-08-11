@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useUserStore } from "@/stores/userStore";
+import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 import {
   PresenceDot,
   type PresenceDotHandle,
@@ -22,8 +22,7 @@ export const LocalPresenceDot = forwardRef<
   PresenceDotHandle,
   LocalPresenceDotProps
 >(function LocalPresenceDot({ radius = 5, visible = true }, ref) {
-  const userColor = useUserStore((s) => s.userColor);
-  const userName = useUserStore((s) => s.userName);
+  const { name: userName, color: userColor } = useCollabIdentity();
 
   const visualRef = useRef<PresenceDotHandle>(null);
   const latestPosRef = useRef<Point | null>(null);

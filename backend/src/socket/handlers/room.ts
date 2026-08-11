@@ -33,26 +33,34 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
       try {
         const { roomId } = payload;
 
+        const userId = (socket.data as SocketData).userId;
         const board = await getBoardById(roomId);
-        if (!board) {
-          ack?.("Room not found");
-          return;
-        }
 
-        if (!(await isRoomInitialized(roomId))) {
-          const snapshot = (await getLatestSnapshot(roomId)) ?? {};
-          await initBoardState(roomId, snapshot);
+        let canDraw: boolean;
+
+        if (board) {
+          if (!(await isRoomInitialized(roomId))) {
+            const snapshot = (await getLatestSnapshot(roomId)) ?? {};
+            await initBoardState(roomId, snapshot);
+          }
+
+          canDraw = resolveCanDraw(
+            board.drawPermission as DrawPermission,
+            board.ownerId,
+            userId,
+          );
+        } else {
+          // No persisted board row: the room is ephemeral (anonymous-created,
+          // Redis-only). It is joinable while its Redis state exists and is
+          // open to everyone.
+          if (!(await isRoomInitialized(roomId))) {
+            ack?.("Room not found");
+            return;
+          }
+          canDraw = true;
         }
 
         socket.join(roomId);
-
-        const userId = (socket.data as SocketData).userId;
-
-        const canDraw = resolveCanDraw(
-          board.drawPermission as DrawPermission,
-          board.ownerId,
-          userId,
-        );
 
         (socket.data as SocketData).roomId = roomId;
         (socket.data as SocketData).canDraw = canDraw;

@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@/db/index.js";
 import { boards } from "@/db/schema.js";
 import { eq } from "drizzle-orm";
 import type { DrawPermission } from "@/types/types.js";
+import { initBoardState } from "@/services/state.js";
 
 export async function getBoardById(roomId: string) {
   const result = await db
@@ -22,6 +24,17 @@ export async function createBoard(
     .values({ title: name, ownerId, drawPermission })
     .returning();
   return result[0]!;
+}
+
+/**
+ * Creates an ephemeral, Redis-only room for anonymous users. No row is
+ * written to Postgres: the room lives for as long as someone is connected
+ * and is destroyed by the last-user-leave cleanup.
+ */
+export async function createEphemeralRoom(): Promise<{ id: string }> {
+  const roomId = randomUUID();
+  await initBoardState(roomId, {});
+  return { id: roomId };
 }
 
 export async function updateBoard(

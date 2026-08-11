@@ -1,15 +1,33 @@
+import { randomUUID } from "node:crypto";
+import { verifyAccessToken } from "@/services/auth.js";
+import { getUserById } from "@/services/users.js";
 import type { SocketData } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 
 export function registerAuthMiddleware(io: Server) {
-  io.use((socket: Socket, next) => {
-    const { userId, userColor, userName } = socket.handshake.auth;
+  io.use(async (socket: Socket, next) => {
+    const { userId, token, userColor, userName } = socket.handshake.auth ?? {};
+
+    let effectiveUserId =
+      typeof userId === "string" && userId ? userId : randomUUID();
+
+    if (typeof token === "string" && token) {
+      try {
+        const accountUserId = verifyAccessToken(token);
+        const user = await getUserById(accountUserId);
+        if (user) {
+          effectiveUserId = user.id;
+        }
+      } catch {
+        // Invalid or expired token: fall back to the anonymous identity.
+      }
+    }
 
     const socketData: SocketData = {
-      userId,
+      userId: effectiveUserId,
       meta: {
-        userColor: userColor || "#000000",
-        userName: userName || "Anonymous",
+        userColor: typeof userColor === "string" ? userColor : "#000000",
+        userName: typeof userName === "string" ? userName : "Anonymous",
       },
     };
 

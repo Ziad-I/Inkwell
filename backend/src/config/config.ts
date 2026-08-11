@@ -26,13 +26,18 @@ const envSchema = z.object({
     .default("postgresql://username:password@localhost:5432/inkwell_db"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
-  SNAPSHOT_INTERVAL: z.preprocess(
-    preprocessNum,
-    z.number().int().positive().default(60000),
-  ),
   SNAPSHOT_RETENTION: z.preprocess(
     preprocessNum,
     z.number().int().positive().default(3),
+  ),
+  ACCESS_TOKEN_SECRET: z.string().min(24),
+  ACCESS_TOKEN_TTL: z.preprocess(
+    preprocessNum,
+    z.number().int().positive().default(900),
+  ),
+  REFRESH_TOKEN_TTL: z.preprocess(
+    preprocessNum,
+    z.number().int().positive().default(604800),
   ),
 });
 

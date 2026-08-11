@@ -1,7 +1,8 @@
 import { beforeAll, afterAll } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { Server as SocketServer } from "socket.io";
-import { boards, snapshots } from "@/db/schema.js";
+import { boards, snapshots, users } from "@/db/schema.js";
 import { eq } from "drizzle-orm";
 
 export let httpServer: HttpServer;
@@ -13,16 +14,30 @@ let _redisStateClient: Awaited<
   typeof import("@/redis/client.js")
 >["redisStateClient"];
 
+export async function seedUser(): Promise<string> {
+  const suffix = randomUUID();
+  const result = await _db
+    .insert(users)
+    .values({
+      username: `user_${suffix}`,
+      email: `${suffix}@test.local`,
+      passwordHash: "not-used-in-tests",
+    })
+    .returning();
+  return result[0]!.id;
+}
+
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;
   drawPermission?: "owner" | "anyone";
 }): Promise<string> {
+  const ownerId = overrides?.ownerId ?? (await seedUser());
   const result = await _db
     .insert(boards)
     .values({
       title: overrides?.title ?? "Test Board",
-      ownerId: overrides?.ownerId ?? "test-owner",
+      ownerId,
       drawPermission: overrides?.drawPermission ?? "anyone",
     })
     .returning();
@@ -39,6 +54,24 @@ export async function cleanupTestData(boardId: string) {
   // Then delete DB records (board must exist when snapshot cleanup fires)
   await _db.delete(snapshots).where(eq(snapshots.boardId, boardId));
   await _db.delete(boards).where(eq(boards.id, boardId));
+}
+
+export async function getBoardRow(roomId: string) {
+  const rows = await _db.select().from(boards).where(eq(boards.id, roomId));
+  return rows[0] ?? null;
+}
+
+export async function countSnapshots(roomId: string): Promise<number> {
+  const rows = await _db
+    .select({ id: snapshots.id })
+    .from(snapshots)
+    .where(eq(snapshots.boardId, roomId));
+  return rows.length;
+}
+
+export async function isRedisRoomAlive(roomId: string): Promise<boolean> {
+  const exists = await _redisStateClient.exists(`board:${roomId}:seq`);
+  return exists === 1;
 }
 
 beforeAll(async () => {

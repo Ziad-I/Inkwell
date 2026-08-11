@@ -81,8 +81,9 @@ describe("registerRoomHandlers — room:join", () => {
     snapshotMock.getLatestSnapshot.mockResolvedValue(null);
   });
 
-  it("rejects join when board not found", async () => {
+  it("rejects join when board not found and room is not in Redis", async () => {
     boardMock.getBoardById.mockResolvedValue(null);
+    stateMock.isRoomInitialized.mockResolvedValue(false);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
     const socket = createMockSocket();
@@ -95,6 +96,25 @@ describe("registerRoomHandlers — room:join", () => {
 
     expect(ack).toHaveBeenCalledWith("Room not found");
     expect(socket.join).not.toHaveBeenCalled();
+  });
+
+  it("joins ephemeral rooms with no board row when Redis state exists", async () => {
+    boardMock.getBoardById.mockResolvedValue(null);
+    stateMock.isRoomInitialized.mockResolvedValue(true);
+
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket();
+    const io = createMockServer();
+
+    registerRoomHandlers(socket as never, io as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:join")({ roomId: "ephemeral-room" }, ack);
+
+    expect(socket.join).toHaveBeenCalledWith("ephemeral-room");
+    expect(socket.data.canDraw).toBe(true);
+    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: true });
+    expect(stateMock.initBoardState).not.toHaveBeenCalled();
   });
 
   it("initializes board state from snapshot if room not initialized", async () => {
