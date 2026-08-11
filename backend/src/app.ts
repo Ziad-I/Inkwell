@@ -12,6 +12,7 @@ import { notFound } from "@/middlewares/notFound.js";
 
 import boardRouter from "@/routers/board.js";
 import authRouter from "@/routers/auth.js";
+import usersRouter from "@/routers/users.js";
 
 export const app: Express = express();
 
@@ -34,6 +35,7 @@ app.get("/health", (_req: Request, res: Response) => {
 const apiRouter = express.Router();
 apiRouter.use("/boards", boardRouter);
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/users", usersRouter);
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use("/api", apiLimiter, apiRouter);
