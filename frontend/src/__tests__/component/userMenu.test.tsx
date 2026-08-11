@@ -67,28 +67,25 @@ describe("UserMenu", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders Sign in and Create account links for guests", async () => {
+  it("renders nothing for guest users", async () => {
     await renderUserMenu();
 
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
     expect(
-      screen.getByRole("link", { name: "Create account" }),
-    ).toHaveAttribute("href", "/register");
+      screen.queryByRole("button", { name: /user menu/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Log out")).not.toBeInTheDocument();
   });
 
-  it("shows the avatar initials and menu for an authenticated user", async () => {
+  it("shows the user menu for an authenticated user", async () => {
     storeMock.user = { id: "u1", username: "alice", email: "a@b.c" };
     storeMock.status = "authenticated";
     await renderUserMenu();
 
-    const trigger = screen.getByRole("button", { name: /alice/i });
-    expect(trigger).toHaveTextContent("AL");
+    const trigger = screen.getByRole("button", {
+      name: "User menu for alice",
+    });
     await userEvent.click(trigger);
     expect(screen.getByText("alice")).toBeInTheDocument();
-    expect(screen.getByText("a@b.c")).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: "Log out" }),
     ).toBeInTheDocument();
