@@ -19,15 +19,8 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1786271728136,
-      "tag": "0002_purple_wrecking_crew",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
       "when": 1786447010722,
-      "tag": "0003_tearful_slayback",
+      "tag": "0002_tearful_slayback",
       "breakpoints": true
     }
   ]
