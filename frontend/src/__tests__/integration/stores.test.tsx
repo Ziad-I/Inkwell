@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useUserStore } from "@/stores/userStore";
+import { usePresenceStore } from "@/stores/presenceStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useToolStore } from "@/stores/toolStore";
 
@@ -7,10 +7,10 @@ describe("store interactions", () => {
   beforeEach(() => {
     localStorage.clear();
     // Reset zustand stores to initial state
-    useUserStore.setState({
-      userId: "test-user",
-      userName: "Test User",
-      userColor: "#ff0000",
+    usePresenceStore.setState({
+      anonymousId: "test-user",
+      anonymousName: "Test User",
+      presenceColor: "#ff0000",
     });
     useSettingsStore.setState({
       color: "#000",
@@ -28,15 +28,15 @@ describe("store interactions", () => {
   });
 
   it("user can set name and it persists across store operations", () => {
-    useUserStore.getState().setUserName("Alice");
-    expect(useUserStore.getState().userName).toBe("Alice");
+    usePresenceStore.getState().setAnonymousName("Alice");
+    expect(usePresenceStore.getState().anonymousName).toBe("Alice");
 
     useSettingsStore.getState().setColor("#00ff00");
     expect(useSettingsStore.getState().color).toBe("#00ff00");
 
-    // User store unaffected by settings store changes
-    expect(useUserStore.getState().userName).toBe("Alice");
-    expect(useUserStore.getState().userColor).toBe("#ff0000");
+    // Presence store unaffected by settings store changes
+    expect(usePresenceStore.getState().anonymousName).toBe("Alice");
+    expect(usePresenceStore.getState().presenceColor).toBe("#ff0000");
   });
 
   it("toolStore and settingsStore work independently", () => {
@@ -52,7 +52,7 @@ describe("store interactions", () => {
     useSettingsStore.getState().setStrokeWidth(100);
     expect(useSettingsStore.getState().strokeWidth).toBe(50);
 
-    useUserStore.getState().setUserId("new-id");
-    expect(useUserStore.getState().userId).toBe("new-id");
+    usePresenceStore.setState({ anonymousId: "new-id" });
+    expect(usePresenceStore.getState().anonymousId).toBe("new-id");
   });
 });

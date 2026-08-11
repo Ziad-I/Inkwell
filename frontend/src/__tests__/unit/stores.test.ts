@@ -73,24 +73,24 @@ describe("toolStore", () => {
   });
 });
 
-describe("userStore", () => {
+describe("presenceStore", () => {
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
   });
 
   it("initializes with defined values", async () => {
-    const { useUserStore } = await import("@/stores/userStore");
-    const state = useUserStore.getState();
-    expect(state.userId).toBeDefined();
-    expect(typeof state.userId).toBe("string");
-    expect(state.userName).toBeDefined();
-    expect(state.userColor).toMatch(/^#[0-9a-f]{6}$/);
+    const { usePresenceStore } = await import("@/stores/presenceStore");
+    const state = usePresenceStore.getState();
+    expect(state.anonymousId).toBeDefined();
+    expect(typeof state.anonymousId).toBe("string");
+    expect(state.anonymousName).toBeDefined();
+    expect(state.presenceColor).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it("updates user name", async () => {
-    const { useUserStore } = await import("@/stores/userStore");
-    useUserStore.getState().setUserName("Alice");
-    expect(useUserStore.getState().userName).toBe("Alice");
+  it("updates anonymous name", async () => {
+    const { usePresenceStore } = await import("@/stores/presenceStore");
+    usePresenceStore.getState().setAnonymousName("Alice");
+    expect(usePresenceStore.getState().anonymousName).toBe("Alice");
   });
 });
