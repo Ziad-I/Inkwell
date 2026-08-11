@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import { port, seedBoard, cleanupTestData } from "./setup.js";
+import { port, seedBoard, seedUser, cleanupTestData } from "./setup.js";
 
 function connectClient(auth?: Record<string, unknown>): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
@@ -19,7 +19,8 @@ describe("presence:move", () => {
   let boardId: string;
 
   beforeAll(async () => {
-    boardId = await seedBoard({ title: "Presence Test", ownerId: "user-1" });
+    const ownerId = await seedUser();
+    boardId = await seedBoard({ title: "Presence Test", ownerId });
   });
 
   afterAll(async () => {
