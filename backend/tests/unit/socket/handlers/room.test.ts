@@ -30,9 +30,7 @@ const mockBoard = {
 };
 
 function getHandler(socket: { on: ReturnType<typeof vi.fn> }, event: string) {
-  return socket.on.mock.calls.find(
-    (c: unknown[]) => c[0] === event,
-  )?.[1];
+  return socket.on.mock.calls.find((c: unknown[]) => c[0] === event)?.[1];
 }
 
 const boardMock = vi.hoisted(() => ({ getBoardById: vi.fn() }));
@@ -94,7 +92,7 @@ describe("registerRoomHandlers — room:join", () => {
     const ack = vi.fn();
     await getHandler(socket, "room:join")({ roomId: "nonexistent" }, ack);
 
-    expect(ack).toHaveBeenCalledWith("Room not found");
+    expect(ack).toHaveBeenCalledWith("BOARD_NOT_FOUND");
     expect(socket.join).not.toHaveBeenCalled();
   });
 
@@ -120,7 +118,14 @@ describe("registerRoomHandlers — room:join", () => {
   it("initializes board state from snapshot if room not initialized", async () => {
     stateMock.isRoomInitialized.mockResolvedValue(false);
     snapshotMock.getLatestSnapshot.mockResolvedValue({
-      "cmd-1": { id: "cmd-1", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 123 },
+      "cmd-1": {
+        id: "cmd-1",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 123,
+      },
     });
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -171,7 +176,14 @@ describe("registerRoomHandlers — room:join", () => {
 
   it("emits room:sync with full state when no lastSeq", async () => {
     stateMock.getBoardStateArr.mockResolvedValue([
-      { id: "cmd-1", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 123 },
+      {
+        id: "cmd-1",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 123,
+      },
     ]);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -193,7 +205,14 @@ describe("registerRoomHandlers — room:join", () => {
 
   it("performs delta sync when lastSeq is provided", async () => {
     stateMock.getCommandsInBuffer.mockResolvedValue([
-      { id: "cmd-2", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 456 },
+      {
+        id: "cmd-2",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 456,
+      },
     ]);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -202,7 +221,10 @@ describe("registerRoomHandlers — room:join", () => {
 
     registerRoomHandlers(socket as never, io as never);
 
-    await getHandler(socket, "room:join")({ roomId: "room-abc", lastSeq: 5 }, vi.fn());
+    await getHandler(socket, "room:join")(
+      { roomId: "room-abc", lastSeq: 5 },
+      vi.fn(),
+    );
 
     expect(stateMock.getCommandsInBuffer).toHaveBeenCalledWith("room-abc", 5);
     const syncCall = (socket.emit as ReturnType<typeof vi.fn>).mock.calls.find(

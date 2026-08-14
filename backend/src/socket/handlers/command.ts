@@ -26,22 +26,18 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     async (payload: { id: CommandID; command: Command }, ack?: Ack) => {
       const { roomId, userId, canDraw } = socket.data as SocketData;
       const { id: commandId, command } = payload;
+
       try {
         if (!roomId) {
-          reject(socket, commandId, "User not in a room", ack);
+          reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
         if (!canDraw) {
-          reject(
-            socket,
-            commandId,
-            "User does not have permission to draw",
-            ack,
-          );
+          reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
         if (command.owner !== userId) {
-          reject(socket, commandId, "User does not own the command", ack);
+          reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
         console.log(`Broadcasting command:create for commandId: ${commandId}`);
@@ -49,7 +45,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
         ack?.();
       } catch (err) {
         logger.error(`[command:create] error:`, err);
-        reject(socket, commandId, "Internal server error", ack);
+        reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
       }
     },
   );
@@ -61,27 +57,22 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
       const { id: commandId, command } = payload;
       try {
         if (!roomId) {
-          reject(socket, commandId, "User not in a room", ack);
+          reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
         if (!canDraw) {
-          reject(
-            socket,
-            commandId,
-            "User does not have permission to draw",
-            ack,
-          );
+          reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
         if (command.owner !== userId) {
-          reject(socket, commandId, "User does not own the command", ack);
+          reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
         socket.to(roomId).emit("command:update", commandId, command);
         ack?.();
       } catch (err) {
         logger.error(`[command:update] error:`, err);
-        reject(socket, commandId, "Internal server error", ack);
+        reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
       }
     },
   );
@@ -93,20 +84,15 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
       const { id: commandId, command } = payload;
       try {
         if (!roomId) {
-          reject(socket, commandId, "User not in a room", ack);
+          reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
         if (!canDraw) {
-          reject(
-            socket,
-            commandId,
-            "User does not have permission to draw",
-            ack,
-          );
+          reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
         if (command.owner !== userId) {
-          reject(socket, commandId, "User does not own the command", ack);
+          reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
         const finalized = await applyFinalize(roomId, command);
@@ -114,7 +100,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
         ack?.(undefined, { seq: finalized.seq });
       } catch (err) {
         logger.error(`[command:finalize] error:`, err);
-        reject(socket, commandId, "Internal server error", ack);
+        reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
       }
     },
   );
@@ -124,27 +110,27 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     const { id: commandId } = payload;
     try {
       if (!roomId) {
-        reject(socket, commandId, "User not in a room", ack);
+        reject(socket, commandId, "NOT_IN_ROOM", ack);
         return;
       }
       if (!canDraw) {
-        reject(socket, commandId, "User does not have permission to draw", ack);
+        reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
         return;
       }
       const command = await getCommandById(roomId, commandId);
       if (!command) {
-        reject(socket, commandId, "Command not found", ack);
+        reject(socket, commandId, "INVALID_COMMAND", ack);
         return;
       }
       if (command.owner !== userId) {
-        reject(socket, commandId, "User does not own the command", ack);
+        reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
         return;
       }
       socket.to(roomId).emit("command:cancel", commandId);
       ack?.();
     } catch (err) {
       logger.error(`[command:cancel] error:`, err);
-      reject(socket, commandId, "Internal server error", ack);
+      reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
     }
   });
 
@@ -155,29 +141,24 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
       const { id: commandId } = payload;
       try {
         if (!roomId) {
-          reject(socket, commandId, "User not in a room", ack);
+          reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
         if (!canDraw) {
-          reject(
-            socket,
-            commandId,
-            "User does not have permission to draw",
-            ack,
-          );
+          reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
         const command = await getCommandById(roomId, commandId);
         if (!command) {
-          reject(socket, commandId, "Command not found", ack);
+          reject(socket, commandId, "INVALID_COMMAND", ack);
           return;
         }
         if (command.owner !== userId) {
-          reject(socket, commandId, "User does not own the command", ack);
+          reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
         if (command.status !== "applied") {
-          reject(socket, commandId, "Command is not applied", ack);
+          reject(socket, commandId, "COMMAND_NOT_APPLIED", ack);
           return;
         }
         const undone = await applyUndo(roomId, command);
@@ -185,7 +166,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
         ack?.(undefined, { seq: undone.seq });
       } catch (err) {
         logger.error(`[command:undo] error:`, err);
-        reject(socket, commandId, "Internal server error", ack);
+        reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
       }
     },
   );
@@ -197,29 +178,24 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
       const { id: commandId } = payload;
       try {
         if (!roomId) {
-          reject(socket, commandId, "User not in a room", ack);
+          reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
         if (!canDraw) {
-          reject(
-            socket,
-            commandId,
-            "User does not have permission to draw",
-            ack,
-          );
+          reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
         const command = await getCommandById(roomId, commandId);
         if (!command) {
-          reject(socket, commandId, "Command not found", ack);
+          reject(socket, commandId, "INVALID_COMMAND", ack);
           return;
         }
         if (command.owner !== userId) {
-          reject(socket, commandId, "User does not own the command", ack);
+          reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
         if (command.status !== "reverted") {
-          reject(socket, commandId, "Command is not reverted", ack);
+          reject(socket, commandId, "COMMAND_NOT_REVERTED", ack);
           return;
         }
         const redone = await applyRedo(roomId, command);
@@ -227,7 +203,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
         ack?.(undefined, { seq: redone.seq });
       } catch (err) {
         logger.error(`[command:redo] error:`, err);
-        reject(socket, commandId, "Internal server error", ack);
+        reject(socket, commandId, "INTERNAL_SERVER_ERROR", ack);
       }
     },
   );

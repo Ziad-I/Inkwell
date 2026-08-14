@@ -16,7 +16,9 @@ export function registerRoomCleanup(io: Server) {
       // never snapshotted, so skip the write and only clear Redis.
       const board = await getBoardById(roomId);
       if (board) {
-        logger.info(`[room:cleanup] Last user left ${roomId}, persisting state`);
+        logger.info(
+          `[room:cleanup] Last user left ${roomId}, persisting state`,
+        );
         await writeBoardSnapshot(roomId);
       }
       await clearBoardState(roomId);

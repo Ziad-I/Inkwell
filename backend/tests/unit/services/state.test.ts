@@ -43,8 +43,8 @@ describe("initBoardState", () => {
 
     await initBoardState("room-1", cmds);
 
-    const setCall = mockRedisClient.set.mock.calls.find(
-      (c: unknown[]) => (c[0] as string).includes("seq"),
+    const setCall = mockRedisClient.set.mock.calls.find((c: unknown[]) =>
+      (c[0] as string).includes("seq"),
     );
     expect(setCall).toBeDefined();
     expect(setCall?.[1]).toBe(10);
@@ -205,7 +205,7 @@ describe("getCommandById", () => {
     expect(result).toEqual(mockCommand);
   });
 
-  it("returns null when command not found", async () => {
+  it("returns null when INVALID_COMMAND", async () => {
     mockRedisClient.hget.mockResolvedValue(null);
     const { getCommandById } = await loadState();
 
@@ -217,8 +217,13 @@ describe("getCommandById", () => {
 
 describe("getCommandsInBuffer", () => {
   it("returns commands after given sequence", async () => {
-    mockRedisClient.zrange.mockResolvedValue([JSON.stringify(mockCommand), String(mockCommand.seq)]);
-    mockRedisClient.zrangebyscore.mockResolvedValue([JSON.stringify(mockCommand)]);
+    mockRedisClient.zrange.mockResolvedValue([
+      JSON.stringify(mockCommand),
+      String(mockCommand.seq),
+    ]);
+    mockRedisClient.zrangebyscore.mockResolvedValue([
+      JSON.stringify(mockCommand),
+    ]);
     const { getCommandsInBuffer } = await loadState();
 
     const result = await getCommandsInBuffer("room-1", 0);

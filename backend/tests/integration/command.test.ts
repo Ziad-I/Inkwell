@@ -81,7 +81,7 @@ describe("command:create", () => {
         makeStrokeCommand("cmd-1", "test-user"),
         (response: unknown) => {
           try {
-            expect(response).toBe("User not in a room");
+            expect(response).toBe("NOT_IN_ROOM");
             resolve();
           } catch (e) {
             reject(e);
@@ -147,7 +147,7 @@ describe("command:finalize", () => {
         makeStrokeCommand("cmd-f2", "test-user"),
         (err: unknown) => {
           try {
-            expect(err).toBe("User not in a room");
+            expect(err).toBe("NOT_IN_ROOM");
             resolve();
           } catch (e) {
             reject(e);
@@ -334,7 +334,7 @@ describe("draw permissions", () => {
           makeStrokeCommand("cmd-p1", "other-user"),
           (err: unknown) => {
             try {
-              expect(err).toBe("User does not have permission to draw");
+              expect(err).toBe("UNAUTHORIZED_NO_PERMISSION_TO_DRAW");
               resolve();
             } catch (e) {
               reject(e);
