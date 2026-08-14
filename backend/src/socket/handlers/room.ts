@@ -31,16 +31,26 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
       ack?: AckWithDrawPerm,
     ) => {
       try {
-        const { roomId } = payload;
+        const { roomId, lastSeq } = payload;
+        const socketData = socket.data as SocketData;
+        const userId = socketData.userId;
 
-        const userId = (socket.data as SocketData).userId;
+        // ─────────────────────────────────────────────────────────────
+        // 1. Determine whether this is a persistent or ephemeral board
+        // ─────────────────────────────────────────────────────────────
+
         const board = await getBoardById(roomId);
 
         let canDraw: boolean;
 
         if (board) {
+          // Persistent board
+          //
+          // The DB row is the source of truth for the board's existence.
+          // Initialize Redis state from the latest snapshot when necessary.
           if (!(await isRoomInitialized(roomId))) {
             const snapshot = (await getLatestSnapshot(roomId)) ?? {};
+
             await initBoardState(roomId, snapshot);
           }
 
@@ -50,46 +60,52 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
             userId,
           );
         } else {
-          // No persisted board row: the room is ephemeral (anonymous-created,
-          // Redis-only). It is joinable while its Redis state exists and is
-          // open to everyone.
+          // Ephemeral board
+          //
+          // There is no DB row, so Redis state is the source of truth.
+          // If Redis state is gone, the ephemeral board no longer exists.
           if (!(await isRoomInitialized(roomId))) {
-            ack?.("Room not found");
+            ack?.("BOARD_NOT_FOUND");
             return;
           }
+
           canDraw = true;
         }
 
-        socket.join(roomId);
+        await socket.join(roomId);
 
-        (socket.data as SocketData).roomId = roomId;
-        (socket.data as SocketData).canDraw = canDraw;
+        socketData.roomId = roomId;
+        socketData.canDraw = canDraw;
 
-        const socketData = socket.data as SocketData;
         if (canDraw) {
           socket
             .to(roomId)
             .emit("presence:join", socketData.userId, socketData.meta);
         }
 
-        ack?.(undefined, { canDraw });
+        const existingSockets = await io.in(roomId).fetchSockets();
 
-        const existing = await io.in(roomId).fetchSockets();
-        for (const peer of existing) {
-          if (peer.id !== socket.id) {
-            const peerData = peer.data as SocketData;
-            if (!peerData.canDraw) continue;
-
-            socket.emit("presence:join", peerData.userId, peerData.meta);
+        for (const peer of existingSockets) {
+          if (peer.id === socket.id) {
+            continue;
           }
+
+          const peerData = peer.data as SocketData;
+
+          if (!peerData.canDraw) {
+            continue;
+          }
+
+          socket.emit("presence:join", peerData.userId, peerData.meta);
         }
 
-        let syncState: Command[] = [];
+        let syncState: Command[];
 
-        if (payload.lastSeq !== undefined) {
-          const missed = await getCommandsInBuffer(roomId, payload.lastSeq);
-          if (missed !== null) {
-            syncState = missed;
+        if (lastSeq !== undefined) {
+          const missedCommands = await getCommandsInBuffer(roomId, lastSeq);
+
+          if (missedCommands !== null) {
+            syncState = missedCommands;
           } else {
             syncState = await getBoardStateArr(roomId);
           }
@@ -97,34 +113,13 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
           syncState = await getBoardStateArr(roomId);
         }
 
+        ack?.(undefined, { canDraw });
+
         socket.emit("room:sync", syncState);
       } catch (err) {
         logger.error(`[room:join] error:`, err);
-        ack?.("Internal server error");
+        ack?.("INTERNAL_SERVER_ERROR");
       }
     },
   );
-
-  socket.on("disconnect", () => {
-    //   const { roomId } = socket.data as SocketData;
-    //   if (!roomId) return;
-    //   // Debounce: wait for concurrent disconnects to settle before checking
-    //   setTimeout(() => {
-    //     void (async () => {
-    //       try {
-    //         const remaining = await io.in(roomId).fetchSockets();
-    //         if (remaining.length === 0) {
-    //           await writeBoardSnapshot(roomId);
-    //           await clearBoardState(roomId);
-    //         }
-    //       } catch (err) {
-    //         logger.error(
-    //           `[room:disconnect] cleanup error for room ${roomId}:`,
-    //           err,
-    //         );
-    //       }
-    //     })();
-    //   }, 1500);
-    // });
-  });
 }

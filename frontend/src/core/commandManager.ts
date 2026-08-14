@@ -1,338 +1,451 @@
 import { throttle } from "lodash-es";
 import { CommandFactory } from "@/core/commandFactory";
-import type { StageOperations } from "@/types/common";
-import {
-  type CommandID,
-  type Command,
-  type CommandType,
-  type CommandPayload,
-} from "@/types/command";
 import type { BaseCommand } from "@/commands/baseCommand";
-import type { ConnectionManager } from "./connectionManager";
+import type {
+  CommandID,
+  Command,
+  CommandPayload,
+  CommandType,
+} from "@/types/command";
 import type { ClientEmitEvents } from "@/types/events";
+import type { StageOperations } from "@/types/common";
+import type { SessionStatus } from "@/types/session";
+import type { ConnectionManager } from "./connectionManager";
 
 type EventKey = keyof ClientEmitEvents;
 
+type CommandAckResponse = {
+  seq: number;
+};
+
+type JoinAckResponse = {
+  canDraw: boolean;
+};
+
 export class CommandManager {
-  private userId: string;
-  private roomId: string;
-  private canDraw: boolean = false;
-  private stageOps: StageOperations;
-  // private networkOps: NetworkOperations;
-  private connectionManager: ConnectionManager;
-  private factory: CommandFactory;
+  private static readonly MAX_UNDO_STACK_SIZE = 50;
+  private static readonly UPDATE_THROTTLE_MS = 100;
 
-  // All commands by their ID
-  private commands = new Map<CommandID, Command>();
-  // Commands that have been successfully applied
-  private appliedCommands: Set<CommandID> = new Set();
-  // Commands that are in the process of being applied
-  private pendingCommands: Map<CommandID, BaseCommand> = new Map();
+  // ---------------------------------------------------------------------------
+  // Session / dependencies
+  // ---------------------------------------------------------------------------
 
+  private readonly userId: string;
+  private readonly roomId: string;
+  private readonly stageOps: StageOperations;
+  private readonly connectionManager: ConnectionManager;
+  private readonly factory: CommandFactory;
+  private readonly setSessionStatus: (status: SessionStatus) => void;
+
+  private canDraw = false;
+
+  // ---------------------------------------------------------------------------
+  // Command state
+  // ---------------------------------------------------------------------------
+
+  /** All commands known by the client, keyed by command ID. */
+  private readonly commands = new Map<CommandID, Command>();
+
+  /** Commands that have been successfully applied to the stage. */
+  private readonly appliedCommands = new Set<CommandID>();
+
+  /** Commands currently being created/updated. */
+  private readonly pendingCommands = new Map<CommandID, BaseCommand>();
+
+  /** Command IDs belonging to the local user's undo/redo history. */
   private undoStack: CommandID[] = [];
   private redoStack: CommandID[] = [];
 
-  private readonly MAX_UNDO_STACK_SIZE = 50;
+  // ---------------------------------------------------------------------------
+  // Local events
+  // ---------------------------------------------------------------------------
 
-  private listeners = new Map<keyof ClientEmitEvents, Set<() => void>>();
+  private readonly listeners = new Map<EventKey, Set<() => void>>();
 
-  public on(events: EventKey | EventKey[], handler: () => void): void {
-    const eventList = Array.isArray(events) ? events : [events];
-    for (const evt of eventList) {
-      let set = this.listeners.get(evt);
-      if (!set) {
-        set = new Set();
-        this.listeners.set(evt, set);
-      }
-      set.add(handler);
-    }
-  }
+  private readonly throttledEmitUpdate = throttle(
+    (commandId: CommandID, command: Command) => {
+      this.connectionManager.emit("command:update", {
+        id: commandId,
+        command,
+      });
+    },
+    CommandManager.UPDATE_THROTTLE_MS,
+    { leading: true, trailing: true },
+  );
 
-  public off(events: EventKey | EventKey[], handler: () => void): void {
-    const eventList = Array.isArray(events) ? events : [events];
-    for (const evt of eventList) {
-      const set = this.listeners.get(evt);
-      if (set) {
-        set.delete(handler);
-        if (set.size === 0) {
-          this.listeners.delete(evt);
-        }
-      }
-    }
-  }
-
-  public emit(events: EventKey | EventKey[]): void {
-    const eventList = Array.isArray(events) ? events : [events];
-    for (const evt of eventList) {
-      const set = this.listeners.get(evt);
-      if (!set) continue; // continue instead of returning early
-      // copy handlers to avoid mutation issues if a handler calls off()
-      const handlers = Array.from(set);
-      for (const handler of handlers) {
-        try {
-          handler();
-        } catch (err) {
-          // swallow or log errors according to your policy
-          console.error("listener error for", evt, err);
-        }
-      }
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // Lifecycle
+  // ---------------------------------------------------------------------------
 
   constructor(
     userId: string,
     roomId: string,
     stageOps: StageOperations,
     connectionManager: ConnectionManager,
+    setSessionStatus: (status: SessionStatus) => void,
   ) {
     this.userId = userId;
     this.roomId = roomId;
     this.stageOps = stageOps;
     this.connectionManager = connectionManager;
+    this.setSessionStatus = setSessionStatus;
     this.factory = new CommandFactory();
+
     this.registerServerListeners();
   }
 
-  private throttledEmitUpdate = throttle(
-    (commandId: CommandID, command: Command) => {
-      this.connectionManager.emit("command:update", { id: commandId, command });
-    },
-    100,
-    { leading: true, trailing: true },
-  );
+  public destroy(): void {
+    this.throttledEmitUpdate.cancel();
+
+    this.commands.clear();
+    this.appliedCommands.clear();
+
+    for (const instance of this.pendingCommands.values()) {
+      instance.destroy();
+    }
+
+    this.pendingCommands.clear();
+    this.undoStack = [];
+    this.redoStack = [];
+    this.listeners.clear();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Local event emitter
+  // ---------------------------------------------------------------------------
+
+  public on(events: EventKey | EventKey[], handler: () => void): void {
+    for (const event of this.normalizeEvents(events)) {
+      let handlers = this.listeners.get(event);
+
+      if (!handlers) {
+        handlers = new Set();
+        this.listeners.set(event, handlers);
+      }
+
+      handlers.add(handler);
+    }
+  }
+
+  public off(events: EventKey | EventKey[], handler: () => void): void {
+    for (const event of this.normalizeEvents(events)) {
+      const handlers = this.listeners.get(event);
+
+      if (!handlers) {
+        continue;
+      }
+
+      handlers.delete(handler);
+
+      if (handlers.size === 0) {
+        this.listeners.delete(event);
+      }
+    }
+  }
+
+  public emit(events: EventKey | EventKey[]): void {
+    for (const event of this.normalizeEvents(events)) {
+      const handlers = this.listeners.get(event);
+
+      if (!handlers) {
+        continue;
+      }
+
+      // Copy so a handler can safely call off() while iterating.
+      for (const handler of Array.from(handlers)) {
+        try {
+          handler();
+        } catch (error) {
+          console.error("Listener error for", event, error);
+        }
+      }
+    }
+  }
+
+  private normalizeEvents(events: EventKey | EventKey[]): EventKey[] {
+    return Array.isArray(events) ? events : [events];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Permissions
+  // ---------------------------------------------------------------------------
 
   public setCanDraw(value: boolean): void {
     this.canDraw = value;
   }
 
-  public startCommand(type: CommandType, initialPayload: CommandPayload) {
-    if (!this.canDraw) {
-      console.warn("User does not have permission to draw in this room");
+  private ensureCanDraw(): boolean {
+    if (this.canDraw) {
+      return true;
+    }
+
+    console.warn("User does not have permission to draw in this room");
+    return false;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Local command lifecycle
+  // ---------------------------------------------------------------------------
+
+  public startCommand(
+    type: CommandType,
+    initialPayload: CommandPayload,
+  ): CommandID | null {
+    if (!this.ensureCanDraw()) {
       return null;
     }
 
-    const cmd = this.factory.createCommand(type, initialPayload, this.userId);
-    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
+    const command = this.factory.createCommand(
+      type,
+      initialPayload,
+      this.userId,
+    );
 
-    if (!cmdInstance) {
+    const instance = this.factory.createInstance(command, this.stageOps);
+
+    if (!instance) {
       throw new Error(`Failed to create command instance for type: ${type}`);
     }
 
-    this.commands.set(cmd.id, cmd);
-    this.pendingCommands.set(cmd.id, cmdInstance);
+    this.commands.set(command.id, command);
+    this.pendingCommands.set(command.id, instance);
 
-    cmdInstance.apply();
+    instance.apply();
 
-    // use networkOps to send command to server here...
-    // this.networkOps.sendCommand(cmd.id, cmdInstance.serialize());
     this.connectionManager.emit("command:create", {
-      id: cmd.id,
-      command: cmdInstance.serialize(),
+      id: command.id,
+      command: instance.serialize(),
     });
 
-    return cmd.id;
+    return command.id;
   }
 
   public updateCommand(
     commandId: CommandID,
     updatedPayload: Partial<CommandPayload>,
-  ) {
-    const cmd = this.commands.get(commandId);
-    const cmdInstance = this.pendingCommands.get(commandId);
+  ): void {
+    const command = this.requireCommand(commandId);
+    const instance = this.requirePendingCommand(commandId);
 
-    if (!cmd || !cmdInstance) {
-      throw new Error(`No pending command found with ID: ${commandId}`);
-    }
+    instance.update(updatedPayload);
 
-    cmdInstance.update(updatedPayload);
-    this.commands.set(commandId, cmdInstance.serialize());
+    const serialized = instance.serialize();
+    this.commands.set(command.id, serialized);
 
-    this.throttledEmitUpdate(commandId, cmdInstance.serialize());
+    this.throttledEmitUpdate(commandId, serialized);
   }
 
-  public finalizeCommand(commandId: CommandID) {
+  public finalizeCommand(commandId: CommandID): void {
     this.throttledEmitUpdate.flush();
 
-    const cmd = this.commands.get(commandId);
-    const cmdInstance = this.pendingCommands.get(commandId);
+    const command = this.requireCommand(commandId);
+    const instance = this.requirePendingCommand(commandId);
 
-    if (!cmd || !cmdInstance) {
-      throw new Error(`No pending command found with ID: ${commandId}`);
+    if (!instance.canFinalize()) {
+      throw new Error(`Command with ID ${commandId} cannot be finalized yet`);
     }
 
-    if (!cmdInstance.canFinalize()) {
-      throw new Error(`Command with ID: ${commandId} cannot be finalized yet`);
-    }
+    const serialized = instance.serialize();
+    const appliedCommand: Command = {
+      ...serialized,
+      status: "applied",
+    };
 
-    const serialized = cmdInstance.serialize();
-    const appliedCmd: Command = { ...serialized, status: "applied" };
-    this.commands.set(commandId, appliedCmd);
-
+    this.commands.set(commandId, appliedCommand);
     this.appliedCommands.add(commandId);
     this.pendingCommands.delete(commandId);
 
-    if (cmd.owner === this.userId) {
-      this.undoStack.push(commandId);
-      this.redoStack = []; // Clear redo stack on new operation
-      if (this.undoStack.length > this.MAX_UNDO_STACK_SIZE) {
-        this.undoStack.shift();
-      }
+    if (command.owner === this.userId) {
+      this.pushUndo(commandId);
+      this.redoStack = [];
     }
-
-    const ack = (err?: unknown, resp?: { seq: number }) => {
-      if (err) {
-        console.error(`Server rejected command with ID: ${commandId}`, err);
-        // Rollback local state
-      }
-      const stored = this.commands.get(commandId);
-      if (stored && resp)
-        this.commands.set(commandId, { ...stored, seq: resp.seq });
-    };
 
     this.connectionManager.emit(
       "command:finalize",
       {
         id: commandId,
-        command: cmdInstance.serialize(),
+        command: serialized,
       },
-      ack,
+      (error?: unknown, response?: CommandAckResponse) => {
+        if (error) {
+          console.error(`Server rejected command with ID: ${commandId}`, error);
+          return;
+        }
+
+        this.updateCommandSequence(commandId, response?.seq);
+      },
     );
   }
 
-  public cancelCommand(commandId: CommandID) {
-    const cmd = this.commands.get(commandId);
-    const cmdInstance = this.pendingCommands.get(commandId);
+  public cancelCommand(commandId: CommandID): void {
+    const instance = this.requirePendingCommand(commandId);
 
-    if (!cmd || !cmdInstance) {
-      throw new Error(`No pending command found with ID: ${commandId}`);
-    }
-
-    cmdInstance.undo();
-    cmdInstance.destroy();
+    instance.undo();
+    instance.destroy();
 
     this.commands.delete(commandId);
     this.pendingCommands.delete(commandId);
 
-    // use networkOps to send command cancellation to server here...
-    // this.networkOps.cancelCommand(commandId);
-    this.connectionManager.emit("command:cancel", { id: commandId });
+    this.connectionManager.emit("command:cancel", {
+      id: commandId,
+    });
   }
 
-  public undo() {
-    if (!this.canDraw) {
-      console.warn("User does not have permission to draw in this room");
+  // ---------------------------------------------------------------------------
+  // Undo / redo
+  // ---------------------------------------------------------------------------
+
+  public undo(): void {
+    if (!this.ensureCanDraw()) {
+      return;
     }
 
-    if (this.undoStack.length === 0) {
+    const commandId = this.undoStack.pop();
+
+    if (!commandId) {
       console.warn("Undo stack is empty");
       return;
     }
-    const commandId = this.undoStack.pop() as CommandID;
-    const cmd = this.commands.get(commandId);
 
-    if (!cmd) {
-      throw new Error(`No command found with ID: ${commandId}`);
-    }
+    const command = this.requireCommand(commandId);
+    const instance = this.createCommandInstance(commandId);
 
-    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
-    if (!cmdInstance) {
-      throw new Error(`Failed to create command instance for ID: ${commandId}`);
-    }
+    instance.undo();
 
-    cmdInstance.undo();
     this.redoStack.push(commandId);
-    const undoneCmd = this.commands.get(commandId);
-    if (undoneCmd)
-      this.commands.set(commandId, { ...undoneCmd, status: "reverted" });
-
-    const ack = (err?: unknown, resp?: { seq: number }) => {
-      if (err) {
-        console.error(
-          `Server rejected undo command with ID: ${commandId}`,
-          err,
-        );
-      }
-      const stored = this.commands.get(commandId);
-      if (stored && resp)
-        this.commands.set(commandId, { ...stored, seq: resp.seq });
-    };
+    this.commands.set(commandId, {
+      ...command,
+      status: "reverted",
+    });
+    this.appliedCommands.delete(commandId);
 
     this.emit("command:undo");
-    this.connectionManager.emit("command:undo", { id: commandId }, ack);
+
+    this.connectionManager.emit(
+      "command:undo",
+      { id: commandId },
+      (error?: unknown, response?: CommandAckResponse) => {
+        if (error) {
+          console.error(
+            `Server rejected undo command with ID: ${commandId}`,
+            error,
+          );
+          return;
+        }
+
+        this.updateCommandSequence(commandId, response?.seq);
+      },
+    );
   }
 
-  public redo() {
-    if (!this.canDraw) {
-      console.warn("User does not have permission to draw in this room");
+  public redo(): void {
+    if (!this.ensureCanDraw()) {
+      return;
     }
 
-    if (this.redoStack.length === 0) {
+    const commandId = this.redoStack.pop();
+
+    if (!commandId) {
       console.warn("Redo stack is empty");
       return;
     }
 
-    const commandId = this.redoStack.pop() as CommandID;
-    const cmd = this.commands.get(commandId);
+    const command = this.requireCommand(commandId);
+    const instance = this.createCommandInstance(commandId);
 
-    // console.log("Redoing command:", commandId, cmd);
-    if (!cmd) {
-      throw new Error(`No command found with ID: ${commandId}`);
-    }
+    instance.redo();
 
-    const cmdInstance = this.factory.createInstance(cmd, this.stageOps);
-    if (!cmdInstance) {
-      throw new Error(`Failed to create command instance for ID: ${commandId}`);
-    }
-    cmdInstance.redo();
-    this.undoStack.push(commandId);
-    const redoneCmd = this.commands.get(commandId);
-    if (redoneCmd)
-      this.commands.set(commandId, { ...redoneCmd, status: "applied" });
-
-    const ack = (err?: unknown, resp?: { seq: number }) => {
-      if (err) {
-        console.error(
-          `Server rejected redo command with ID: ${commandId}`,
-          err,
-        );
-      }
-      const stored = this.commands.get(commandId);
-      if (stored && resp)
-        this.commands.set(commandId, { ...stored, seq: resp.seq });
-    };
+    this.pushUndo(commandId);
+    this.commands.set(commandId, {
+      ...command,
+      status: "applied",
+    });
+    this.appliedCommands.add(commandId);
 
     this.emit("command:redo");
-    this.connectionManager.emit("command:redo", { id: commandId }, ack);
+
+    this.connectionManager.emit(
+      "command:redo",
+      { id: commandId },
+      (error?: unknown, response?: CommandAckResponse) => {
+        if (error) {
+          console.error(
+            `Server rejected redo command with ID: ${commandId}`,
+            error,
+          );
+          return;
+        }
+
+        this.updateCommandSequence(commandId, response?.seq);
+      },
+    );
   }
+
+  // ---------------------------------------------------------------------------
+  // Command history / queries
+  // ---------------------------------------------------------------------------
 
   public getUndoStack(): CommandID[] {
     return [...this.undoStack];
   }
+
   public getRedoStack(): CommandID[] {
     return [...this.redoStack];
   }
 
   public getLastSeq(): number {
-    let max = 0;
-    for (const cmd of this.commands.values()) {
-      if (cmd.seq !== undefined && cmd.seq > max) max = cmd.seq;
+    let maxSequence = 0;
+
+    for (const command of this.commands.values()) {
+      if (command.seq !== undefined && command.seq > maxSequence) {
+        maxSequence = command.seq;
+      }
     }
-    return max;
+
+    return maxSequence;
   }
 
-  public getOperation(id: CommandID): Command | undefined {
-    return this.commands.get(id);
+  public getOperation(commandId: CommandID): Command | undefined {
+    return this.commands.get(commandId);
   }
 
-  // ─── Server → client listeners ──────────────────────────────────────────────
+  private pushUndo(commandId: CommandID): void {
+    this.undoStack.push(commandId);
+
+    if (this.undoStack.length > CommandManager.MAX_UNDO_STACK_SIZE) {
+      this.undoStack.shift();
+    }
+  }
+
+  private updateCommandSequence(
+    commandId: CommandID,
+    sequence: number | undefined,
+  ): void {
+    if (sequence === undefined) {
+      return;
+    }
+
+    const command = this.commands.get(commandId);
+
+    if (command) {
+      this.commands.set(commandId, {
+        ...command,
+        seq: sequence,
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Server listeners
+  // ---------------------------------------------------------------------------
 
   /**
    * Register all incoming server event handlers on the ConnectionManager.
-   * Call once after both managers are initialised. Cleanup is handled by
-   * ConnectionManager.cleanup() (removeAllListeners) on unmount.
+   * Cleanup is handled by destroy()/ConnectionManager cleanup.
    */
   public registerServerListeners(): void {
     this.connectionManager.onConnect(this.onConnect);
+
     this.connectionManager.on("room:sync", this.onRoomSync);
     this.connectionManager.on("command:create", this.onRemoteCreate);
     this.connectionManager.on("command:update", this.onRemoteUpdate);
@@ -344,18 +457,29 @@ export class CommandManager {
   }
 
   private onConnect = (): void => {
-    const ack = (err?: unknown, resp?: { canDraw: boolean }) => {
-      if (err) console.error("[room:join] failed:", err);
-
-      const canDraw = resp?.canDraw ?? false;
-      this.setCanDraw(canDraw);
-      this.stageOps.toggleDrawing(canDraw);
-    };
+    this.setSessionStatus({ status: "joining" });
 
     this.connectionManager.emit(
       "room:join",
-      { roomId: this.roomId, lastSeq: this.getLastSeq() },
-      ack,
+      {
+        roomId: this.roomId,
+        lastSeq: this.getLastSeq(),
+      },
+      (error?: unknown, response?: JoinAckResponse) => {
+        if (error) {
+          console.error("[room:join] failed:", error);
+          this.setSessionStatus({
+            status: "error",
+            error: String(error),
+          });
+          return;
+        }
+
+        const canDraw = response?.canDraw ?? false;
+
+        this.setCanDraw(canDraw);
+        this.stageOps.toggleDrawing(canDraw);
+      },
     );
   };
 
@@ -364,134 +488,240 @@ export class CommandManager {
    * Replays every finalized command that the client doesn't already have.
    */
   private onRoomSync = (state: Command[]): void => {
+    this.setSessionStatus({ status: "syncing" });
+
     //TODO: find a better way to handle this instead of sorting.
     //! this is a temporary solution to ensure that
     //! the commands are applied in the correct order.
-    const sorted = [...state].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+    // Commands must be applied in sequence order.
+    const sortedCommands = [...state].sort(
+      (a, b) => (a.seq ?? 0) - (b.seq ?? 0),
+    );
 
-    for (const command of sorted) {
-      if (this.commands.has(command.id)) continue;
-      if (command.status === "applied") {
-        const instance = this.factory.createInstance(command, this.stageOps);
-        instance.apply();
-        instance.finalize();
-        this.commands.set(command.id, { ...command, status: "applied" });
-        this.appliedCommands.add(command.id);
-      } else {
-        // Command exists on server but is reverted — store without applying
-        this.commands.set(command.id, command);
+    for (const command of sortedCommands) {
+      if (this.commands.has(command.id)) {
+        continue;
       }
+
+      if (command.status !== "applied") {
+        // Reverted commands are stored for history, but are not applied.
+        this.commands.set(command.id, command);
+        continue;
+      }
+      const instance = this.factory.createInstance(command, this.stageOps);
+      instance.apply();
+      instance.finalize();
+
+      this.commands.set(command.id, {
+        ...command,
+        status: "applied",
+      });
+      this.appliedCommands.add(command.id);
     }
+
+    this.setSessionStatus({ status: "ready" });
   };
 
   /** Another user started a new command — show it as a live preview. */
   private onRemoteCreate = (commandId: CommandID, command: Command): void => {
-    if (command.owner === this.userId) return;
-    if (this.commands.has(commandId)) return;
+    if (command.owner === this.userId || this.commands.has(commandId)) {
+      return;
+    }
+
     const instance = this.factory.createInstance(command, this.stageOps);
+
     instance.apply();
+
     this.commands.set(commandId, command);
     this.pendingCommands.set(commandId, instance);
   };
 
   /** Another user updated their in-flight command — update the live preview. */
   private onRemoteUpdate = (commandId: CommandID, command: Command): void => {
-    if (command.owner === this.userId) return;
+    if (command.owner === this.userId) {
+      return;
+    }
+
     const instance = this.pendingCommands.get(commandId);
-    if (!instance) return;
+
+    if (!instance) {
+      return;
+    }
+
     instance.update(command.payload);
     this.commands.set(commandId, command);
   };
 
   /**
-   * Another user finalised their command.
-   * If we missed the create (late join / reconnect), create and apply first.
+   * Another user finalized their command.
+   * If we missed the create (late join/reconnect), create and apply first.
    */
   private onRemoteFinalize = (commandId: CommandID, command: Command): void => {
-    if (command.owner === this.userId) return;
+    if (command.owner === this.userId) {
+      return;
+    }
+
     let instance = this.pendingCommands.get(commandId);
+
     if (!instance) {
       instance = this.factory.createInstance(command, this.stageOps);
       instance.apply();
     }
+
     instance.finalize();
-    this.commands.set(commandId, { ...command, status: "applied" });
+
+    this.commands.set(commandId, {
+      ...command,
+      status: "applied",
+    });
     this.appliedCommands.add(commandId);
     this.pendingCommands.delete(commandId);
   };
 
   /** Another user cancelled their in-flight command — remove the preview. */
   private onRemoteCancel = (commandId: CommandID): void => {
-    const stored = this.commands.get(commandId);
-    if (stored?.owner === this.userId) return;
+    const command = this.commands.get(commandId);
+
+    if (command?.owner === this.userId) {
+      return;
+    }
+
     const instance = this.pendingCommands.get(commandId);
-    if (!instance) return;
+
+    if (!instance) {
+      return;
+    }
+
     instance.undo();
     instance.destroy();
+
     this.commands.delete(commandId);
     this.pendingCommands.delete(commandId);
   };
 
   /** Another user undid one of their commands — reverse its visual effect. */
   private onRemoteUndo = (commandId: CommandID, command: Command): void => {
-    if (command.owner === this.userId) return;
-    const stored = this.commands.get(commandId);
-    if (!stored) return;
-    const instance = this.factory.createInstance(stored, this.stageOps);
+    if (command.owner === this.userId) {
+      return;
+    }
+
+    const storedCommand = this.commands.get(commandId);
+
+    if (!storedCommand) {
+      return;
+    }
+
+    const instance = this.factory.createInstance(storedCommand, this.stageOps);
+
     instance.undo();
+
     this.appliedCommands.delete(commandId);
-    this.commands.set(commandId, { ...stored, status: "reverted" });
+    this.commands.set(commandId, {
+      ...storedCommand,
+      status: "reverted",
+    });
   };
 
   /** Another user redid one of their commands — reapply its visual effect. */
   private onRemoteRedo = (commandId: CommandID, command: Command): void => {
-    if (command.owner === this.userId) return;
-    const stored = this.commands.get(commandId);
-    if (!stored) return;
-    const instance = this.factory.createInstance(stored, this.stageOps);
+    if (command.owner === this.userId) {
+      return;
+    }
+
+    const storedCommand = this.commands.get(commandId);
+
+    if (!storedCommand) {
+      return;
+    }
+
+    const instance = this.factory.createInstance(storedCommand, this.stageOps);
+
     instance.redo();
+
     this.appliedCommands.add(commandId);
-    this.commands.set(commandId, { ...stored, status: "applied" });
+    this.commands.set(commandId, {
+      ...storedCommand,
+      status: "applied",
+    });
   };
 
   /**
-   * Server rejected one of our own commands — roll it back.
-   * Handles both pending (not yet finalised) and optimistically-applied commands.
+   * Server rejected one of our commands — roll it back.
+   * Handles both pending (not yet finalized) and optimistically-applied commands.
    */
-  private onCommandReject = (commandId: CommandID, _reason: string): void => {
+  private onCommandReject = (commandId: CommandID, reason: string): void => {
     console.warn(
-      `Command with ID ${commandId} was rejected by server: ${_reason}`,
+      `Command with ID ${commandId} was rejected by server: ${reason}`,
     );
 
     const pendingInstance = this.pendingCommands.get(commandId);
+
     if (pendingInstance) {
       pendingInstance.undo();
       pendingInstance.destroy();
       this.pendingCommands.delete(commandId);
     } else {
-      const stored = this.commands.get(commandId);
-      if (!stored) return;
+      const storedCommand = this.commands.get(commandId);
+
+      if (!storedCommand) {
+        return;
+      }
+
       const rollbackInstance = this.factory.createInstance(
-        stored,
+        storedCommand,
         this.stageOps,
       );
+
       rollbackInstance.undo();
       this.appliedCommands.delete(commandId);
-      const undoIdx = this.undoStack.indexOf(commandId);
-      if (undoIdx !== -1) this.undoStack.splice(undoIdx, 1);
-      const redoIdx = this.redoStack.indexOf(commandId);
-      if (redoIdx !== -1) this.redoStack.splice(redoIdx, 1);
+
+      this.removeFromHistory(this.undoStack, commandId);
+      this.removeFromHistory(this.redoStack, commandId);
     }
+
     this.commands.delete(commandId);
   };
 
-  destroy() {
-    this.commands.clear();
-    this.appliedCommands.clear();
-    this.pendingCommands.forEach((instance) => instance.destroy());
-    this.pendingCommands.clear();
-    this.undoStack = [];
-    this.redoStack = [];
-    this.listeners.clear();
+  // ---------------------------------------------------------------------------
+  // Internal command helpers
+  // ---------------------------------------------------------------------------
+
+  private requireCommand(commandId: CommandID): Command {
+    const command = this.commands.get(commandId);
+
+    if (!command) {
+      throw new Error(`No command found with ID: ${commandId}`);
+    }
+
+    return command;
+  }
+
+  private requirePendingCommand(commandId: CommandID): BaseCommand {
+    const instance = this.pendingCommands.get(commandId);
+
+    if (!instance) {
+      throw new Error(`No pending command found with ID: ${commandId}`);
+    }
+
+    return instance;
+  }
+
+  private createCommandInstance(commandId: CommandID): BaseCommand {
+    const command = this.requireCommand(commandId);
+    const instance = this.factory.createInstance(command, this.stageOps);
+
+    if (!instance) {
+      throw new Error(`Failed to create command instance for ID: ${commandId}`);
+    }
+
+    return instance;
+  }
+
+  private removeFromHistory(history: CommandID[], commandId: CommandID): void {
+    const index = history.indexOf(commandId);
+
+    if (index !== -1) {
+      history.splice(index, 1);
+    }
   }
 }
