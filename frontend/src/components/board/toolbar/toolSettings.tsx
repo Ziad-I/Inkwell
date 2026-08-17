@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { useBoardManagers } from "@/context/boardManagersContext";
+import ShareDialog from "@/components/board/share/shareDialog";
 import {
   ColorSettings,
   GeneralSettings,
@@ -79,6 +81,9 @@ const settingButtons = [
 export default function ToolSettings() {
   const [collapsed, setCollapsed] = useState(false);
   const [openPanel, setOpenPanel] = useState<string | null>(null);
+  const { sessionStatus } = useBoardManagers();
+  const showShare =
+    sessionStatus.status === "ready" && sessionStatus.role === "owner";
 
   return (
     <>
@@ -127,6 +132,8 @@ export default function ToolSettings() {
             ),
           )}
         </div>
+        <Separator orientation="horizontal" />
+        {showShare && <ShareDialog collapsed={collapsed} />}
       </div>
     </Card>
     </>
