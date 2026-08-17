@@ -111,8 +111,8 @@ describe("registerRoomHandlers — room:join", () => {
     });
     expect(socket.data.boardAccess).toEqual(makeAccess("editor"));
     expect(ack).toHaveBeenCalledWith(undefined, {
-      canDraw: true,
       role: "editor",
+      permissions: { draw: true, read: true },
     });
   });
 
@@ -172,8 +172,8 @@ describe("registerRoomHandlers — room:join", () => {
 
     expect(socket.data.boardAccess).toEqual(makeAccess("viewer"));
     expect(ack).toHaveBeenCalledWith(undefined, {
-      canDraw: false,
       role: "viewer",
+      permissions: { draw: false, read: true },
     });
   });
 

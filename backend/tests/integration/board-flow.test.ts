@@ -71,7 +71,10 @@ describe("board creation — anonymous (ephemeral)", () => {
     const socket = await connectClient({ userId: "guest-123" });
     const joined = await roomJoin(socket, roomId);
     expect(joined.err).toBeNull();
-    expect(joined.data).toMatchObject({ canDraw: true });
+    expect(joined.data).toMatchObject({
+      role: "editor",
+      permissions: { draw: true, read: true },
+    });
 
     // State lives in Redis and commands can be finalized
     const seqAck = await new Promise<{ err: unknown; seq?: number }>(

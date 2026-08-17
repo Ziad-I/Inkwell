@@ -55,7 +55,7 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     expect(joined.err).toBeNull();
-    expect(joined.data).toMatchObject({ canDraw: true, role: "editor" });
+    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
     socket.disconnect();
   });
 
@@ -71,7 +71,7 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     expect(joined.err).toBeNull();
-    expect(joined.data).toMatchObject({ canDraw: false, role: "viewer" });
+    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
     socket.disconnect();
   });
 
@@ -88,7 +88,7 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardB);
 
     // Cookie is ignored for B — B's default role applies.
-    expect(joined.data).toMatchObject({ canDraw: true, role: "editor" });
+    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
     socket.disconnect();
   });
 
@@ -102,7 +102,7 @@ describe("socket join authorization via invite cookies", () => {
     );
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ canDraw: false, role: "viewer" });
+    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
     socket.disconnect();
   });
 
@@ -122,7 +122,7 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     // The revoked invite grants nothing — the board default (viewer) applies.
-    expect(joined.data).toMatchObject({ canDraw: false, role: "viewer" });
+    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
     socket.disconnect();
   });
 
@@ -141,7 +141,7 @@ describe("socket join authorization via invite cookies", () => {
     );
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ canDraw: false, role: "viewer" });
+    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
     socket.disconnect();
   });
 
@@ -159,7 +159,7 @@ describe("socket join authorization via invite cookies", () => {
 
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ canDraw: true, role: "editor" });
+    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
     socket.disconnect();
   });
 

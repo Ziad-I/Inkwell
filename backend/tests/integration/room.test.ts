@@ -39,7 +39,7 @@ describe("room lifecycle", () => {
         (err: unknown, data: unknown) => {
           try {
             expect(err).toBeNull();
-            expect(data).toMatchObject({ canDraw: true });
+            expect(data).toMatchObject({ permissions: { draw: true, read: true } });
             resolve();
           } catch (e) {
             reject(e);

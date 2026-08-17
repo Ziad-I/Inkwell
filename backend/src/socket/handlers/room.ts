@@ -7,13 +7,13 @@ import {
 } from "@/services/state.js";
 import { authorizeBoardAccess } from "@/services/boardAccess.js";
 import { getBoardAccessCookieName, parseCookiesHeader } from "@/utils/cookies.js";
-import type { Ack, SocketData, BoardRole } from "@/types/types.js";
+import type { Ack, SocketData, BoardRole, BoardPermission } from "@/types/types.js";
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 import { getLatestSnapshot } from "@/services/snapshot.js";
 import logger from "@/config/logger.js";
 
-type AckWithAccess = Ack<{ canDraw: boolean; role: BoardRole }>;
+type AckWithAccess = Ack<{ role: BoardRole; permissions: Record<BoardPermission, boolean> }>;
 
 export function registerRoomHandlers(socket: Socket, io: Server) {
   socket.on(
@@ -107,10 +107,7 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
           syncState = await getBoardStateArr(roomId);
         }
 
-        ack?.(undefined, {
-          canDraw: boardAccess.permissions.draw,
-          role: boardAccess.role,
-        });
+        ack?.(undefined, { role: boardAccess.role, permissions: boardAccess.permissions });
 
         socket.emit("room:sync", syncState);
       } catch (err) {

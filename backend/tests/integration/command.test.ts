@@ -307,11 +307,11 @@ describe("draw permissions", () => {
       socket.emit(
         "room:join",
         { roomId: boardId },
-        (err: unknown, resp?: { canDraw: boolean }) => {
+        (err: unknown, resp?: { permissions: { draw: boolean; read: boolean } }) => {
           try {
             expect(err).toBeNull();
             expect(resp).toBeDefined();
-            expect(resp!.canDraw).toBe(false);
+            expect(resp!.permissions.draw).toBe(false);
             resolve();
           } catch (e) {
             reject(e);
