@@ -5,30 +5,22 @@ import {
   getCommandsInBuffer,
   getBoardStateArr,
 } from "@/services/state.js";
-import type { Ack, DrawPermission, SocketData } from "@/types/types.js";
+import { authorizeBoardAccess } from "@/services/boardAccess.js";
+import { getBoardAccessCookieName, parseCookiesHeader } from "@/utils/cookies.js";
+import type { Ack, SocketData, BoardRole } from "@/types/types.js";
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 import { getLatestSnapshot } from "@/services/snapshot.js";
 import logger from "@/config/logger.js";
 
-export function resolveCanDraw(
-  drawPermission: string,
-  ownerId: string,
-  userId: string,
-): boolean {
-  if (drawPermission === "anyone") return true;
-  if (drawPermission === "owner") return userId === ownerId;
-  return false;
-}
-
-type AckWithDrawPerm = Ack<{ canDraw: boolean }>;
+type AckWithAccess = Ack<{ canDraw: boolean; role: BoardRole }>;
 
 export function registerRoomHandlers(socket: Socket, io: Server) {
   socket.on(
     "room:join",
     async (
       payload: { roomId: string; lastSeq?: number },
-      ack?: AckWithDrawPerm,
+      ack?: AckWithAccess,
     ) => {
       try {
         const { roomId, lastSeq } = payload;
@@ -41,47 +33,51 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
 
         const board = await getBoardById(roomId);
 
-        let canDraw: boolean;
-
-        if (board) {
-          // Persistent board
-          //
-          // The DB row is the source of truth for the board's existence.
-          // Initialize Redis state from the latest snapshot when necessary.
-          if (!(await isRoomInitialized(roomId))) {
-            const snapshot = (await getLatestSnapshot(roomId)) ?? {};
-
-            await initBoardState(roomId, snapshot);
-          }
-
-          canDraw = resolveCanDraw(
-            board.drawPermission as DrawPermission,
-            board.ownerId,
-            userId,
-          );
-        } else {
-          // Ephemeral board
-          //
-          // There is no DB row, so Redis state is the source of truth.
+        if (!board) {
+          // Ephemeral board: Redis state is the source of truth.
           // If Redis state is gone, the ephemeral board no longer exists.
           if (!(await isRoomInitialized(roomId))) {
             ack?.("BOARD_NOT_FOUND");
             return;
           }
-
-          canDraw = true;
+        } else if (!(await isRoomInitialized(roomId))) {
+          // Persistent board: initialize Redis state from the latest
+          // snapshot when necessary.
+          const snapshot = (await getLatestSnapshot(roomId)) ?? {};
+          await initBoardState(roomId, snapshot);
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // 2. Resolve board access from the board-specific cookie.
+        //    The role is always derived server-side — never trusted
+        //    from the client.
+        // ─────────────────────────────────────────────────────────────
+
+        const cookies = parseCookiesHeader(socket.handshake.headers.cookie);
+        const boardAccess = await authorizeBoardAccess({
+          boardId: roomId,
+          board,
+          principal: { type: socketData.principalType, id: userId },
+          inviteToken: cookies[getBoardAccessCookieName(roomId)] ?? null,
+        });
+
+        // ─────────────────────────────────────────────────────────────
+        // 3. Join the room and record access
+        // ─────────────────────────────────────────────────────────────
 
         await socket.join(roomId);
 
         socketData.roomId = roomId;
-        socketData.canDraw = canDraw;
+        socketData.boardAccess = boardAccess;
 
-        if (canDraw) {
-          socket
-            .to(roomId)
-            .emit("presence:join", socketData.userId, socketData.meta);
-        }
+        // ─────────────────────────────────────────────────────────────
+        // 4. Presence — every member has read access, so everyone is
+        //    visible to everyone else.
+        // ─────────────────────────────────────────────────────────────
+
+        socket
+          .to(roomId)
+          .emit("presence:join", socketData.userId, socketData.meta);
 
         const existingSockets = await io.in(roomId).fetchSockets();
 
@@ -89,15 +85,13 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
           if (peer.id === socket.id) {
             continue;
           }
-
           const peerData = peer.data as SocketData;
-
-          if (!peerData.canDraw) {
-            continue;
-          }
-
           socket.emit("presence:join", peerData.userId, peerData.meta);
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // 5. Sync
+        // ─────────────────────────────────────────────────────────────
 
         let syncState: Command[];
 
@@ -113,7 +107,10 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
           syncState = await getBoardStateArr(roomId);
         }
 
-        ack?.(undefined, { canDraw });
+        ack?.(undefined, {
+          canDraw: boardAccess.permissions.draw,
+          role: boardAccess.role,
+        });
 
         socket.emit("room:sync", syncState);
       } catch (err) {

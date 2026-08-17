@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function createMockSocket(data?: Record<string, unknown>) {
+function createMockSocket(data?: Record<string, unknown>, cookie?: string) {
   return {
-    data: data ?? { userId: "user-123" },
+    data: data ?? { userId: "user-123", principalType: "guest" },
+    handshake: { headers: { cookie } },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     join: vi.fn(),
@@ -25,6 +26,7 @@ const mockBoard = {
   title: "Test Board",
   ownerId: "user-123",
   drawPermission: "anyone",
+  defaultRole: "editor",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -41,32 +43,21 @@ const stateMock = vi.hoisted(() => ({
   getBoardStateArr: vi.fn(),
 }));
 const snapshotMock = vi.hoisted(() => ({ getLatestSnapshot: vi.fn() }));
+const boardAccessMock = vi.hoisted(() => ({ authorizeBoardAccess: vi.fn() }));
 
 vi.mock("@/services/board.js", () => boardMock);
 vi.mock("@/services/state.js", () => stateMock);
 vi.mock("@/services/snapshot.js", () => snapshotMock);
+vi.mock("@/services/boardAccess.js", () => boardAccessMock);
 
-describe("resolveCanDraw", () => {
-  it("returns true for anyone permission", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("anyone", "owner-1", "user-1")).toBe(true);
-  });
-
-  it("returns true for owner permission when user is owner", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("owner", "owner-1", "owner-1")).toBe(true);
-  });
-
-  it("returns false for owner permission when user is not owner", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("owner", "owner-1", "user-other")).toBe(false);
-  });
-
-  it("returns false for unknown permission", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("unknown", "owner-1", "user-1")).toBe(false);
-  });
-});
+function makeAccess(role: "owner" | "editor" | "viewer") {
+  return {
+    boardId: "room-abc",
+    principal: { type: "guest" as const, id: "user-123" },
+    role,
+    permissions: { read: true, draw: role !== "viewer" },
+  };
+}
 
 describe("registerRoomHandlers — room:join", () => {
   beforeEach(() => {
@@ -77,6 +68,7 @@ describe("registerRoomHandlers — room:join", () => {
     stateMock.getCommandsInBuffer.mockResolvedValue([]);
     stateMock.getBoardStateArr.mockResolvedValue([]);
     snapshotMock.getLatestSnapshot.mockResolvedValue(null);
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(makeAccess("editor"));
   });
 
   it("rejects join when board not found and room is not in Redis", async () => {
@@ -94,9 +86,10 @@ describe("registerRoomHandlers — room:join", () => {
 
     expect(ack).toHaveBeenCalledWith("BOARD_NOT_FOUND");
     expect(socket.join).not.toHaveBeenCalled();
+    expect(boardAccessMock.authorizeBoardAccess).not.toHaveBeenCalled();
   });
 
-  it("joins ephemeral rooms with no board row when Redis state exists", async () => {
+  it("joins ephemeral rooms with editor access when Redis state exists", async () => {
     boardMock.getBoardById.mockResolvedValue(null);
     stateMock.isRoomInitialized.mockResolvedValue(true);
 
@@ -110,9 +103,17 @@ describe("registerRoomHandlers — room:join", () => {
     await getHandler(socket, "room:join")({ roomId: "ephemeral-room" }, ack);
 
     expect(socket.join).toHaveBeenCalledWith("ephemeral-room");
-    expect(socket.data.canDraw).toBe(true);
-    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: true });
-    expect(stateMock.initBoardState).not.toHaveBeenCalled();
+    expect(boardAccessMock.authorizeBoardAccess).toHaveBeenCalledWith({
+      boardId: "ephemeral-room",
+      board: null,
+      principal: { type: "guest", id: "user-123" },
+      inviteToken: null,
+    });
+    expect(socket.data.boardAccess).toEqual(makeAccess("editor"));
+    expect(ack).toHaveBeenCalledWith(undefined, {
+      canDraw: true,
+      role: "editor",
+    });
   });
 
   it("initializes board state from snapshot if room not initialized", async () => {
@@ -140,7 +141,26 @@ describe("registerRoomHandlers — room:join", () => {
     expect(stateMock.initBoardState).toHaveBeenCalled();
   });
 
-  it("sets canDraw=true for anyone permission", async () => {
+  it("passes the board-specific cookie through to authorization", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(undefined, "board_access_room-abc=raw-token");
+    const io = createMockServer();
+
+    registerRoomHandlers(socket as never, io as never);
+
+    await getHandler(socket, "room:join")({ roomId: "room-abc" }, vi.fn());
+
+    expect(boardAccessMock.authorizeBoardAccess).toHaveBeenCalledWith({
+      boardId: "room-abc",
+      board: mockBoard,
+      principal: { type: "guest", id: "user-123" },
+      inviteToken: "raw-token",
+    });
+  });
+
+  it("resolves viewer access for a viewer invite", async () => {
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(makeAccess("viewer"));
+
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
     const socket = createMockSocket();
     const io = createMockServer();
@@ -150,28 +170,11 @@ describe("registerRoomHandlers — room:join", () => {
     const ack = vi.fn();
     await getHandler(socket, "room:join")({ roomId: "room-abc" }, ack);
 
-    expect(socket.data.canDraw).toBe(true);
-    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: true });
-  });
-
-  it("sets canDraw=false for owner permission when user is not owner", async () => {
-    boardMock.getBoardById.mockResolvedValue({
-      ...mockBoard,
-      drawPermission: "owner",
-      ownerId: "owner-user",
+    expect(socket.data.boardAccess).toEqual(makeAccess("viewer"));
+    expect(ack).toHaveBeenCalledWith(undefined, {
+      canDraw: false,
+      role: "viewer",
     });
-
-    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
-    const socket = createMockSocket({ userId: "guest-user" });
-    const io = createMockServer();
-
-    registerRoomHandlers(socket as never, io as never);
-
-    const ack = vi.fn();
-    await getHandler(socket, "room:join")({ roomId: "room-abc" }, ack);
-
-    expect(socket.data.canDraw).toBe(false);
-    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: false });
   });
 
   it("emits room:sync with full state when no lastSeq", async () => {

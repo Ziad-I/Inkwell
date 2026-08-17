@@ -57,6 +57,7 @@ describe("registerAuthMiddleware", () => {
 
     expect((socket.data as Record<string, unknown>).userId).toBe("user-abc");
     expect((socket.data as Record<string, unknown>).meta).toEqual({ userName: "Alice", userColor: "#ff0000" });
+    expect((socket.data as Record<string, unknown>).principalType).toBe("guest");
     expect(next).toHaveBeenCalled();
   });
 
@@ -91,6 +92,7 @@ describe("registerAuthMiddleware", () => {
 
     expect(authServiceMock.verifyAccessToken).toHaveBeenCalledWith("valid-jwt");
     expect((socket.data as Record<string, unknown>).userId).toBe("account-1");
+    expect((socket.data as Record<string, unknown>).principalType).toBe("user");
     expect(next).toHaveBeenCalled();
   });
 
@@ -112,6 +114,7 @@ describe("registerAuthMiddleware", () => {
     await middleware(socket, next);
 
     expect((socket.data as Record<string, unknown>).userId).toBe("anonymous-id");
+    expect((socket.data as Record<string, unknown>).principalType).toBe("guest");
     expect(next).toHaveBeenCalled();
   });
 
