@@ -1,0 +1,189 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { waitFor, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
+import { AxiosError } from "axios";
+
+const apiMock = vi.hoisted(() => ({
+  default: { get: vi.fn(), post: vi.fn() },
+  apiErrorMessage: (err: unknown, fallback: string) => {
+    if (err instanceof AxiosError) {
+      const message = (err.response?.data as { message?: string } | undefined)
+        ?.message;
+      if (message) return message;
+    }
+    return fallback;
+  },
+}));
+
+const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
+
+vi.mock("@/lib/api", () => apiMock);
+vi.mock("sonner", () => toastMock);
+
+const navigateMock = vi.hoisted(() => vi.fn());
+const paramsMock = vi.hoisted(() => ({ token: "tok1" }));
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual("react-router");
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+    useParams: () => paramsMock,
+  };
+});
+
+const validInvite = {
+  boardId: "b1",
+  role: "editor" as const,
+  expiresAt: null,
+  maxUses: null,
+  useCount: 0,
+  revoked: false,
+  expired: false,
+};
+
+async function renderInvite() {
+  const { default: InvitePage } = await import("@/pages/invite");
+  return render(
+    <MemoryRouter>
+      <InvitePage />
+    </MemoryRouter>,
+  );
+}
+
+describe("InvitePage", () => {
+  beforeEach(() => {
+    navigateMock.mockReset();
+    toastMock.toast.error.mockReset();
+    apiMock.default.get.mockReset();
+    apiMock.default.post.mockReset();
+  });
+
+  it("renders a valid invite with the board name", async () => {
+    apiMock.default.get
+      .mockResolvedValueOnce({ data: validInvite })
+      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    await renderInvite();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("You've been invited to Team Board"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText("Editor")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Join board" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the revoked card when the invite is revoked", async () => {
+    apiMock.default.get.mockResolvedValue({
+      data: { ...validInvite, revoked: true },
+    });
+    await renderInvite();
+
+    await waitFor(() => {
+      expect(screen.getByText("Invitation revoked")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Join board" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the expired card when the invite is expired", async () => {
+    apiMock.default.get.mockResolvedValue({
+      data: { ...validInvite, expired: true },
+    });
+    await renderInvite();
+
+    await waitFor(() => {
+      expect(screen.getByText("Invitation expired")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Join board" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the not-found card with a home link on 404", async () => {
+    apiMock.default.get.mockRejectedValue(
+      new AxiosError(
+        "Request failed with status code 404",
+        "ERR_BAD_REQUEST",
+        undefined,
+        undefined,
+        { status: 404, data: {} } as never,
+      ),
+    );
+    await renderInvite();
+
+    await waitFor(() => {
+      expect(screen.getByText("Invite not found")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("link", { name: "Go home" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Join board" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("redeems the invite and navigates to the board on success", async () => {
+    apiMock.default.get
+      .mockResolvedValueOnce({ data: validInvite })
+      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    apiMock.default.post.mockResolvedValue({ data: { boardId: "b1" } });
+    const user = userEvent.setup();
+    await renderInvite();
+
+    await user.click(await screen.findByRole("button", { name: "Join board" }));
+
+    await waitFor(() => {
+      expect(apiMock.default.post).toHaveBeenCalledWith("/invites/redeem", {
+        token: "tok1",
+      });
+    });
+    expect(navigateMock).toHaveBeenCalledWith("/board/b1", { replace: true });
+  });
+
+  it("shows a toast and stays on the page when redemption fails", async () => {
+    apiMock.default.get
+      .mockResolvedValueOnce({ data: validInvite })
+      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    apiMock.default.post.mockRejectedValue(
+      new AxiosError(
+        "Request failed with status code 400",
+        "ERR_BAD_REQUEST",
+        undefined,
+        undefined,
+        { status: 400, data: { message: "Invite is not redeemable" } } as never,
+      ),
+    );
+    const user = userEvent.setup();
+    await renderInvite();
+
+    await user.click(await screen.findByRole("button", { name: "Join board" }));
+
+    await waitFor(() => {
+      expect(toastMock.toast.error).toHaveBeenCalledWith(
+        "Invite is not redeemable",
+      );
+    });
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the default board name when the board fetch fails", async () => {
+    apiMock.default.get
+      .mockResolvedValueOnce({ data: validInvite })
+      .mockRejectedValueOnce(new AxiosError("Network Error"));
+    await renderInvite();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("You've been invited to this board"),
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: "Join board" }),
+    ).toBeInTheDocument();
+  });
+});
