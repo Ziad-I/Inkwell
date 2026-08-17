@@ -54,7 +54,8 @@ export function RemotePresenceDot({
   radius = 5,
   visible = true,
 }: RemotePresenceDotProps) {
-  const { connectionManagerRef, ready } = useBoardManagers();
+  const { connectionManagerRef, sessionStatus } = useBoardManagers();
+  const ready = sessionStatus.status === "ready";
 
   const [usersById, setUsersById] = useState<Map<string, PresenceMeta>>(
     () => new Map(),
