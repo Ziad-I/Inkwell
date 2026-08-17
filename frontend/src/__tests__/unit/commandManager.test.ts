@@ -37,10 +37,10 @@ describe("CommandManager", async () => {
   });
 
   describe("startCommand", () => {
-    it("creates and emits a command when canDraw is true", () => {
+    it("creates and emits a command when draw permission is true", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
 
       const commandId = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -60,10 +60,11 @@ describe("CommandManager", async () => {
       );
     });
 
-    it("returns undefined and warns when canDraw is false", () => {
+    it("returns undefined and warns when draw permission is false", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      manager.setPermissions({ read: true, draw: false });
 
       const result = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -87,7 +88,7 @@ describe("CommandManager", async () => {
     it("undo stack is populated after finalizeCommand", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
 
       const cmdId = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -147,7 +148,7 @@ describe("CommandManager", async () => {
     it("clears all internal state", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
       manager.startCommand("stroke", {
         nodeId: "n-1",
         points: [0, 0],

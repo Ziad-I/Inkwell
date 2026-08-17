@@ -1,5 +1,12 @@
+import type {
+  BoardPermissions,
+  BoardRole,
+} from "@/types/events";
+
 export type SessionStatus = {
   status: Status;
+  role?: BoardRole;
+  permissions?: BoardPermissions;
   error?: string;
 };
 

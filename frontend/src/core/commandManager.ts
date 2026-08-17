@@ -8,6 +8,10 @@ import type {
   CommandType,
 } from "@/types/command";
 import type { ClientEmitEvents } from "@/types/events";
+import type {
+  BoardPermissions,
+  BoardRole,
+} from "@/types/events";
 import type { StageOperations } from "@/types/common";
 import type { SessionStatus } from "@/types/session";
 import type { ConnectionManager } from "./connectionManager";
@@ -19,7 +23,8 @@ type CommandAckResponse = {
 };
 
 type JoinAckResponse = {
-  canDraw: boolean;
+  role: BoardRole;
+  permissions: BoardPermissions;
 };
 
 export class CommandManager {
@@ -37,7 +42,8 @@ export class CommandManager {
   private readonly factory: CommandFactory;
   private readonly setSessionStatus: (status: SessionStatus) => void;
 
-  private canDraw = false;
+  private permissions: BoardPermissions = { read: false, draw: false };
+  private joinRole: BoardRole | null = null;
 
   // ---------------------------------------------------------------------------
   // Command state
@@ -170,12 +176,13 @@ export class CommandManager {
   // Permissions
   // ---------------------------------------------------------------------------
 
-  public setCanDraw(value: boolean): void {
-    this.canDraw = value;
+  public setPermissions(permissions: BoardPermissions): void {
+    this.permissions = permissions;
+    this.stageOps.toggleDrawing(permissions.draw);
   }
 
   private ensureCanDraw(): boolean {
-    if (this.canDraw) {
+    if (this.permissions.draw) {
       return true;
     }
 
@@ -475,10 +482,11 @@ export class CommandManager {
           return;
         }
 
-        const canDraw = response?.canDraw ?? false;
+        const permissions =
+          response?.permissions ?? { read: false, draw: false };
 
-        this.setCanDraw(canDraw);
-        this.stageOps.toggleDrawing(canDraw);
+        this.setPermissions(permissions);
+        this.joinRole = response?.role ?? null;
       },
     );
   };
@@ -519,7 +527,11 @@ export class CommandManager {
       this.appliedCommands.add(command.id);
     }
 
-    this.setSessionStatus({ status: "ready" });
+    this.setSessionStatus({
+      status: "ready",
+      role: this.joinRole ?? undefined,
+      permissions: this.permissions,
+    });
   };
 
   /** Another user started a new command — show it as a live preview. */
