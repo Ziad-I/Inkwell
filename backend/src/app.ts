@@ -13,6 +13,7 @@ import { notFound } from "@/middlewares/notFound.js";
 import boardRouter from "@/routers/board.js";
 import authRouter from "@/routers/auth.js";
 import usersRouter from "@/routers/users.js";
+import invitesRouter from "@/routers/invites.js";
 
 export const app: Express = express();
 
@@ -36,6 +37,7 @@ const apiRouter = express.Router();
 apiRouter.use("/boards", boardRouter);
 apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);
+apiRouter.use("/invites", invitesRouter);
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
 app.use("/api", apiLimiter, apiRouter);
