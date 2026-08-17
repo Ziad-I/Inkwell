@@ -38,9 +38,28 @@ export interface Point {
 export const DrawPermissions = ["owner", "anyone"] as const;
 export type DrawPermission = (typeof DrawPermissions)[number];
 
+export const BoardRoles = ["owner", "editor", "viewer"] as const;
+export type BoardRole = (typeof BoardRoles)[number];
+
+export const BoardPermissions = ["read", "draw"] as const;
+export type BoardPermission = (typeof BoardPermissions)[number];
+
+export interface Principal {
+  type: "user" | "guest";
+  id: string;
+}
+
+export interface BoardAccess {
+  boardId: string;
+  principal: Principal;
+  role: BoardRole;
+  permissions: Record<BoardPermission, boolean>;
+}
+
 export interface SocketData {
   userId: string;
   roomId?: string;
   meta: PresenceMeta;
-  canDraw?: boolean;
+  principalType: "user" | "guest";
+  boardAccess?: BoardAccess;
 }
