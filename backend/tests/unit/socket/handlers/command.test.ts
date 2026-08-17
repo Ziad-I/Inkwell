@@ -1,8 +1,28 @@
 import { describe, it, expect, vi } from "vitest";
 
+const editorAccess = {
+  boardId: "room-abc",
+  principal: { type: "guest" as const, id: "user-123" },
+  role: "editor" as const,
+  permissions: { read: true, draw: true },
+};
+
+const viewerAccess = {
+  boardId: "room-abc",
+  principal: { type: "guest" as const, id: "user-123" },
+  role: "viewer" as const,
+  permissions: { read: true, draw: false },
+};
+
 function createMockSocket(data?: Record<string, unknown>) {
   return {
-    data: data ?? { userId: "user-123", roomId: "room-abc", canDraw: true },
+    data:
+      data ?? {
+        userId: "user-123",
+        roomId: "room-abc",
+        principalType: "guest",
+        boardAccess: editorAccess,
+      },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     to: vi.fn().mockReturnThis(),
@@ -84,7 +104,11 @@ describe("command:create", () => {
   it("rejects when not in a room", async () => {
     const { registerCommandHandlers } =
       await import("@/socket/handlers/command.js");
-    const socket = createMockSocket({ userId: "user-123", canDraw: true });
+    const socket = createMockSocket({
+      userId: "user-123",
+      principalType: "guest",
+      boardAccess: editorAccess,
+    });
     const io = createMockServer();
 
     registerCommandHandlers(socket as never, io as never);
@@ -103,13 +127,14 @@ describe("command:create", () => {
     expect(ack).toHaveBeenCalledWith("NOT_IN_ROOM");
   });
 
-  it("rejects when cannot draw", async () => {
+  it("rejects when the socket lacks draw permission", async () => {
     const { registerCommandHandlers } =
       await import("@/socket/handlers/command.js");
     const socket = createMockSocket({
       userId: "user-123",
       roomId: "room-abc",
-      canDraw: false,
+      principalType: "guest",
+      boardAccess: viewerAccess,
     });
     const io = createMockServer();
 
@@ -134,7 +159,8 @@ describe("command:create", () => {
     const socket = createMockSocket({
       userId: "user-456",
       roomId: "room-abc",
-      canDraw: true,
+      principalType: "guest",
+      boardAccess: editorAccess,
     });
     const io = createMockServer();
 
@@ -180,7 +206,11 @@ describe("command:update", () => {
   it("rejects when not in room", async () => {
     const { registerCommandHandlers } =
       await import("@/socket/handlers/command.js");
-    const socket = createMockSocket({ userId: "user-123", canDraw: true });
+    const socket = createMockSocket({
+      userId: "user-123",
+      principalType: "guest",
+      boardAccess: editorAccess,
+    });
     const io = createMockServer();
 
     registerCommandHandlers(socket as never, io as never);

@@ -1,4 +1,5 @@
 import type { Server, Socket } from "socket.io";
+import { requirePermission } from "@/socket/authorization.js";
 import type { Command, CommandID, SocketData, Ack } from "@/types/types.js";
 import {
   getCommandById,
@@ -24,7 +25,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
     "command:create",
     async (payload: { id: CommandID; command: Command }, ack?: Ack) => {
-      const { roomId, userId, canDraw } = socket.data as SocketData;
+      const { roomId, userId } = socket.data as SocketData;
       const { id: commandId, command } = payload;
 
       try {
@@ -32,7 +33,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
-        if (!canDraw) {
+        if (!requirePermission(socket, "draw")) {
           reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
@@ -53,14 +54,14 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
     "command:update",
     async (payload: { id: CommandID; command: Command }, ack?: Ack) => {
-      const { roomId, userId, canDraw } = socket.data as SocketData;
+      const { roomId, userId } = socket.data as SocketData;
       const { id: commandId, command } = payload;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
-        if (!canDraw) {
+        if (!requirePermission(socket, "draw")) {
           reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
@@ -80,14 +81,14 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
     "command:finalize",
     async (payload: { id: CommandID; command: Command }, ack?: AckWithSeq) => {
-      const { roomId, userId, canDraw } = socket.data as SocketData;
+      const { roomId, userId } = socket.data as SocketData;
       const { id: commandId, command } = payload;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
-        if (!canDraw) {
+        if (!requirePermission(socket, "draw")) {
           reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
@@ -106,14 +107,14 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   );
 
   socket.on("command:cancel", async (payload: { id: CommandID }, ack?: Ack) => {
-    const { roomId, userId, canDraw } = socket.data as SocketData;
+    const { roomId, userId } = socket.data as SocketData;
     const { id: commandId } = payload;
     try {
       if (!roomId) {
         reject(socket, commandId, "NOT_IN_ROOM", ack);
         return;
       }
-      if (!canDraw) {
+      if (!requirePermission(socket, "draw")) {
         reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
         return;
       }
@@ -137,14 +138,14 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
     "command:undo",
     async (payload: { id: CommandID }, ack?: AckWithSeq) => {
-      const { roomId, userId, canDraw } = socket.data as SocketData;
+      const { roomId, userId } = socket.data as SocketData;
       const { id: commandId } = payload;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
-        if (!canDraw) {
+        if (!requirePermission(socket, "draw")) {
           reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
@@ -174,14 +175,14 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
   socket.on(
     "command:redo",
     async (payload: { id: CommandID }, ack?: AckWithSeq) => {
-      const { roomId, userId, canDraw } = socket.data as SocketData;
+      const { roomId, userId } = socket.data as SocketData;
       const { id: commandId } = payload;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
           return;
         }
-        if (!canDraw) {
+        if (!requirePermission(socket, "draw")) {
           reject(socket, commandId, "UNAUTHORIZED_NO_PERMISSION_TO_DRAW", ack);
           return;
         }
