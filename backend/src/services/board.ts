@@ -3,7 +3,7 @@ import { db } from "@/db/index.js";
 import { boards } from "@/db/schema.js";
 import { eq } from "drizzle-orm";
 import { initBoardState } from "@/services/state.js";
-import { BoardRole } from "@/types/types.js";
+import { type BoardRole } from "@/types/types.js";
 
 export async function getBoardById(roomId: string) {
   const result = await db
