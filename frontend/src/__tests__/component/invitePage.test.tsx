@@ -34,12 +34,10 @@ vi.mock("react-router", async () => {
 
 const validInvite = {
   boardId: "b1",
+  boardName: "Team Board",
   role: "editor" as const,
   expiresAt: null,
-  maxUses: null,
-  useCount: 0,
-  revoked: false,
-  expired: false,
+  valid: true,
 };
 
 async function renderInvite() {
@@ -59,46 +57,63 @@ describe("InvitePage", () => {
     apiMock.default.post.mockReset();
   });
 
-  it("renders a valid invite with the board name", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: validInvite })
-      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+  it("renders a valid invite with the board name and role", async () => {
+    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
     await renderInvite();
 
     await waitFor(() => {
       expect(
-        screen.getByText("You've been invited to Team Board"),
+        screen.getByText("You've been invited to collaborate"),
       ).toBeInTheDocument();
     });
+    expect(screen.getByText("Team Board")).toBeInTheDocument();
     expect(screen.getByText("Editor")).toBeInTheDocument();
+    expect(screen.getByText("This invite never expires")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Join board" }),
     ).toBeInTheDocument();
   });
 
-  it("shows the revoked card when the invite is revoked", async () => {
-    apiMock.default.get.mockResolvedValue({
-      data: { ...validInvite, revoked: true },
+  it("shows the expired message when a valid invite has a future-dated check but is already past expiry", async () => {
+    apiMock.default.get.mockResolvedValueOnce({
+      data: {
+        ...validInvite,
+        valid: false,
+        expiresAt: new Date(Date.now() - 1000 * 60).toISOString(),
+      },
     });
     await renderInvite();
 
     await waitFor(() => {
-      expect(screen.getByText("Invitation revoked")).toBeInTheDocument();
+      expect(screen.getByText("Invite no longer valid")).toBeInTheDocument();
     });
+    expect(
+      screen.getByText(
+        "This invitation has expired. Ask the board owner for a new link.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Join board" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Back to Home" }),
+    ).toBeInTheDocument();
   });
 
-  it("shows the expired card when the invite is expired", async () => {
-    apiMock.default.get.mockResolvedValue({
-      data: { ...validInvite, expired: true },
+  it("shows the revoked/exhausted message when the invite is invalid without an expiry date", async () => {
+    apiMock.default.get.mockResolvedValueOnce({
+      data: { ...validInvite, valid: false, expiresAt: null },
     });
     await renderInvite();
 
     await waitFor(() => {
-      expect(screen.getByText("Invitation expired")).toBeInTheDocument();
+      expect(screen.getByText("Invite no longer valid")).toBeInTheDocument();
     });
+    expect(
+      screen.getByText(
+        "This invitation has been revoked or has reached its use limit.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Join board" }),
     ).not.toBeInTheDocument();
@@ -120,7 +135,7 @@ describe("InvitePage", () => {
       expect(screen.getByText("Invite not found")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("link", { name: "Go home" }),
+      screen.getByRole("link", { name: "Back to Home" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Join board" }),
@@ -128,9 +143,7 @@ describe("InvitePage", () => {
   });
 
   it("redeems the invite and navigates to the board on success", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: validInvite })
-      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
     apiMock.default.post.mockResolvedValue({ data: { boardId: "b1" } });
     const user = userEvent.setup();
     await renderInvite();
@@ -146,9 +159,7 @@ describe("InvitePage", () => {
   });
 
   it("shows a toast and stays on the page when redemption fails", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: validInvite })
-      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
     apiMock.default.post.mockRejectedValue(
       new AxiosError(
         "Request failed with status code 400",
@@ -169,21 +180,5 @@ describe("InvitePage", () => {
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the default board name when the board fetch fails", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: validInvite })
-      .mockRejectedValueOnce(new AxiosError("Network Error"));
-    await renderInvite();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("You've been invited to this board"),
-      ).toBeInTheDocument();
-    });
-    expect(
-      screen.getByRole("button", { name: "Join board" }),
-    ).toBeInTheDocument();
   });
 });

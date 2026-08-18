@@ -30,19 +30,15 @@ describe("Invite flow", () => {
     navigateMock.mockReset();
     apiMock.default.get.mockReset();
     apiMock.default.post.mockReset();
-    apiMock.default.get
-      .mockResolvedValueOnce({
-        data: {
-          boardId: "b1",
-          role: "viewer",
-          expiresAt: null,
-          maxUses: null,
-          useCount: 0,
-          revoked: false,
-          expired: false,
-        },
-      })
-      .mockResolvedValueOnce({ data: { name: "Team Board" } });
+    apiMock.default.get.mockResolvedValueOnce({
+      data: {
+        boardId: "b1",
+        boardName: "Team Board",
+        role: "viewer",
+        expiresAt: null,
+        valid: true,
+      },
+    });
     apiMock.default.post.mockResolvedValue({ data: { boardId: "b1" } });
   });
 
@@ -58,9 +54,10 @@ describe("Invite flow", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("You've been invited to Team Board"),
+        screen.getByText("You've been invited to collaborate"),
       ).toBeInTheDocument();
     });
+    expect(screen.getByText("Team Board")).toBeInTheDocument();
     expect(screen.getByText("Viewer")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Join board" }));
