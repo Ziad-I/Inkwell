@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/index.js";
-import { boardInvites, type BoardInvite } from "@/db/schema.js";
+import { boardInvites, boards, type BoardInvite } from "@/db/schema.js";
 import { hashToken, generateOpaqueToken } from "@/services/auth.js";
 import type { BoardRole } from "@/types/types.js";
 
@@ -88,14 +88,22 @@ export async function validateInviteToken(rawToken: string): Promise<{
 
 export async function getInviteByToken(
   rawToken: string,
-): Promise<BoardInvite | null> {
+): Promise<(BoardInvite & { boardName: string }) | null> {
   const rows = await db
     .select()
     .from(boardInvites)
+    .innerJoin(boards, eq(boardInvites.boardId, boards.id))
     .where(eq(boardInvites.tokenHash, hashToken(rawToken)))
     .limit(1);
 
-  return rows[0] ?? null;
+  if (!rows[0]) {
+    return null;
+  }
+
+  return {
+    ...rows[0].board_invite,
+    boardName: rows[0].board.title,
+  };
 }
 
 export async function getInviteById(

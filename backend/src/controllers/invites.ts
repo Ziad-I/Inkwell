@@ -103,15 +103,20 @@ export async function getBoardInvite(req: Request, res: Response) {
     return;
   }
 
+  const expired =
+    invite.expiresAt !== null && invite.expiresAt.getTime() <= Date.now();
+
+  const exhausted =
+    invite.maxUses !== null && invite.useCount >= invite.maxUses;
+
+  const valid = invite.revokedAt === null && !expired && !exhausted;
+
   res.status(200).json({
     boardId: invite.boardId,
     role: invite.role,
-    expiresAt: invite.expiresAt,
-    maxUses: invite.maxUses,
-    useCount: invite.useCount,
-    revoked: invite.revokedAt !== null,
-    expired:
-      invite.expiresAt !== null && invite.expiresAt.getTime() <= Date.now(),
+    boardName: invite.boardName,
+    expiresAt: invite.expiresAt?.toISOString() ?? null,
+    valid,
   });
 }
 
