@@ -1,34 +1,48 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/home/LoadingSpinner";
+import { RoleBadge } from "@/components/invite/roleBadge";
+import { InviteStatusCard } from "@/components/invite/inviteStatusCard";
 import api, { apiErrorMessage } from "@/lib/api";
+import { CalendarClock, PenSquare, ShieldX } from "lucide-react";
 
 type InviteInfo = {
   boardId: string;
+  boardName: string;
   role: "editor" | "viewer";
   expiresAt: string | null;
-  maxUses: number | null;
-  useCount: number;
-  revoked: boolean;
-  expired: boolean;
+  valid: boolean;
 };
+
+function formatExpiry(expiresAt: string | null): string {
+  if (!expiresAt) return "This invite never expires";
+
+  const date = new Date(expiresAt);
+  if (date.getTime() <= Date.now()) return "This invite has expired";
+
+  return `Expires ${date.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+}
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
 
   const [invite, setInvite] = useState<InviteInfo | null>(null);
-  const [boardName, setBoardName] = useState("this board");
   const [invalidMessage, setInvalidMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,14 +55,6 @@ export default function InvitePage() {
         const { data } = await api.get<InviteInfo>(`/invites/${token}`);
         if (cancelled) return;
         setInvite(data);
-        try {
-          const { data: board } = await api.get<{ name?: string }>(
-            `/boards/${data.boardId}`,
-          );
-          if (!cancelled && board.name) setBoardName(board.name);
-        } catch {
-          // keep the fallback board name
-        }
       } catch (err) {
         if (cancelled) return;
         setInvalidMessage(
@@ -89,79 +95,76 @@ export default function InvitePage() {
 
   if (invalidMessage || !invite) {
     return (
-      <div className="flex justify-center">
-        <Card className="w-full max-w-md border-2">
-          <CardHeader>
-            <CardTitle className="text-left">Invite not found</CardTitle>
-            <CardDescription className="text-left">
-              {invalidMessage}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full" size="lg">
-              <Link to="/">Go home</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <InviteStatusCard
+        icon={ShieldX}
+        title="Invite not found"
+        description={
+          invalidMessage ??
+          "This invitation link is invalid or no longer exists."
+        }
+      />
     );
   }
 
-  if (invite.revoked) {
+  if (!invite.valid) {
     return (
-      <div className="flex justify-center">
-        <Card className="w-full max-w-md border-2">
-          <CardHeader>
-            <CardTitle className="text-left">Invitation revoked</CardTitle>
-            <CardDescription className="text-left">
-              This invitation was revoked by the board owner.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  if (invite.expired) {
-    return (
-      <div className="flex justify-center">
-        <Card className="w-full max-w-md border-2">
-          <CardHeader>
-            <CardTitle className="text-left">Invitation expired</CardTitle>
-            <CardDescription className="text-left">
-              This invitation link has expired.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      <InviteStatusCard
+        icon={CalendarClock}
+        title="Invite no longer valid"
+        description={
+          invite.expiresAt && new Date(invite.expiresAt).getTime() <= Date.now()
+            ? "This invitation has expired. Ask the board owner for a new link."
+            : "This invitation has been revoked or has reached its use limit."
+        }
+        variant="muted"
+      />
     );
   }
 
   return (
     <div className="flex justify-center">
       <Card className="w-full max-w-md border-2">
-        <CardHeader>
-          <CardTitle className="text-left">
-            You&apos;ve been invited to {boardName}
+        <CardHeader className="text-center">
+          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <PenSquare className="w-6 h-6 text-primary" />
+          </div>
+          <CardTitle className="text-center">
+            You&apos;ve been invited to collaborate
           </CardTitle>
+          <CardDescription className="text-center">
+            Join{" "}
+            <span className="font-medium text-foreground">
+              {invite.boardName}
+            </span>{" "}
+            on Inkwell
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Badge>{invite.role === "editor" ? "Editor" : "Viewer"}</Badge>
-          {invite.expiresAt && (
-            <p className="text-xs text-muted-foreground">
-              This link expires on{" "}
-              {new Date(invite.expiresAt).toLocaleDateString()}
-            </p>
-          )}
+          <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-4 py-3">
+            <span className="text-sm text-muted-foreground">Your role</span>
+            <RoleBadge role={invite.role} />
+          </div>
+          <Separator />
+          <p className="text-sm text-muted-foreground text-center">
+            {formatExpiry(invite.expiresAt)}
+          </p>
+        </CardContent>
+        <CardFooter className="flex-col gap-3">
           <Button
             className="w-full"
             size="lg"
             onClick={handleJoin}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Joining…" : "Join board"}
+            {isSubmitting ? "Joining..." : "Join board"}
           </Button>
-        </CardContent>
+          <Link
+            to="/"
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Maybe later
+          </Link>
+        </CardFooter>
       </Card>
     </div>
   );
