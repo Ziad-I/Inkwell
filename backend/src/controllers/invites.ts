@@ -9,9 +9,16 @@ import {
   revokeInvite,
 } from "@/services/invites.js";
 import { getBoardAccessCookieName } from "@/utils/cookies.js";
+import { env } from "@/config/config.js";
+import { BoardRoles } from "@/types/types.js";
 
 const createInviteSchema = z.object({
-  role: z.enum(["editor", "viewer"]),
+  role: z
+    .enum(BoardRoles)
+    .default("editor")
+    .refine((role) => role !== "owner", {
+      message: "Cannot create an invite with owner role",
+    }),
   expiresAt: z.string().datetime().optional(),
   maxUses: z.number().int().positive().optional(),
 });
@@ -20,10 +27,14 @@ const redeemSchema = z.object({
   token: z.string().min(1),
 });
 
-function setBoardAccessCookie(res: Response, boardId: string, rawToken: string) {
+function setBoardAccessCookie(
+  res: Response,
+  boardId: string,
+  rawToken: string,
+) {
   res.cookie(getBoardAccessCookieName(boardId), rawToken, {
     httpOnly: true,
-    secure: true,
+    secure: env.NODE_ENV === "production" ? true : false,
     sameSite: "lax",
     path: "/",
   });
@@ -38,13 +49,17 @@ export async function createBoardInvite(req: Request, res: Response) {
     return;
   }
   if (!req.userId || board.ownerId !== req.userId) {
-    res.status(403).json({ message: "Only the board owner can create invites" });
+    res
+      .status(403)
+      .json({ message: "Only the board owner can create invites" });
     return;
   }
 
   const result = createInviteSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
+    res
+      .status(400)
+      .json({ message: "Invalid input", errors: result.error.flatten() });
     return;
   }
   const { role, expiresAt, maxUses } = result.data;
@@ -63,7 +78,9 @@ export async function createBoardInvite(req: Request, res: Response) {
 export async function redeemBoardInvite(req: Request, res: Response) {
   const result = redeemSchema.safeParse(req.body);
   if (!result.success) {
-    res.status(400).json({ message: "Invalid input", errors: result.error.flatten() });
+    res
+      .status(400)
+      .json({ message: "Invalid input", errors: result.error.flatten() });
     return;
   }
 
@@ -93,7 +110,8 @@ export async function getBoardInvite(req: Request, res: Response) {
     maxUses: invite.maxUses,
     useCount: invite.useCount,
     revoked: invite.revokedAt !== null,
-    expired: invite.expiresAt !== null && invite.expiresAt.getTime() <= Date.now(),
+    expired:
+      invite.expiresAt !== null && invite.expiresAt.getTime() <= Date.now(),
   });
 }
 
@@ -109,7 +127,9 @@ export async function revokeBoardInvite(req: Request, res: Response) {
     return;
   }
   if (!req.userId || board.ownerId !== req.userId) {
-    res.status(403).json({ message: "Only the board owner can revoke invites" });
+    res
+      .status(403)
+      .json({ message: "Only the board owner can revoke invites" });
     return;
   }
 

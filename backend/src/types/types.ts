@@ -41,8 +41,10 @@ export type BoardRole = (typeof BoardRoles)[number];
 export const BoardPermissions = ["read", "draw"] as const;
 export type BoardPermission = (typeof BoardPermissions)[number];
 
+export type PrincipalType = "user" | "guest";
+
 export interface Principal {
-  type: "user" | "guest";
+  type: PrincipalType;
   id: string;
 }
 
@@ -57,6 +59,6 @@ export interface SocketData {
   userId: string;
   roomId?: string;
   meta: PresenceMeta;
-  principalType: "user" | "guest";
+  principalType: PrincipalType;
   boardAccess?: BoardAccess;
 }

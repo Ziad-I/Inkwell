@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { verifyAccessToken } from "@/services/auth.js";
 import { getUserById } from "@/services/users.js";
-import type { SocketData } from "@/types/types.js";
+import type { PrincipalType, SocketData } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 
 export function registerAuthMiddleware(io: Server) {
@@ -10,7 +10,7 @@ export function registerAuthMiddleware(io: Server) {
 
     let effectiveUserId =
       typeof userId === "string" && userId ? userId : randomUUID();
-    let principalType: "user" | "guest" = "guest";
+    let principalType: PrincipalType = "guest";
 
     if (typeof token === "string" && token) {
       try {
