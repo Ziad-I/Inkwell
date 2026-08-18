@@ -1,13 +1,8 @@
-import { randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/db/index.js";
 import { boardInvites, type BoardInvite } from "@/db/schema.js";
-import { hashToken } from "@/services/auth.js";
+import { hashToken, generateOpaqueToken } from "@/services/auth.js";
 import type { BoardRole } from "@/types/types.js";
-
-export function generateInviteToken(): string {
-  return randomBytes(32).toString("base64url");
-}
 
 export async function createInvite(input: {
   boardId: string;
@@ -16,7 +11,7 @@ export async function createInvite(input: {
   expiresAt?: Date;
   maxUses?: number | null;
 }): Promise<{ id: string; rawToken: string }> {
-  const rawToken = generateInviteToken();
+  const rawToken = generateOpaqueToken();
 
   const rows = await db
     .insert(boardInvites)

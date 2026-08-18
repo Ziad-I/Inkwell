@@ -6,7 +6,7 @@ import {
   signAccessToken,
   storeRefreshToken,
   verifyPassword,
-  generateRefreshToken,
+  generateOpaqueToken,
 } from "@/services/auth.js";
 import {
   createUser,
@@ -69,7 +69,7 @@ export async function register(req: Request, res: Response) {
   try {
     const user = await createUser({ username, email, password });
     const accessToken = signAccessToken(user.id);
-    const refreshToken = generateRefreshToken();
+    const refreshToken = generateOpaqueToken();
     await storeRefreshToken(user.id, refreshToken);
     setRefreshCookie(res, refreshToken);
     res.status(201).json({ user: toPublicUser(user), accessToken });
@@ -100,7 +100,7 @@ export async function login(req: Request, res: Response) {
     return;
   }
   const accessToken = signAccessToken(user.id);
-  const refreshToken = generateRefreshToken();
+  const refreshToken = generateOpaqueToken();
   await storeRefreshToken(user.id, refreshToken);
   setRefreshCookie(res, refreshToken);
   res.status(200).json({ user: toPublicUser(user), accessToken });

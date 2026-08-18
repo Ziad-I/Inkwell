@@ -63,15 +63,15 @@ export function verifyAccessToken(token: string): string {
   }
 }
 
-// ─── Refresh Tokens ───────────────────────────────────────────────────────────
+// ─── Tokens ───────────────────────────────────────────────────────────
 
 /**
- * Generate a cryptographically random opaque refresh token.
+ * Generate a cryptographically random opaque token.
  *
  * The raw token is returned to the client.
  * Only its SHA-256 hash is stored in the database.
  */
-export function generateRefreshToken(): string {
+export function generateOpaqueToken(): string {
   return randomBytes(32).toString("base64url");
 }
 
@@ -170,7 +170,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
       return { status: "expired" };
     }
 
-    const newToken = generateRefreshToken();
+    const newToken = generateOpaqueToken();
 
     await tx
       .update(refreshTokens)
