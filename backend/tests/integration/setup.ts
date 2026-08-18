@@ -30,7 +30,6 @@ export async function seedUser(): Promise<string> {
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;
-  drawPermission?: "owner" | "anyone";
   defaultRole?: "editor" | "viewer";
 }): Promise<string> {
   const ownerId = overrides?.ownerId ?? (await seedUser());
@@ -39,7 +38,6 @@ export async function seedBoard(overrides?: {
     .values({
       title: overrides?.title ?? "Test Board",
       ownerId,
-      drawPermission: overrides?.drawPermission ?? "anyone",
       defaultRole: overrides?.defaultRole ?? "editor",
     })
     .returning();

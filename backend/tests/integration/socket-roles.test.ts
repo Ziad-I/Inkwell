@@ -1,11 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import {
-  port,
-  seedBoard,
-  seedInvite,
-  cleanupTestData,
-} from "./setup.js";
+import { port, seedBoard, seedInvite, cleanupTestData } from "./setup.js";
 
 const boardIds: string[] = [];
 
@@ -18,7 +13,7 @@ function connectClient(
       transports: ["websocket"],
       forceNew: true,
       auth: auth ?? { userId: "test-user" },
-      extraHeaders: cookie ? { Cookie: cookie } : undefined,
+      ...(cookie ? { extraHeaders: { Cookie: cookie } } : {}),
     });
     socket.on("connect", () => resolve(socket));
     socket.on("connect_error", (err) => reject(err));
@@ -55,7 +50,10 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     expect(joined.err).toBeNull();
-    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "editor",
+      permissions: { draw: true, read: true },
+    });
     socket.disconnect();
   });
 
@@ -71,7 +69,10 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     expect(joined.err).toBeNull();
-    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "viewer",
+      permissions: { draw: false, read: true },
+    });
     socket.disconnect();
   });
 
@@ -88,12 +89,15 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardB);
 
     // Cookie is ignored for B — B's default role applies.
-    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "editor",
+      permissions: { draw: true, read: true },
+    });
     socket.disconnect();
   });
 
   it("rejects a tampered cookie without granting elevation", async () => {
-    const boardId = await seedBoard({ drawPermission: "owner" });
+    const boardId = await seedBoard({ defaultRole: "viewer" });
     boardIds.push(boardId);
 
     const socket = await connectClient(
@@ -102,7 +106,10 @@ describe("socket join authorization via invite cookies", () => {
     );
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "viewer",
+      permissions: { draw: false, read: true },
+    });
     socket.disconnect();
   });
 
@@ -122,7 +129,10 @@ describe("socket join authorization via invite cookies", () => {
     const joined = await roomJoin(socket, boardId);
 
     // The revoked invite grants nothing — the board default (viewer) applies.
-    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "viewer",
+      permissions: { draw: false, read: true },
+    });
     socket.disconnect();
   });
 
@@ -141,7 +151,10 @@ describe("socket join authorization via invite cookies", () => {
     );
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ role: "viewer", permissions: { draw: false, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "viewer",
+      permissions: { draw: false, read: true },
+    });
     socket.disconnect();
   });
 
@@ -152,20 +165,25 @@ describe("socket join authorization via invite cookies", () => {
     const created = await request(httpServer).post("/api/boards").send({
       name: "Owner Board",
       userId: "owner-user",
-      drawPermission: "anyone",
     });
     const boardId = created.body.id as string;
     boardIds.push(boardId);
 
     const joined = await roomJoin(socket, boardId);
 
-    expect(joined.data).toMatchObject({ role: "editor", permissions: { draw: true, read: true } });
+    expect(joined.data).toMatchObject({
+      role: "editor",
+      permissions: { draw: true, read: true },
+    });
     socket.disconnect();
   });
 
   it("returns BOARD_NOT_FOUND for unknown rooms", async () => {
     const socket = await connectClient();
-    const joined = await roomJoin(socket, "00000000-0000-4000-8000-000000000000");
+    const joined = await roomJoin(
+      socket,
+      "00000000-0000-4000-8000-000000000000",
+    );
 
     expect(joined.err).toBe("BOARD_NOT_FOUND");
     socket.disconnect();
@@ -188,13 +206,17 @@ describe("socket operation permissions", () => {
     command: ReturnType<typeof makeCommand>,
   ): Promise<{ err: unknown; data: unknown }> {
     return new Promise((resolve, reject) => {
-      socket.emit("command:finalize", { id, command }, (err: unknown, data: unknown) => {
-        try {
-          resolve({ err, data });
-        } catch (e) {
-          reject(e);
-        }
-      });
+      socket.emit(
+        "command:finalize",
+        { id, command },
+        (err: unknown, data: unknown) => {
+          try {
+            resolve({ err, data });
+          } catch (e) {
+            reject(e);
+          }
+        },
+      );
       setTimeout(() => reject(new Error("ack timeout")), 3000);
     });
   }
@@ -210,7 +232,11 @@ describe("socket operation permissions", () => {
     );
     await roomJoin(socket, boardId);
 
-    const res = await finalize(socket, "cmd-1", makeCommand("cmd-1", "editor-user"));
+    const res = await finalize(
+      socket,
+      "cmd-1",
+      makeCommand("cmd-1", "editor-user"),
+    );
 
     expect(res.err).toBeNull();
     expect(res.data).toMatchObject({ seq: 1 });
@@ -301,7 +327,10 @@ describe("socket operation permissions", () => {
       setTimeout(() => reject(new Error("no command:reject")), 3000);
     });
 
-    socket.emit("command:create", { id: "cmd-x", command: makeCommand("cmd-x", "viewer-draw") });
+    socket.emit("command:create", {
+      id: "cmd-x",
+      command: makeCommand("cmd-x", "viewer-draw"),
+    });
     await rejectPromise;
     socket.disconnect();
   });
@@ -386,7 +415,10 @@ describe("socket operation permissions", () => {
       setTimeout(() => reject(new Error("no command:reject")), 3000);
     });
 
-    socket.emit("command:create", { id: "cmd-n", command: makeCommand("cmd-n", "never-joined") });
+    socket.emit("command:create", {
+      id: "cmd-n",
+      command: makeCommand("cmd-n", "never-joined"),
+    });
     await rejectPromise;
     socket.disconnect();
   });

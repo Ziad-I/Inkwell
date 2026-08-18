@@ -292,7 +292,7 @@ describe("draw permissions", () => {
     boardId = await seedBoard({
       title: "Permissions Test",
       ownerId,
-      drawPermission: "owner",
+      defaultRole: "viewer",
     });
   });
 
@@ -307,7 +307,10 @@ describe("draw permissions", () => {
       socket.emit(
         "room:join",
         { roomId: boardId },
-        (err: unknown, resp?: { permissions: { draw: boolean; read: boolean } }) => {
+        (
+          err: unknown,
+          resp?: { permissions: { draw: boolean; read: boolean } },
+        ) => {
           try {
             expect(err).toBeNull();
             expect(resp).toBeDefined();

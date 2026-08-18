@@ -54,7 +54,6 @@ describe("board creation — anonymous (ephemeral)", () => {
     const created = await request().post("/api/boards").send({
       name: "Guest Board",
       userId: "guest-123",
-      drawPermission: "anyone",
     });
     expect(created.status).toBe(201);
     const roomId = created.body.id as string;
@@ -114,7 +113,9 @@ describe("board creation — anonymous (ephemeral)", () => {
   });
 
   it("returns 404 for unknown rooms with no Redis state", async () => {
-    const res = await request().get("/api/boards/00000000-0000-4000-8000-000000000000");
+    const res = await request().get(
+      "/api/boards/00000000-0000-4000-8000-000000000000",
+    );
     expect(res.status).toBe(404);
   });
 });

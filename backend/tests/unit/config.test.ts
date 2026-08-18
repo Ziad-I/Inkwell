@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
-import { DrawPermissions } from "@/types/types.js";
 
 const envSchema = z.object({
   APP_NAME: z.string().default("Backend"),
@@ -11,18 +10,33 @@ const envSchema = z.object({
     .enum(["error", "warn", "info", "http", "debug", "silly"])
     .default("info"),
   PORT: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : typeof val === "number" ? val : undefined),
+    (val) =>
+      typeof val === "string" && val.trim() !== ""
+        ? Number(val)
+        : typeof val === "number"
+          ? val
+          : undefined,
     z.number().int().positive().default(5000),
   ),
   DATABASE_URL: z.string(),
   REDIS_URL: z.string(),
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
   SNAPSHOT_INTERVAL: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : typeof val === "number" ? val : undefined),
+    (val) =>
+      typeof val === "string" && val.trim() !== ""
+        ? Number(val)
+        : typeof val === "number"
+          ? val
+          : undefined,
     z.number().int().positive().default(60000),
   ),
   SNAPSHOT_RETENTION: z.preprocess(
-    (val) => (typeof val === "string" && val.trim() !== "" ? Number(val) : typeof val === "number" ? val : undefined),
+    (val) =>
+      typeof val === "string" && val.trim() !== ""
+        ? Number(val)
+        : typeof val === "number"
+          ? val
+          : undefined,
     z.number().int().positive().default(3),
   ),
 });
@@ -91,18 +105,16 @@ describe("config schema validation", () => {
   });
 
   it("rejects missing DATABASE_URL", () => {
-    expect(() => envSchema.parse({ REDIS_URL: "redis://localhost:6379" })).toThrow();
+    expect(() =>
+      envSchema.parse({ REDIS_URL: "redis://localhost:6379" }),
+    ).toThrow();
   });
 
   it("rejects missing REDIS_URL", () => {
     expect(() =>
-      envSchema.parse({ DATABASE_URL: "postgres://test:test@localhost:5432/test" }),
+      envSchema.parse({
+        DATABASE_URL: "postgres://test:test@localhost:5432/test",
+      }),
     ).toThrow();
-  });
-
-  it("accepts DrawPermission enum values", () => {
-    expect(DrawPermissions).toContain("owner");
-    expect(DrawPermissions).toContain("anyone");
-    expect(DrawPermissions.length).toBe(2);
   });
 });

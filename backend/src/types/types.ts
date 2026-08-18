@@ -35,9 +35,6 @@ export interface Point {
   y: number;
 }
 
-export const DrawPermissions = ["owner", "anyone"] as const;
-export type DrawPermission = (typeof DrawPermissions)[number];
-
 export const BoardRoles = ["owner", "editor", "viewer"] as const;
 export type BoardRole = (typeof BoardRoles)[number];
 

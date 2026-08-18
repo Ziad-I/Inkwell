@@ -10,9 +10,8 @@ import {
   index,
   integer,
 } from "drizzle-orm/pg-core";
-import { DrawPermissions, type BoardState } from "@/types/types.js";
+import { type BoardState } from "@/types/types.js";
 
-export const drawPermissionEnum = pgEnum("draw_permission", DrawPermissions);
 export const boardRoleEnum = pgEnum("board_role", [
   "owner",
   "editor",
@@ -42,9 +41,6 @@ export const boards = pgTable(
     ownerId: uuid("owner_id")
       .notNull()
       .references(() => users.id),
-    drawPermission: drawPermissionEnum("draw_permission")
-      .notNull()
-      .default("anyone"),
     defaultRole: boardRoleEnum("default_role").notNull().default("editor"),
 
     createdAt: timestamp("created_at", { withTimezone: true })

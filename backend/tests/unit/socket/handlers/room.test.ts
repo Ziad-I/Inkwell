@@ -25,7 +25,6 @@ const mockBoard = {
   id: "room-abc",
   title: "Test Board",
   ownerId: "user-123",
-  drawPermission: "anyone",
   defaultRole: "editor",
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -68,7 +67,9 @@ describe("registerRoomHandlers — room:join", () => {
     stateMock.getCommandsInBuffer.mockResolvedValue([]);
     stateMock.getBoardStateArr.mockResolvedValue([]);
     snapshotMock.getLatestSnapshot.mockResolvedValue(null);
-    boardAccessMock.authorizeBoardAccess.mockResolvedValue(makeAccess("editor"));
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(
+      makeAccess("editor"),
+    );
   });
 
   it("rejects join when board not found and room is not in Redis", async () => {
@@ -143,7 +144,10 @@ describe("registerRoomHandlers — room:join", () => {
 
   it("passes the board-specific cookie through to authorization", async () => {
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
-    const socket = createMockSocket(undefined, "board_access_room-abc=raw-token");
+    const socket = createMockSocket(
+      undefined,
+      "board_access_room-abc=raw-token",
+    );
     const io = createMockServer();
 
     registerRoomHandlers(socket as never, io as never);
@@ -159,7 +163,9 @@ describe("registerRoomHandlers — room:join", () => {
   });
 
   it("resolves viewer access for a viewer invite", async () => {
-    boardAccessMock.authorizeBoardAccess.mockResolvedValue(makeAccess("viewer"));
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(
+      makeAccess("viewer"),
+    );
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
     const socket = createMockSocket();

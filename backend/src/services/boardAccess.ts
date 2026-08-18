@@ -28,7 +28,7 @@ export function hasPermission(
 
 function resolveFallbackRole(board: Board | null): BoardRole {
   if (!board) return "editor";
-  return board.drawPermission === "owner" ? "viewer" : board.defaultRole;
+  return board.defaultRole;
 }
 
 export async function authorizeBoardAccess(input: {
@@ -45,7 +45,10 @@ export async function authorizeBoardAccess(input: {
     role = "owner";
   } else if (inviteToken) {
     const invite = await validateInviteToken(inviteToken);
-    role = invite && invite.boardId === boardId ? invite.role : resolveFallbackRole(board);
+    role =
+      invite && invite.boardId === boardId
+        ? invite.role
+        : resolveFallbackRole(board);
   } else {
     role = resolveFallbackRole(board);
   }

@@ -7,7 +7,6 @@ const makeBoard = (overrides: Record<string, unknown> = {}) => ({
   id: "room-abc",
   title: "Test Board",
   ownerId: "owner-1",
-  drawPermission: "anyone" as const,
   defaultRole: "editor" as const,
   createdAt: new Date(),
   updatedAt: new Date(),
@@ -23,7 +22,10 @@ describe("getPermissionsForRole", () => {
     const { getPermissionsForRole } = await load();
     expect(getPermissionsForRole("owner")).toEqual({ read: true, draw: true });
     expect(getPermissionsForRole("editor")).toEqual({ read: true, draw: true });
-    expect(getPermissionsForRole("viewer")).toEqual({ read: true, draw: false });
+    expect(getPermissionsForRole("viewer")).toEqual({
+      read: true,
+      draw: false,
+    });
   });
 });
 
@@ -129,7 +131,7 @@ describe("authorizeBoardAccess", () => {
     const { authorizeBoardAccess } = await load();
     const access = await authorizeBoardAccess({
       boardId: "room-abc",
-      board: makeBoard({ drawPermission: "owner" }),
+      board: makeBoard({ defaultRole: "viewer" }),
       principal: { type: "guest", id: "guest-1" },
       inviteToken: "tampered",
     });
@@ -144,7 +146,7 @@ describe("authorizeBoardAccess", () => {
     const { authorizeBoardAccess } = await load();
     const access = await authorizeBoardAccess({
       boardId: "room-abc",
-      board: makeBoard({ drawPermission: "owner" }),
+      board: makeBoard({ defaultRole: "editor" }),
       principal: { type: "guest", id: "guest-1" },
       inviteToken: "valid-token",
     });
