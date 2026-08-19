@@ -14,7 +14,7 @@ export default defineConfig({
       // real board to exist (Socket.IO room:join rejects unknown rooms),
       // so they create one directly against the backend via cy.request,
       // bypassing the cy.intercept stubs used for the home page flows.
-      apiUrl: "http://localhost:5000/api",
+      apiUrl: process.env.CYPRESS_API_URL || "http://localhost:5000/api",
     },
   },
 });
