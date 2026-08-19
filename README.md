@@ -149,10 +149,10 @@ Frontend is served by nginx on port 80. Backend runs on port 3000.
 ## TODO
 
 ### Product & Sharing
-- [ ] Add authenticated users or durable sessions
-- [ ] Replace `anyone` / `owner` access with `owner` / `editor` / `viewer`
-- [ ] Add invite links with maybe expiration
-- [ ] Add direct board sharing and permissions UI
+- [x] Add authenticated users or durable sessions
+- [x] Replace `anyone` / `owner` access with `owner` / `editor` / `viewer`
+- [x] Add invite links with maybe expiration
+- [x] Add direct board sharing and permissions UI
 - [ ] Add a board dashboard for create / rename / duplicate / archive / delete
 - [ ] Add board thumbnails
 
@@ -162,11 +162,11 @@ Frontend is served by nginx on port 80. Backend runs on port 3000.
 - [ ] Add export to PNG and SVG
 - [ ] Add a minimap
 - [ ] Add zoom controls UI
-- [ ] Add snap-to-grid and alignment guides lines
+- [x] Add snap-to-grid and alignment guides lines
 - [x] Add optional grid toggle
 - [ ] Add keyboard shortcuts panel
 - [ ] Add templates
-- [ ] Add a landing page
+- [x] Add a landing page
 
 ### Collaboration
 - [ ] Show active collaborator list with presence states
@@ -174,7 +174,7 @@ Frontend is served by nginx on port 80. Backend runs on port 3000.
 - [ ] Add toast notifications
 - [ ] Add object attribution: creator, editor, timestamps
 - [ ] Add optional soft locks for conflicting edits
-- [ ] Add read-only viewer mode and share links
+- [x] Add read-only viewer mode and share links
 
 ### Reliability / Production
 - [ ] Add saved / syncing / offline / reconnect states
@@ -186,10 +186,10 @@ Frontend is served by nginx on port 80. Backend runs on port 3000.
 - [ ] Add backup and restore procedures
 
 ### Testing / DevOps
-- [ ] Add unit tests for core logic
-- [ ] Add integration tests for API and socket flows
-- [ ] Add E2E tests for main user journeys
-- [ ] Add CI for lint, typecheck, test, and build
+- [x] Add unit tests for core logic
+- [x] Add integration tests for API and socket flows
+- [x] Add E2E tests for main user journeys
+- [x] Add CI for lint, typecheck, test, and build
 - [ ] Add release workflow
 - [ ] Add live demo deployment
 - [ ] Expand README with setup, architecture, data model, and demo GIF
