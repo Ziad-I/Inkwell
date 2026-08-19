@@ -4,6 +4,7 @@ function chain(returning: unknown) {
   return {
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     for: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),

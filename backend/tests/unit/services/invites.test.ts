@@ -117,7 +117,7 @@ describe("getInviteByToken", () => {
 
   it("returns the invite row for the raw token", async () => {
     const { getInviteByToken } = await load();
-    const row = {
+    const invite = {
       id: "invite-1",
       boardId: "board-1",
       createdBy: "user-1",
@@ -129,11 +129,13 @@ describe("getInviteByToken", () => {
       expiresAt: null,
       revokedAt: null,
     };
-    mockDb.limit.mockReturnValue([row]);
+    mockDb.limit.mockReturnValue([
+      { board_invite: invite, board: { title: "Board One" } },
+    ]);
 
     const result = await getInviteByToken("raw-token");
 
-    expect(result).toEqual(row);
+    expect(result).toEqual({ ...invite, boardName: "Board One" });
   });
 });
 

@@ -27,7 +27,7 @@ describe("CommandManager", async () => {
   describe("constructor", () => {
     it("registers server listeners on creation", () => {
       const cm = createMockConnectionManager();
-      new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      new CommandManager("user-1", "room-1", mockStageOps, cm);
       expect(cm.on).toHaveBeenCalledWith("room:sync", expect.any(Function));
       expect(cm.on).toHaveBeenCalledWith(
         "command:create",
@@ -39,7 +39,7 @@ describe("CommandManager", async () => {
   describe("startCommand", () => {
     it("creates and emits a command when draw permission is true", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       manager.setPermissions({ read: true, draw: true });
 
       const commandId = manager.startCommand("stroke", {
@@ -62,7 +62,7 @@ describe("CommandManager", async () => {
 
     it("returns undefined and warns when draw permission is false", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       manager.setPermissions({ read: true, draw: false });
 
@@ -87,7 +87,7 @@ describe("CommandManager", async () => {
   describe("undo / redo", () => {
     it("undo stack is populated after finalizeCommand", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       manager.setPermissions({ read: true, draw: true });
 
       const cmdId = manager.startCommand("stroke", {
@@ -108,13 +108,13 @@ describe("CommandManager", async () => {
 
     it("getLastSeq returns 0 when no commands have seq", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       expect(manager.getLastSeq()).toBe(0);
     });
 
     it("getOperation returns undefined for unknown id", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       expect(manager.getOperation("nonexistent")).toBeUndefined();
     });
   });
@@ -122,7 +122,7 @@ describe("CommandManager", async () => {
   describe("event emitter pattern", () => {
     it("registers and fires listeners", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       const handler = vi.fn();
 
       manager.on("command:create", handler);
@@ -133,7 +133,7 @@ describe("CommandManager", async () => {
 
     it("removes listeners via off", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       const handler = vi.fn();
 
       manager.on("command:create", handler);
@@ -147,7 +147,7 @@ describe("CommandManager", async () => {
   describe("destroy", () => {
     it("clears all internal state", () => {
       const cm = createMockConnectionManager();
-      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm, vi.fn());
+      const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       manager.setPermissions({ read: true, draw: true });
       manager.startCommand("stroke", {
         nodeId: "n-1",

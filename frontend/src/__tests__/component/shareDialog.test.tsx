@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor, render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
-import { BoardManagersContext } from "@/context/boardManagersContext";
+import { useSessionStore } from "@/stores/sessionStore";
 import type { SessionStatus } from "@/types/session";
 
 const apiMock = vi.hoisted(() => ({
@@ -34,9 +34,8 @@ vi.mock("react-router", async () => {
 });
 
 async function openShareDialog() {
-  const { default: ShareDialog } = await import(
-    "@/components/board/share/shareDialog"
-  );
+  const { default: ShareDialog } =
+    await import("@/components/board/share/shareDialog");
   render(
     <MemoryRouter>
       <ShareDialog />
@@ -78,9 +77,9 @@ describe("ShareDialog", () => {
         role: "editor",
       });
     });
-    expect(
-      (screen.getByRole("textbox") as HTMLInputElement).value,
-    ).toContain("/invite/tok123");
+    expect((screen.getByRole("textbox") as HTMLInputElement).value).toContain(
+      "/invite/tok123",
+    );
   });
 
   it("copies the invite link to the clipboard", async () => {
@@ -128,29 +127,16 @@ describe("ShareDialog", () => {
 
 describe("ToolSettings share gating", () => {
   async function renderToolSettings(sessionStatus: SessionStatus) {
-    const { default: ToolSettings } = await import(
-      "@/components/board/toolbar/toolSettings"
-    );
-    return render(
-      <BoardManagersContext.Provider
-        value={{
-          toolManagerRef: { current: null },
-          commandManagerRef: { current: null },
-          connectionManagerRef: { current: null },
-          sessionStatus,
-        }}
-      >
-        <ToolSettings />
-      </BoardManagersContext.Provider>,
-    );
+    useSessionStore.setState({ sessionStatus });
+    const { default: ToolSettings } =
+      await import("@/components/board/toolbar/toolSettings");
+    return render(<ToolSettings />);
   }
 
   it("shows the Share button for owners", async () => {
     await renderToolSettings({ status: "ready", role: "owner" });
 
-    expect(
-      screen.getByRole("button", { name: "Share" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
   });
 
   it("hides the Share button for editors", async () => {

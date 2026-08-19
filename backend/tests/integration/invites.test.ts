@@ -124,7 +124,11 @@ describe("invite redemption", () => {
     );
     expect(cookieHeader).toBeDefined();
     expect(cookieHeader).toContain("HttpOnly");
-    expect(cookieHeader).toContain("Secure");
+    if (process.env.NODE_ENV === "production") {
+      expect(cookieHeader).toContain("Secure");
+    } else {
+      expect(cookieHeader).not.toContain("Secure");
+    }
     expect(cookieHeader).toContain("SameSite=Lax");
     expect(cookieHeader).toContain("Path=/");
     expect(cookieHeader).toContain(rawToken);
@@ -232,10 +236,9 @@ describe("invite info", () => {
     expect(res.status).toBe(200);
     expect(res.body.boardId).toBe(boardId);
     expect(res.body.role).toBe("editor");
-    expect(res.body.maxUses).toBe(3);
-    expect(res.body.useCount).toBe(0);
-    expect(res.body.revoked).toBe(false);
-    expect(res.body.expired).toBe(false);
+    expect(res.body.boardName).toBe("Test Board");
+    expect(res.body.expiresAt).toBeNull();
+    expect(res.body.valid).toBe(true);
 
     const row = await getInviteByRawToken(rawToken);
     expect(row!.useCount).toBe(0);
