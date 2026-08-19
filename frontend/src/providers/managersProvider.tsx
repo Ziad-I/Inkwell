@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ToolManager } from "@/core/toolManager";
 import { CommandManager } from "@/core/commandManager";
 import { ConnectionManager } from "@/core/connectionManager";
 import type { StageOperations } from "@/types/common";
 import { BoardManagersContext } from "@/context/boardManagersContext";
-import type { SessionStatus } from "@/types/session";
+import { useSessionStore } from "@/stores/sessionStore";
 import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 
 interface BoardManagersProviderProps {
@@ -26,14 +26,10 @@ export function BoardManagersProvider({
   const commandManagerRef = useRef<CommandManager | null>(null);
   const connectionManagerRef = useRef<ConnectionManager | null>(null);
 
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>({
-    status: "idle",
-  });
-
   useEffect(() => {
     if (!userId || !roomId) return;
 
-    let cancelled = false;
+    const { setSessionStatus, reset } = useSessionStore.getState();
     setSessionStatus({ status: "connecting" });
 
     async function initManagers() {
@@ -48,12 +44,6 @@ export function BoardManagersProvider({
         roomId,
         stageOperations,
         connection,
-        (status: SessionStatus) => {
-          if (!cancelled) {
-            console.log("[CommandManager] Session status changed:", status);
-            setSessionStatus(status);
-          }
-        },
       );
 
       const mgr = new ToolManager({
@@ -73,10 +63,10 @@ export function BoardManagersProvider({
     initManagers();
 
     return () => {
-      cancelled = true;
       connectionManagerRef.current?.disconnect?.();
       toolManagerRef.current?.destroy?.();
       commandManagerRef.current?.destroy?.();
+      reset();
     };
   }, [stageOperations, url, userColor, userId, userName, roomId]);
 
@@ -85,9 +75,8 @@ export function BoardManagersProvider({
       toolManagerRef,
       commandManagerRef,
       connectionManagerRef,
-      sessionStatus,
     }),
-    [sessionStatus],
+    [],
   );
 
   return (

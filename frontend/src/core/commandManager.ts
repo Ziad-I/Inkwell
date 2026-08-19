@@ -8,11 +8,9 @@ import type {
   CommandType,
 } from "@/types/command";
 import type { ClientEmitEvents } from "@/types/events";
-import type {
-  BoardPermissions,
-  BoardRole,
-} from "@/types/events";
+import type { BoardPermissions, BoardRole } from "@/types/events";
 import type { StageOperations } from "@/types/common";
+import { useSessionStore } from "@/stores/sessionStore";
 import type { SessionStatus } from "@/types/session";
 import type { ConnectionManager } from "./connectionManager";
 
@@ -40,7 +38,6 @@ export class CommandManager {
   private readonly stageOps: StageOperations;
   private readonly connectionManager: ConnectionManager;
   private readonly factory: CommandFactory;
-  private readonly setSessionStatus: (status: SessionStatus) => void;
 
   private permissions: BoardPermissions = { read: false, draw: false };
   private joinRole: BoardRole | null = null;
@@ -88,13 +85,11 @@ export class CommandManager {
     roomId: string,
     stageOps: StageOperations,
     connectionManager: ConnectionManager,
-    setSessionStatus: (status: SessionStatus) => void,
   ) {
     this.userId = userId;
     this.roomId = roomId;
     this.stageOps = stageOps;
     this.connectionManager = connectionManager;
-    this.setSessionStatus = setSessionStatus;
     this.factory = new CommandFactory();
 
     this.registerServerListeners();
@@ -179,6 +174,10 @@ export class CommandManager {
   public setPermissions(permissions: BoardPermissions): void {
     this.permissions = permissions;
     this.stageOps.toggleDrawing(permissions.draw);
+  }
+
+  private setSessionStatus(status: SessionStatus): void {
+    useSessionStore.getState().setSessionStatus(status);
   }
 
   private ensureCanDraw(): boolean {
@@ -482,8 +481,10 @@ export class CommandManager {
           return;
         }
 
-        const permissions =
-          response?.permissions ?? { read: false, draw: false };
+        const permissions = response?.permissions ?? {
+          read: false,
+          draw: false,
+        };
 
         this.setPermissions(permissions);
         this.joinRole = response?.role ?? null;

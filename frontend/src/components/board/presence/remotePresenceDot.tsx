@@ -6,6 +6,7 @@ import {
   PresenceDot,
   type PresenceDotHandle,
 } from "@/components/board/presence/presenceDot";
+import { useSessionStore } from "@/stores/sessionStore";
 
 export interface RemotePresenceDotProps {
   radius?: number;
@@ -54,7 +55,8 @@ export function RemotePresenceDot({
   radius = 5,
   visible = true,
 }: RemotePresenceDotProps) {
-  const { connectionManagerRef, sessionStatus } = useBoardManagers();
+  const { connectionManagerRef } = useBoardManagers();
+  const sessionStatus = useSessionStore((state) => state.sessionStatus);
   const ready = sessionStatus.status === "ready";
 
   const [usersById, setUsersById] = useState<Map<string, PresenceMeta>>(
