@@ -6,11 +6,17 @@ import {
 } from "@/services/board.js";
 import { isRoomInitialized } from "@/services/state.js";
 import { z } from "zod";
-import { DrawPermissions } from "@/types/types.js";
+import { BoardRoles } from "@/types/types.js";
 
 const createBoardSchema = z.object({
   name: z.string().min(1).max(100),
-  drawPermission: z.enum(DrawPermissions).optional().default("anyone"),
+  defaultRole: z
+    .enum(BoardRoles)
+    .optional()
+    .default("editor")
+    .refine((role) => role !== "owner", {
+      message: "Cannot create a board with owner role",
+    }),
 });
 
 export async function createBoard(req: Request, res: Response) {
@@ -21,11 +27,11 @@ export async function createBoard(req: Request, res: Response) {
       .json({ message: "Invalid input", errors: result.error.format() });
     return;
   }
-  const { name, drawPermission } = result.data;
+  const { name, defaultRole } = result.data;
 
   // Authenticated users get a durable, persisted board owned by their account.
   if (req.userId) {
-    const board = await createBoardService(name, req.userId, drawPermission);
+    const board = await createBoardService(name, req.userId, defaultRole);
     res.status(201).json({ id: board.id });
     return;
   }

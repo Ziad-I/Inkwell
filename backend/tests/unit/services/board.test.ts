@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockDb } from "../../mocks/db.js";
+import { de } from "zod/locales";
 
 const mockBoard = {
   id: "550e8400-e29b-41d4-a716-446655440000",
   title: "Test Board",
   ownerId: "user-123",
-  drawPermission: "anyone",
+  defaultRole: "editor",
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
 };
@@ -44,25 +45,15 @@ describe("createBoard", () => {
     mockDb.returning.mockResolvedValue([mockBoard]);
     const { createBoard } = await loadBoardService();
 
-    const result = await createBoard("Test Board", "user-123", "anyone");
+    const result = await createBoard("Test Board", "user-123", "editor");
 
     expect(result).toEqual(mockBoard);
     expect(mockDb.insert).toHaveBeenCalled();
     expect(mockDb.values).toHaveBeenCalledWith({
       title: "Test Board",
       ownerId: "user-123",
-      drawPermission: "anyone",
+      defaultRole: "editor",
     });
-  });
-
-  it("creates board with owner-only draw permission", async () => {
-    const ownerBoard = { ...mockBoard, drawPermission: "owner" };
-    mockDb.returning.mockResolvedValue([ownerBoard]);
-    const { createBoard } = await loadBoardService();
-
-    const result = await createBoard("Private Board", "user-123", "owner");
-
-    expect(result.drawPermission).toBe("owner");
   });
 });
 

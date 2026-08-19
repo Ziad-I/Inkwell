@@ -2,7 +2,7 @@ import { beforeAll, afterAll } from "vitest";
 import { createServer, type Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server as SocketServer } from "socket.io";
-import { boards, snapshots, users } from "@/db/schema.js";
+import { boards, boardInvites, snapshots, users } from "@/db/schema.js";
 import { eq } from "drizzle-orm";
 
 export let httpServer: HttpServer;
@@ -30,7 +30,7 @@ export async function seedUser(): Promise<string> {
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;
-  drawPermission?: "owner" | "anyone";
+  defaultRole?: "editor" | "viewer";
 }): Promise<string> {
   const ownerId = overrides?.ownerId ?? (await seedUser());
   const result = await _db
@@ -38,10 +38,48 @@ export async function seedBoard(overrides?: {
     .values({
       title: overrides?.title ?? "Test Board",
       ownerId,
-      drawPermission: overrides?.drawPermission ?? "anyone",
+      defaultRole: overrides?.defaultRole ?? "editor",
     })
     .returning();
   return result[0]!.id;
+}
+
+export async function seedInvite(overrides: {
+  boardId: string;
+  createdBy?: string;
+  role?: "editor" | "viewer";
+  expiresAt?: Date;
+  maxUses?: number | null;
+  revokedAt?: Date | null;
+}): Promise<{ id: string; rawToken: string }> {
+  const { randomBytes } = await import("node:crypto");
+  const { hashToken } = await import("@/services/auth.js");
+  const rawToken = randomBytes(32).toString("base64url");
+  const createdBy = overrides.createdBy ?? (await seedUser());
+
+  const rows = await _db
+    .insert(boardInvites)
+    .values({
+      boardId: overrides.boardId,
+      createdBy,
+      role: overrides.role ?? "editor",
+      tokenHash: hashToken(rawToken),
+      expiresAt: overrides.expiresAt ?? null,
+      maxUses: overrides.maxUses ?? null,
+      revokedAt: overrides.revokedAt ?? null,
+    })
+    .returning();
+
+  return { id: rows[0]!.id, rawToken };
+}
+
+export async function getInviteByRawToken(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const rows = await _db
+    .select()
+    .from(boardInvites)
+    .where(eq(boardInvites.tokenHash, hashToken(rawToken)));
+  return rows[0] ?? null;
 }
 
 export async function cleanupTestData(boardId: string) {
@@ -52,6 +90,7 @@ export async function cleanupTestData(boardId: string) {
   await _redisStateClient.srem("dirty:rooms", boardId);
 
   // Then delete DB records (board must exist when snapshot cleanup fires)
+  await _db.delete(boardInvites).where(eq(boardInvites.boardId, boardId));
   await _db.delete(snapshots).where(eq(snapshots.boardId, boardId));
   await _db.delete(boards).where(eq(boards.id, boardId));
 }

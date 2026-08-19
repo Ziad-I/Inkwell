@@ -4,6 +4,7 @@ import ErrorPage from "@/pages/error";
 import BoardPage from "@/pages/board";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
+import InvitePage from "@/pages/invite";
 import { ThemeProvider } from "@/providers/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import AppLayout from "./layout";
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/invite/:token" element={<InvitePage />} />
             <Route path="*" element={<ErrorPage />} />
           </Route>
 

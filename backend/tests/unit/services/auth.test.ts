@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockDb, mockTx } from "../../mocks/db.js";
+import { AuthError } from "@/types/errors.js";
 
 async function loadAuthService() {
   vi.restoreAllMocks();
@@ -47,21 +48,19 @@ describe("JWT access tokens", () => {
   });
 
   it("rejects an invalid token", async () => {
-    const { verifyAccessToken, AuthError } = await loadAuthService();
+    const { verifyAccessToken } = await loadAuthService();
     expect(() => verifyAccessToken("not-a-jwt")).toThrow(AuthError);
   });
 
   it("rejects a tampered token", async () => {
-    const { signAccessToken, verifyAccessToken, AuthError } =
-      await loadAuthService();
+    const { signAccessToken, verifyAccessToken } = await loadAuthService();
     const token = signAccessToken(USER_ID);
     expect(() => verifyAccessToken(`${token}x`)).toThrow(AuthError);
   });
 
   it("rejects an opaque refresh token presented as an access token", async () => {
-    const { generateRefreshToken, verifyAccessToken, AuthError } =
-      await loadAuthService();
-    const refreshToken = generateRefreshToken();
+    const { generateOpaqueToken, verifyAccessToken } = await loadAuthService();
+    const refreshToken = generateOpaqueToken();
     expect(() => verifyAccessToken(refreshToken)).toThrow(AuthError);
   });
 });
@@ -72,9 +71,9 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("generates unique opaque refresh tokens", async () => {
-    const { generateRefreshToken } = await loadAuthService();
-    const first = generateRefreshToken();
-    const second = generateRefreshToken();
+    const { generateOpaqueToken } = await loadAuthService();
+    const first = generateOpaqueToken();
+    const second = generateOpaqueToken();
 
     // 32 random bytes encoded as base64url ⇒ 43 chars, no JWT structure
     expect(first).toMatch(/^[A-Za-z0-9_-]{43}$/);
@@ -83,9 +82,9 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("stores the refresh token hash, never the raw token", async () => {
-    const { generateRefreshToken, storeRefreshToken, hashToken } =
+    const { generateOpaqueToken, storeRefreshToken, hashToken } =
       await loadAuthService();
-    const token = generateRefreshToken();
+    const token = generateOpaqueToken();
     await storeRefreshToken(USER_ID, token);
 
     const values = mockDb.values.mock.calls.at(-1)?.[0] as Record<
@@ -98,9 +97,8 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("rotates a token atomically: locks the row, revokes it, issues a new one", async () => {
-    const { rotateRefreshToken, generateRefreshToken } =
-      await loadAuthService();
-    const oldToken = generateRefreshToken();
+    const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
+    const oldToken = generateOpaqueToken();
     mockTx.limit.mockReturnValue([makeRefreshRecord()]);
 
     const { userId, newToken } = await rotateRefreshToken(oldToken);
@@ -118,9 +116,8 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("revokes the whole family and throws when a revoked token is reused", async () => {
-    const { rotateRefreshToken, generateRefreshToken, AuthError } =
-      await loadAuthService();
-    const reusedToken = generateRefreshToken();
+    const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
+    const reusedToken = generateOpaqueToken();
     mockTx.limit.mockReturnValue([
       makeRefreshRecord({ revokedAt: new Date(Date.now() - 1000) }),
     ]);
@@ -131,9 +128,8 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("rejects rotation when the stored token is expired", async () => {
-    const { rotateRefreshToken, generateRefreshToken, AuthError } =
-      await loadAuthService();
-    const expiredToken = generateRefreshToken();
+    const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
+    const expiredToken = generateOpaqueToken();
     mockTx.limit.mockReturnValue([
       makeRefreshRecord({ expiresAt: new Date(Date.now() - 10_000) }),
     ]);
@@ -142,9 +138,8 @@ describe("refresh token storage and rotation", () => {
   });
 
   it("rejects rotation when the token is unknown", async () => {
-    const { rotateRefreshToken, generateRefreshToken, AuthError } =
-      await loadAuthService();
-    const unknownToken = generateRefreshToken();
+    const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
+    const unknownToken = generateOpaqueToken();
     mockTx.limit.mockReturnValue([]);
 
     await expect(rotateRefreshToken(unknownToken)).rejects.toThrow(AuthError);

@@ -1,8 +1,21 @@
 import { describe, it, expect, vi } from "vitest";
 
+const viewerAccess = {
+  boardId: "room-abc",
+  principal: { type: "guest" as const, id: "user-123" },
+  role: "viewer" as const,
+  permissions: { read: true, draw: false },
+};
+
 function createMockSocket(data?: Record<string, unknown>) {
   return {
-    data: data ?? { userId: "user-123", roomId: "room-abc" },
+    data:
+      data ?? {
+        userId: "user-123",
+        roomId: "room-abc",
+        principalType: "guest",
+        boardAccess: viewerAccess,
+      },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     to: vi.fn().mockReturnThis(),
@@ -44,7 +57,27 @@ describe("registerPresenceHandlers", () => {
   });
 
   it("does not broadcast when not in a room", async () => {
-    const socket = createMockSocket({ userId: "user-123" });
+    const socket = createMockSocket({ userId: "user-123", principalType: "guest" });
+    const io = createMockServer();
+    const { registerPresenceHandlers } = await import("@/socket/handlers/presence.js");
+
+    registerPresenceHandlers(socket as never, io as never);
+
+    const presenceMoveHandler = (socket.on as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c: unknown[]) => c[0] === "presence:move",
+    )?.[1];
+
+    presenceMoveHandler({ pos: { x: 50, y: 50 } });
+
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it("does not broadcast presence:move without board access", async () => {
+    const socket = createMockSocket({
+      userId: "user-123",
+      roomId: "room-abc",
+      principalType: "guest",
+    });
     const io = createMockServer();
     const { registerPresenceHandlers } = await import("@/socket/handlers/presence.js");
 

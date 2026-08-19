@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/db/index.js";
 import { boards } from "@/db/schema.js";
 import { eq } from "drizzle-orm";
-import type { DrawPermission } from "@/types/types.js";
 import { initBoardState } from "@/services/state.js";
+import { type BoardRole } from "@/types/types.js";
 
 export async function getBoardById(roomId: string) {
   const result = await db
@@ -17,11 +17,11 @@ export async function getBoardById(roomId: string) {
 export async function createBoard(
   name: string,
   ownerId: string,
-  drawPermission: DrawPermission,
+  defaultRole: BoardRole = "editor",
 ) {
   const result = await db
     .insert(boards)
-    .values({ title: name, ownerId, drawPermission })
+    .values({ title: name, ownerId, defaultRole })
     .returning();
   return result[0]!;
 }
@@ -41,7 +41,6 @@ export async function updateBoard(
   roomId: string,
   updates: Partial<{
     title: string;
-    drawPermission: DrawPermission;
   }>,
 ) {
   const setValues = Object.fromEntries(

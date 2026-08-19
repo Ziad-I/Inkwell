@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { verifyAccessToken } from "@/services/auth.js";
 import { getUserById } from "@/services/users.js";
-import type { SocketData } from "@/types/types.js";
+import type { PrincipalType, SocketData } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 
 export function registerAuthMiddleware(io: Server) {
@@ -10,6 +10,7 @@ export function registerAuthMiddleware(io: Server) {
 
     let effectiveUserId =
       typeof userId === "string" && userId ? userId : randomUUID();
+    let principalType: PrincipalType = "guest";
 
     if (typeof token === "string" && token) {
       try {
@@ -17,6 +18,7 @@ export function registerAuthMiddleware(io: Server) {
         const user = await getUserById(accountUserId);
         if (user) {
           effectiveUserId = user.id;
+          principalType = "user";
         }
       } catch {
         // Invalid or expired token: fall back to the anonymous identity.
@@ -25,6 +27,7 @@ export function registerAuthMiddleware(io: Server) {
 
     const socketData: SocketData = {
       userId: effectiveUserId,
+      principalType,
       meta: {
         userColor: typeof userColor === "string" ? userColor : "#000000",
         userName: typeof userName === "string" ? userName : "Anonymous",
