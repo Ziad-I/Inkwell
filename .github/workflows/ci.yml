@@ -20,6 +20,10 @@ on:
       - "!**/*.yaml"
       - "!docs/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_ENV: test
   ACCESS_TOKEN_SECRET: "inkwell-ci-test-access-token-secret-32chars"
