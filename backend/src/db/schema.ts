@@ -50,6 +50,8 @@ export const boards = pgTable(
       .notNull()
       .$defaultFn(() => new Date())
       .$onUpdateFn(() => new Date()),
+    // NULL = active; set = archived (hidden from dashboards, still reachable).
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (table) => [
     check("board_default_role_not_owner", sql`${table.defaultRole} != 'owner'`),
@@ -127,7 +129,7 @@ export const snapshots = pgTable(
       .$defaultFn(() => crypto.randomUUID()),
     boardId: uuid("board_id")
       .notNull()
-      .references(() => boards.id),
+      .references(() => boards.id, { onDelete: "cascade" }),
     state: jsonb("state").notNull().$type<BoardState>(),
 
     createdAt: timestamp("created_at", {

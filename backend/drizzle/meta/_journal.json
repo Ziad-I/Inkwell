@@ -36,6 +36,20 @@
       "when": 1787056252869,
       "tag": "0004_simple_slayback",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787328946999,
+      "tag": "0005_mean_talisman",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787330721055,
+      "tag": "0006_greedy_romulus",
+      "breakpoints": true
     }
   ]
 }
