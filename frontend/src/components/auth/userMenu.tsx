@@ -46,6 +46,9 @@ export function UserMenu() {
           <div className="font-semibold">{user.username}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => navigate("/dashboard")}>
+          My Boards
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={handleLogout}>Log out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

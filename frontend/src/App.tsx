@@ -5,9 +5,11 @@ import BoardPage from "@/pages/board";
 import LoginPage from "@/pages/login";
 import RegisterPage from "@/pages/register";
 import InvitePage from "@/pages/invite";
+import DashboardPage from "@/pages/dashboard";
 import { ThemeProvider } from "@/providers/themeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import AppLayout from "./layout";
+import { ProtectedRoute } from "@/components/auth/protectedRoute";
 
 export default function App() {
   return (
@@ -19,6 +21,14 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/invite/:token" element={<InvitePage />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<ErrorPage />} />
           </Route>
 

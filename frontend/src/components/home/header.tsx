@@ -29,6 +29,11 @@ export function Header() {
               </Button>
             </>
           )}
+          {status === "authenticated" && (
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/dashboard">My Boards</Link>
+            </Button>
+          )}
           <UserMenu />
           <ThemeToggle />
         </div>
