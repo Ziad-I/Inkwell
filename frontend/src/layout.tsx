@@ -7,7 +7,7 @@ function AppLayout() {
     <div className="bg-gradient-to-br from-background via-background to-muted/20 flex flex-col">
       <Header />
 
-      <main className="container mx-auto px-4 py-12 lg:py-20 flex-1">
+      <main className="container mx-auto px-4 py-4 lg:py-20 flex-1">
         <Outlet />
       </main>
 
