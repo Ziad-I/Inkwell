@@ -1,7 +1,7 @@
 import { beforeAll, afterAll } from "vitest";
-import { createServer, type Server as HttpServer } from "node:http";
+import type { Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
-import { Server as SocketServer } from "socket.io";
+import type { Server as SocketServer } from "socket.io";
 import { boards, boardInvites, snapshots, users } from "@/db/schema.js";
 import { eq, desc } from "drizzle-orm";
 
@@ -138,15 +138,9 @@ beforeAll(async () => {
   await migrate(_db, { migrationsFolder: "./drizzle" });
 
   const { app } = await import("@/app.js");
-  const { registerSocketHandlers } = await import("@/socket/handlers.js");
+  const { createSocketServer } = await import("@/socket/server.js");
 
-  const httpSrv = createServer(app);
-  io = new SocketServer(httpSrv, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
-    transports: ["websocket", "polling"],
-  });
-  registerSocketHandlers(io);
-  httpServer = httpSrv;
+  ({ io, httpServer } = createSocketServer(app));
 
   await new Promise<void>((resolve) => {
     httpServer.listen(0, () => {

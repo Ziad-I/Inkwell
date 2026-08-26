@@ -1,19 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import { port, seedBoard, cleanupTestData } from "./setup.js";
-
-function connectClient(auth?: Record<string, unknown>): Promise<ClientSocket> {
-  return new Promise((resolve, reject) => {
-    const socket = ioc(`http://localhost:${port}`, {
-      transports: ["websocket"],
-      forceNew: true,
-      auth: auth ?? { userId: "test-user" },
-    });
-    socket.on("connect", () => resolve(socket));
-    socket.on("connect_error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connection timeout")), 3000);
-  });
-}
+import { seedBoard, cleanupTestData } from "./setup.js";
+import { connectClient } from "./helpers.js";
 
 describe("room lifecycle", () => {
   let boardId1: string;
