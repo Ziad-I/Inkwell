@@ -55,6 +55,15 @@ export async function seedRefreshToken(
   return token;
 }
 
+export async function getRefreshTokenByRawToken(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const rows = await _db
+    .select()
+    .from(refreshTokens)
+    .where(eq(refreshTokens.tokenHash, hashToken(rawToken)));
+  return rows[0] ?? null;
+}
+
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;

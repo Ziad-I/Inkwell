@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import supertest from "supertest";
 import jwt from "jsonwebtoken";
-import { httpServer, seedRefreshToken, seedUser } from "./setup.js";
+import {
+  getRefreshTokenByRawToken,
+  httpServer,
+  seedRefreshToken,
+  seedUser,
+} from "./setup.js";
 import { env } from "@/config/config.js";
 
 const REFRESH_COOKIE = "inkwell_refresh";
@@ -194,11 +199,30 @@ describe("auth API", () => {
     const refresh = await api()
       .post("/api/auth/refresh")
       .set("Cookie", getRefreshCookie(login));
-    const cookie = getRefreshSetCookie(refresh);
+    const directives = getRefreshSetCookie(refresh)
+      .split(";")
+      .map((directive) => directive.trim());
 
-    expect(cookie).toContain("HttpOnly");
-    expect(cookie).toContain("SameSite=Lax");
-    expect(cookie).toContain("Path=/api/auth");
+    expect(directives).toContain("HttpOnly");
+    expect(directives).toContain("SameSite=Lax");
+    expect(directives).toContain("Path=/api/auth");
+    expect(directives).not.toContain("Secure");
+  });
+
+  it("seeds a hashed refresh token row for the requested user and expiry", async () => {
+    const userId = await seedUser();
+    const rawToken = `fixture-${crypto.randomUUID()}`;
+    const expiresAt = new Date(Date.now() - 1_000);
+    const { hashToken } = await import("@/services/auth.js");
+
+    await seedRefreshToken(userId, { token: rawToken, expiresAt });
+    const row = await getRefreshTokenByRawToken(rawToken);
+
+    expect(row).not.toBeNull();
+    expect(row!.userId).toBe(userId);
+    expect(row!.tokenHash).toBe(hashToken(rawToken));
+    expect(row!.tokenHash).not.toBe(rawToken);
+    expect(row!.expiresAt.getTime()).toBe(expiresAt.getTime());
   });
 
   it("rejects /refresh without a cookie", async () => {
