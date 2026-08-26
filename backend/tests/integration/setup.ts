@@ -2,7 +2,13 @@ import { beforeAll, afterAll } from "vitest";
 import type { Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { Server as SocketServer } from "socket.io";
-import { boards, boardInvites, snapshots, users } from "@/db/schema.js";
+import {
+  boards,
+  boardInvites,
+  refreshTokens,
+  snapshots,
+  users,
+} from "@/db/schema.js";
 import { eq, desc } from "drizzle-orm";
 
 export let httpServer: HttpServer;
@@ -25,6 +31,28 @@ export async function seedUser(): Promise<string> {
     })
     .returning();
   return result[0]!.id;
+}
+
+export async function seedRefreshToken(
+  userId: string,
+  overrides?: {
+    token?: string;
+    expiresAt?: Date;
+    revokedAt?: Date | null;
+  },
+): Promise<string> {
+  const { hashToken, generateOpaqueToken } =
+    await import("@/services/auth.js");
+  const token = overrides?.token ?? generateOpaqueToken();
+
+  await _db.insert(refreshTokens).values({
+    userId,
+    tokenHash: hashToken(token),
+    expiresAt: overrides?.expiresAt ?? new Date(Date.now() + 60_000),
+    revokedAt: overrides?.revokedAt ?? null,
+  });
+
+  return token;
 }
 
 export async function seedBoard(overrides?: {
