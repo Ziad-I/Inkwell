@@ -3,16 +3,26 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const RID = "550e8400-e29b-41d4-a716-446655440000";
 const MISSING_RID = "00000000-0000-4000-8000-000000000000";
 const EPHEMERAL_RID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+const OTHER_RID = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
 
-function createMockSocket(data?: Record<string, unknown>, cookie?: string) {
+function createMockSocket(
+  data?: Record<string, unknown>,
+  cookie?: string,
+  rooms: string[] = [],
+) {
+  const joined = new Set<string>(rooms);
   return {
     data: data ?? { userId: "user-123", principalType: "guest" },
     handshake: { headers: { cookie } },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     join: vi.fn(),
+    leave: vi.fn((roomId: string) => {
+      joined.delete(roomId);
+    }),
     to: vi.fn().mockReturnThis(),
     id: "mock-socket-id",
+    rooms: joined,
   };
 }
 
@@ -256,5 +266,119 @@ describe("registerRoomHandlers — room:join", () => {
     const ack = vi.fn();
     await getHandler(socket, "room:join")({ roomId: "not-a-uuid" }, ack);
     expect(ack).toHaveBeenCalledWith("INVALID_ROOM_ID");
+  });
+});
+
+describe("registerRoomHandlers — room:leave", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("leaves the focused room: announces leave and clears focus state", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: makeAccess("editor"),
+      },
+      undefined,
+      [RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, ack);
+
+    expect(socket.leave).toHaveBeenCalledWith(RID);
+    expect(socket.to).toHaveBeenCalledWith(RID);
+    expect(socket.to(RID).emit).toHaveBeenCalledWith(
+      "presence:leave",
+      "user-123",
+    );
+    expect(socket.data.roomId).toBeUndefined();
+    expect(socket.data.boardAccess).toBeUndefined();
+    expect(ack).toHaveBeenCalledWith();
+  });
+
+  it("is idempotent: a second leave of the same room emits nothing and still acks", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: makeAccess("editor"),
+      },
+      undefined,
+      [RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const firstAck = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, firstAck);
+    expect(firstAck).toHaveBeenCalledWith();
+
+    const secondAck = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, secondAck);
+
+    expect(secondAck).toHaveBeenCalledWith();
+    expect(socket.leave).toHaveBeenCalledTimes(1);
+    expect(socket.to).toHaveBeenCalledTimes(1);
+    expect(socket.to(RID).emit).toHaveBeenCalledTimes(1);
+  });
+
+  it("acks INVALID_ROOM_ID for a non-UUID roomId", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(undefined, undefined, [RID]);
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: "not-a-uuid" }, ack);
+
+    expect(ack).toHaveBeenCalledWith("INVALID_ROOM_ID");
+    expect(socket.leave).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it("acks without emitting when leaving a room that was not joined", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(undefined, undefined, []);
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: OTHER_RID }, ack);
+
+    expect(ack).toHaveBeenCalledWith();
+    expect(socket.leave).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus when leaving a non-focused room", async () => {
+    const access = makeAccess("editor");
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: access,
+      },
+      undefined,
+      [RID, OTHER_RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: OTHER_RID }, ack);
+
+    expect(socket.leave).toHaveBeenCalledWith(OTHER_RID);
+    expect(socket.to(OTHER_RID).emit).toHaveBeenCalledWith(
+      "presence:leave",
+      "user-123",
+    );
+    expect(socket.data.roomId).toBe(RID);
+    expect(socket.data.boardAccess).toEqual(access);
   });
 });

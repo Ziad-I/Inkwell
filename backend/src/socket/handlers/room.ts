@@ -19,7 +19,7 @@ import type {
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 import { getLatestSnapshot } from "@/services/snapshot.js";
-import { roomJoinSchema } from "@/socket/validation.js";
+import { roomJoinSchema, roomLeaveSchema } from "@/socket/validation.js";
 import logger from "@/config/logger.js";
 
 type AckWithAccess = Ack<{
@@ -84,6 +84,7 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
 
         await socket.join(roomId);
 
+        // Focus room: most recently joined; used to route commands/presence broadcasts.
         socketData.roomId = roomId;
         socketData.boardAccess = boardAccess;
 
@@ -136,4 +137,34 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
       }
     },
   );
+
+  socket.on("room:leave", async (payload: { roomId?: string }, ack?: Ack) => {
+    try {
+      const parsed = roomLeaveSchema.safeParse(payload);
+      if (!parsed.success) {
+        ack?.("INVALID_ROOM_ID");
+        return;
+      }
+      const roomId = parsed.data.roomId;
+      const socketData = socket.data as SocketData;
+
+      if (!socket.rooms.has(roomId)) {
+        ack?.();
+        return;
+      }
+
+      socket.leave(roomId);
+      socket.to(roomId).emit("presence:leave", socketData.userId);
+      if (socketData.roomId === roomId) {
+        // delete (not "= undefined"): exactOptionalPropertyTypes forbids
+        // assigning undefined to optional-only fields; runtime-equivalent.
+        delete socketData.roomId;
+        delete socketData.boardAccess;
+      }
+      ack?.();
+    } catch (err) {
+      logger.error("[room:leave] error:", err);
+      ack?.("INTERNAL_SERVER_ERROR");
+    }
+  });
 }

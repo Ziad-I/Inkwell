@@ -57,6 +57,7 @@ export interface BoardAccess {
 
 export interface SocketData {
   userId: string;
+  /** Focused room: the most recently joined room. Commands and presence moves broadcast here. Membership itself is tracked by Socket.IO's socket.rooms. */
   roomId?: string;
   meta: PresenceMeta;
   principalType: PrincipalType;

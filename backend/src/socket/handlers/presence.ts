@@ -16,11 +16,16 @@ export function registerPresenceHandlers(socket: Socket, io: Server) {
     }
   });
 
-  socket.on("disconnect", () => {
-    const { userId, roomId } = socket.data as SocketData;
+  // "disconnecting" (not "disconnect"): by the time "disconnect" fires,
+  // Socket.IO has already removed the socket from all rooms, so the final
+  // membership sweep must happen here while socket.rooms is still populated.
+  socket.on("disconnecting", () => {
+    const { userId } = socket.data as SocketData;
     try {
-      if (!roomId) return;
-      socket.to(roomId).emit("presence:leave", userId);
+      for (const room of socket.rooms) {
+        if (room === socket.id) continue;
+        socket.to(room).emit("presence:leave", userId);
+      }
     } catch (err) {
       logger.error(`[presence:disconnect] error:`, err);
     }
