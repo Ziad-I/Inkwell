@@ -30,6 +30,10 @@ const envSchema = z.object({
     preprocessNum,
     z.number().int().positive().default(3),
   ),
+  API_RATE_LIMIT_MAX: z.preprocess(
+    preprocessNum,
+    z.number().int().positive().default(100),
+  ),
   ACCESS_TOKEN_SECRET: z.string().min(24),
   ACCESS_TOKEN_TTL: z.preprocess(
     preprocessNum,

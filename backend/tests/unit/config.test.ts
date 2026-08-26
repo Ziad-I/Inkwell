@@ -9,6 +9,7 @@ const ENV_KEYS = [
   "REDIS_URL",
   "CORS_ORIGIN",
   "SNAPSHOT_RETENTION",
+  "API_RATE_LIMIT_MAX",
   "ACCESS_TOKEN_SECRET",
   "ACCESS_TOKEN_TTL",
   "REFRESH_TOKEN_TTL",
@@ -29,6 +30,7 @@ const BASELINE_ENV: Record<EnvKey, string> = {
   APP_NAME: "inkwell-test",
   CORS_ORIGIN: "http://localhost:5173",
   SNAPSHOT_RETENTION: "3",
+  API_RATE_LIMIT_MAX: "100",
   ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET,
   ACCESS_TOKEN_TTL: "900",
   REFRESH_TOKEN_TTL: "604800",
@@ -77,6 +79,7 @@ describe("config (real module)", () => {
     expect(env.PORT).toBe(5000);
     expect(env.CORS_ORIGIN).toBe("http://localhost:5173");
     expect(env.SNAPSHOT_RETENTION).toBe(3);
+    expect(env.API_RATE_LIMIT_MAX).toBe(100);
     expect(env.ACCESS_TOKEN_TTL).toBe(900);
     expect(env.REFRESH_TOKEN_TTL).toBe(604800);
     expect(loadEnvSpy).toHaveBeenCalledTimes(1);
@@ -87,6 +90,7 @@ describe("config (real module)", () => {
       ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET,
       PORT: "3000",
       SNAPSHOT_RETENTION: "7",
+      API_RATE_LIMIT_MAX: "250",
       ACCESS_TOKEN_TTL: "120",
       REFRESH_TOKEN_TTL: "1209600",
     });
@@ -95,6 +99,7 @@ describe("config (real module)", () => {
 
     expect(env.PORT).toBe(3000);
     expect(env.SNAPSHOT_RETENTION).toBe(7);
+    expect(env.API_RATE_LIMIT_MAX).toBe(250);
     expect(env.ACCESS_TOKEN_TTL).toBe(120);
     expect(env.REFRESH_TOKEN_TTL).toBe(1209600);
   });
