@@ -5,6 +5,7 @@ import { ConnectionManager } from "@/core/connectionManager";
 import type { StageOperations } from "@/types/common";
 import { BoardManagersContext } from "@/context/boardManagersContext";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useAuthStore } from "@/stores/authStore";
 import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 
 interface BoardManagersProviderProps {
@@ -30,13 +31,15 @@ export function BoardManagersProvider({
     if (!userId || !roomId) return;
 
     const { setSessionStatus, reset } = useSessionStore.getState();
+    const { accessToken } = useAuthStore.getState();
+
     setSessionStatus({ status: "connecting" });
 
     async function initManagers() {
       if (!userId) return;
 
       const connection = new ConnectionManager(url, {
-        auth: { userId, userName, userColor },
+        auth: { userId, userName, userColor, token: accessToken },
       });
 
       const commandMgr = new CommandManager(
