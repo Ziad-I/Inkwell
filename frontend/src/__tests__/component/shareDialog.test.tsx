@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { waitFor, render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -45,6 +46,13 @@ async function openShareDialog() {
   await screen.findByRole("dialog");
 }
 
+async function pickOption(optionName: RegExp | string) {
+  const option = await screen.findByRole("option", { name: optionName });
+  fireEvent.pointerDown(option);
+  fireEvent.pointerUp(option);
+  fireEvent.click(option);
+}
+
 describe("ShareDialog", () => {
   beforeEach(() => {
     toastMock.toast.error.mockReset();
@@ -66,11 +74,61 @@ describe("ShareDialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("changes the role through the select menu before creating the link", async () => {
+    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    await openShareDialog();
+
+    const [roleTrigger] = screen.getAllByRole("combobox");
+    expect(roleTrigger).toHaveTextContent("Editor");
+
+    fireEvent.click(roleTrigger);
+    await pickOption(/viewer/i);
+
+    expect(roleTrigger).toHaveTextContent("Viewer");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Create link" }));
+    // Terminal state: isCreating has been reset once the handler settles.
+    await screen.findByRole("button", { name: "Create link" });
+    await waitFor(() => {
+      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
+        role: "viewer",
+      });
+    });
+  });
+
+  it("changes the expiry through the select menu and sends expiresAt", async () => {
+    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    await openShareDialog();
+
+    const [, expiryTrigger] = screen.getAllByRole("combobox");
+    expect(expiryTrigger).toHaveTextContent("Never");
+
+    fireEvent.click(expiryTrigger);
+    await pickOption("1 day");
+
+    expect(expiryTrigger).toHaveTextContent("1 day");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Create link" }));
+    // Terminal state: isCreating has been reset once the handler settles.
+    await screen.findByRole("button", { name: "Create link" });
+    await waitFor(() => {
+      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
+        role: "editor",
+        expiresAt: expect.any(String),
+      });
+    });
+  });
+
   it("creates an invite link with the default role and shows the one-time URL", async () => {
     apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
     await openShareDialog();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Create link" }));
+    // Terminal state: isCreating has been reset once the handler settles.
+    await screen.findByRole("button", { name: "Create link" });
 
     await waitFor(() => {
       expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
@@ -86,7 +144,12 @@ describe("ShareDialog", () => {
     apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
     await openShareDialog();
 
+    // fireEvent throughout, not userEvent: user-event.setup() replaces
+    // navigator.clipboard, which would unspy writeText for the assertion
+    // below.
     fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    // Terminal state: isCreating has been reset once the handler settles.
+    await screen.findByRole("button", { name: "Create link" });
     fireEvent.click(await screen.findByRole("button", { name: "Copy" }));
 
     await waitFor(() => {
@@ -112,7 +175,10 @@ describe("ShareDialog", () => {
     );
     await openShareDialog();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create link" }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Create link" }));
+    // Terminal state: isCreating has been reset once the handler settles.
+    await screen.findByRole("button", { name: "Create link" });
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(

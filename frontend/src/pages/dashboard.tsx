@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
@@ -25,7 +25,10 @@ export default function DashboardPage() {
 
   const [status, setStatus] = useState<BoardListStatus>("active");
   const [isLoading, setIsLoading] = useState(false);
-  const [showSkeleton, setShowSkeleton] = useState(false);
+  // Whether the skeleton delay has elapsed for the current fetch. Skeleton
+  // visibility is derived (isLoading && delayElapsed) so that finishing a
+  // load is a single batched state update with no trailing follow-ups.
+  const [skeletonDelayElapsed, setSkeletonDelayElapsed] = useState(false);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -37,6 +40,7 @@ export default function DashboardPage() {
 
   const fetchBoards = useCallback(async () => {
     setIsLoading(true);
+    setSkeletonDelayElapsed(false);
     try {
       const { data } = await api.get<{ boards: BoardSummary[] }>("/boards", {
         params: { status },
@@ -54,16 +58,15 @@ export default function DashboardPage() {
   }, [fetchBoards]);
 
   useEffect(() => {
-    if (!isLoading) {
-      setShowSkeleton(false);
-      return;
-    }
+    if (!isLoading) return;
     const timeoutId = window.setTimeout(
-      () => setShowSkeleton(true),
+      () => setSkeletonDelayElapsed(true),
       SKELETON_DELAY_MS,
     );
     return () => window.clearTimeout(timeoutId);
   }, [isLoading]);
+
+  const showSkeleton = isLoading && skeletonDelayElapsed;
 
   const handleCreateBoard = async () => {
     setIsCreating(true);
@@ -161,10 +164,22 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <Button onClick={handleCreateBoard} disabled={isCreating}>
-          <Plus />
-          New board
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Refresh boards"
+            onClick={() => void fetchBoards()}
+            disabled={isLoading}
+          >
+            <RefreshCw />
+            <span className="sr-only">Refresh boards</span>
+          </Button>
+          <Button onClick={handleCreateBoard} disabled={isCreating}>
+            <Plus />
+            New board
+          </Button>
+        </div>
       </div>
 
       <Tabs

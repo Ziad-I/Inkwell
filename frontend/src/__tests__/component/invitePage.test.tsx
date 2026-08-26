@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { waitFor, render, screen } from "@testing-library/react";
+import { waitFor, render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
@@ -42,11 +42,17 @@ const validInvite = {
 
 async function renderInvite() {
   const { default: InvitePage } = await import("@/pages/invite");
-  return render(
+  const result = render(
     <MemoryRouter>
       <InvitePage />
     </MemoryRouter>,
   );
+  // The page fetches the invite in a mount effect; the response resolves on
+  // microtasks after render's act scope has exited. Drain it inside act so
+  // the resulting state updates stay covered (otherwise React warns about
+  // updates outside act, non-deterministically per timing).
+  await act(async () => {});
+  return result;
 }
 
 describe("InvitePage", () => {
@@ -156,6 +162,12 @@ describe("InvitePage", () => {
       });
     });
     expect(navigateMock).toHaveBeenCalledWith("/board/b1", { replace: true });
+    // Terminal state: isSubmitting has been reset once the handler settles.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Join board" }),
+      ).toBeEnabled();
+    });
   });
 
   it("shows a toast and stays on the page when redemption fails", async () => {
@@ -180,5 +192,11 @@ describe("InvitePage", () => {
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();
+    // Terminal state: isSubmitting has been reset once the handler settles.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Join board" }),
+      ).toBeEnabled();
+    });
   });
 });

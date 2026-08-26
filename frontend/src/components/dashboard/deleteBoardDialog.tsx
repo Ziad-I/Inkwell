@@ -42,10 +42,7 @@ export default function DeleteBoardDialog({
           <AlertDialogAction
             variant="destructive"
             disabled={isDeleting}
-            onClick={(event) => {
-              event.preventDefault();
-              onConfirm();
-            }}
+            onClick={onConfirm}
           >
             {isDeleting ? "Deleting..." : "Delete"}
           </AlertDialogAction>

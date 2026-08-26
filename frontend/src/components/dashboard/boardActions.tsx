@@ -28,19 +28,6 @@ type BoardActionsProps = {
   onDelete: () => void;
 };
 
-// Radix's DropdownMenu and Dialog/AlertDialog each lock body pointer-events
-// while open. If a dialog opens in the same tick the dropdown menu closes
-// (e.g. Rename/Delete, triggered from a menu item), their pointer-events
-// cleanup can race and leave the whole page unclickable after the dialog is
-// later closed. Deferring to the next tick lets the dropdown finish
-// unmounting first, so the two never overlap.
-// See: https://github.com/radix-ui/primitives/issues/3317
-function deferred(action: () => void) {
-  return () => {
-    setTimeout(action, 0);
-  };
-}
-
 export default function BoardActions({
   status,
   onOpen,
@@ -52,33 +39,33 @@ export default function BoardActions({
 }: BoardActionsProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal />
-          <span className="sr-only">Board actions</span>
-        </Button>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon" aria-label="Board actions" />}
+      >
+        <MoreHorizontal />
+        <span className="sr-only">Board actions</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={deferred(onOpen)}>
+        <DropdownMenuItem onClick={onOpen}>
           <ExternalLink /> Open
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={deferred(onRename)}>
+        <DropdownMenuItem onClick={onRename}>
           <Pencil /> Rename
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={deferred(onDuplicate)}>
+        <DropdownMenuItem onClick={onDuplicate}>
           <Copy /> Duplicate
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {status === "active" ? (
-          <DropdownMenuItem onSelect={deferred(onArchive)}>
+          <DropdownMenuItem onClick={onArchive}>
             <Archive /> Archive
           </DropdownMenuItem>
         ) : (
-          <DropdownMenuItem onSelect={deferred(onRestore)}>
+          <DropdownMenuItem onClick={onRestore}>
             <ArchiveRestore /> Restore
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive" onSelect={deferred(onDelete)}>
+        <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <Trash2 /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

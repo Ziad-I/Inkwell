@@ -22,11 +22,9 @@ export default function ErrorPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center">
-        <Button className="w-full" asChild>
-          <Link to="/">
-            <Home className="w-4 h-4 mr-2" />
-            Back to Home
-          </Link>
+        <Button className="w-full" render={<Link to="/" />}>
+          <Home className="w-4 h-4 mr-2" />
+          Back to Home
         </Button>
       </CardContent>
     </Card>

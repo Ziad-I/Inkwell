@@ -21,17 +21,21 @@ export function Header() {
         <div className="flex items-center space-x-2">
           {status === "unauthenticated" && (
             <>
-              <Button asChild variant="ghost" size="sm">
-                <Link to="/login">Sign in</Link>
+              <Button render={<Link to="/login" />} variant="ghost" size="sm">
+                Sign in
               </Button>
-              <Button asChild variant="default" size="sm">
-                <Link to="/register">Create account</Link>
+              <Button
+                render={<Link to="/register" />}
+                variant="default"
+                size="sm"
+              >
+                Create account
               </Button>
             </>
           )}
           {status === "authenticated" && (
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/dashboard">My Boards</Link>
+            <Button render={<Link to="/dashboard" />} variant="ghost" size="sm">
+              My Boards
             </Button>
           )}
           <UserMenu />

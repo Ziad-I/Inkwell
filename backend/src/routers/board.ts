@@ -19,7 +19,17 @@ import { optionalAuth, requireAuth } from "@/middlewares/auth.js";
 const router = Router();
 
 router.post("/", optionalAuth, createBoard);
-router.get("/", requireAuth, listBoards);
+// The list changes whenever boards are created/archived elsewhere, so the
+// browser must never serve or revalidate a cached copy of this response.
+router.get(
+  "/",
+  requireAuth,
+  (req, res, next) => {
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  },
+  listBoards,
+);
 router.get("/:roomId", getBoard);
 
 router.patch("/:boardId", requireAuth, renameBoard);
