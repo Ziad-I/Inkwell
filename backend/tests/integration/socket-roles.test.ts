@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import { port, seedBoard, seedInvite, cleanupTestData } from "./setup.js";
+import { port, seedBoard, seedInvite, seedUser, cleanupTestData } from "./setup.js";
 
 const boardIds: string[] = [];
 
@@ -420,6 +420,41 @@ describe("socket operation permissions", () => {
       command: makeCommand("cmd-n", "never-joined"),
     });
     await rejectPromise;
+    socket.disconnect();
+  });
+});
+
+describe("identity spoofing prevention", () => {
+  it("does not grant owner to a guest presenting the owner's userId", async () => {
+    const ownerId = await seedUser();
+    const boardId = await seedBoard({ ownerId, defaultRole: "editor" });
+    boardIds.push(boardId);
+
+    const impostor = await connectClient({ userId: ownerId }); // no token
+    const joined = await roomJoin(impostor, boardId);
+
+    expect(joined.err).toBeNull();
+    expect(joined.data).toMatchObject({ role: "editor" });
+    impostor.disconnect();
+  });
+
+  it("grants owner to a socket authenticated with the owner's token", async () => {
+    const { default: request } = await import("supertest");
+    const { httpServer } = await import("./setup.js");
+    const stamp = Date.now();
+    const reg = await request(httpServer).post("/api/auth/register").send({
+      username: `own_${stamp}`, email: `own_${stamp}@test.local`, password: "supersecret",
+    });
+    const token = reg.body.accessToken as string;
+
+    const created = await request(httpServer).post("/api/boards")
+      .set("Authorization", `Bearer ${token}`).send({ name: "Mine" });
+    const boardId = created.body.id as string;
+    boardIds.push(boardId);
+
+    const socket = await connectClient({ token });
+    const joined = await roomJoin(socket, boardId);
+    expect(joined.data).toMatchObject({ role: "owner", permissions: { read: true, draw: true } });
     socket.disconnect();
   });
 });

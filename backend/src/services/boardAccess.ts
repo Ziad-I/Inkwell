@@ -41,7 +41,7 @@ export async function authorizeBoardAccess(input: {
 
   let role: BoardRole;
 
-  if (board && principal.id === board.ownerId) {
+  if (board && principal.type === "user" && principal.id === board.ownerId) {
     role = "owner";
   } else if (inviteToken) {
     const invite = await validateInviteToken(inviteToken);
