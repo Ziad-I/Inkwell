@@ -9,6 +9,7 @@ import {
 
 process.env.NODE_ENV = "test";
 process.env.LOG_LEVEL = "error";
+process.env.SNAPSHOT_RETENTION = "3";
 process.env.TESTCONTAINERS_HOST_OVERRIDE ??= "127.0.0.1";
 
 let pgContainer: StartedPostgreSqlContainer;

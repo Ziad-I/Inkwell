@@ -5,6 +5,7 @@ import {
   httpServer,
   getBoardRow,
   countSnapshots,
+  getLatestSnapshotState,
 } from "./setup.js";
 import { db } from "@/db/index.js";
 import { boardInvites, snapshots } from "@/db/schema.js";
@@ -250,5 +251,37 @@ describe("DELETE /api/boards/:boardId", () => {
     const res = await auth(intruder.token).delete(`/api/boards/${boardId}`);
     expect(res.status).toBe(403);
     expect(await getBoardRow(boardId)).not.toBeNull();
+  });
+});
+
+describe("snapshot retention", () => {
+  it("keeps only the latest SNAPSHOT_RETENTION snapshots per board", async () => {
+    const user = await registerUser("ret-user");
+    const boardId = await createBoard(user.token, "Retention");
+    const mk = (i: number) => ({
+      [`c${i}`]: {
+        id: `c${i}`,
+        type: "stroke" as const,
+        payload: {},
+        owner: "u",
+        status: "applied" as const,
+        timestamp: i,
+      },
+    });
+
+    // Seed four rows with strictly increasing created_at, then save via the service.
+    const base = Date.now() - 10_000;
+    for (let i = 0; i < 4; i++) {
+      await db
+        .insert(snapshots)
+        .values({ boardId, state: mk(i), createdAt: new Date(base + i * 1000) });
+    }
+    const { saveSnapshot } = await import("@/services/snapshot.js");
+    const kept = await saveSnapshot(boardId, mk(4)); // newest, triggers prune
+
+    expect(await countSnapshots(boardId)).toBe(3);
+    const latest = await getLatestSnapshotState(boardId);
+    expect(Object.keys(latest!)).toEqual(["c4"]);
+    expect(kept.id).toBeDefined();
   });
 });

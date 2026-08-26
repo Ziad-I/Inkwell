@@ -3,7 +3,7 @@ import { createServer, type Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import { Server as SocketServer } from "socket.io";
 import { boards, boardInvites, snapshots, users } from "@/db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export let httpServer: HttpServer;
 export let io: SocketServer;
@@ -106,6 +106,16 @@ export async function countSnapshots(roomId: string): Promise<number> {
     .from(snapshots)
     .where(eq(snapshots.boardId, roomId));
   return rows.length;
+}
+
+export async function getLatestSnapshotState(roomId: string) {
+  const rows = await _db
+    .select()
+    .from(snapshots)
+    .where(eq(snapshots.boardId, roomId))
+    .orderBy(desc(snapshots.createdAt))
+    .limit(1);
+  return rows[0]?.state ?? null;
 }
 
 export async function isRedisRoomAlive(roomId: string): Promise<boolean> {
