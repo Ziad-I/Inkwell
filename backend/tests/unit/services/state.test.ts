@@ -205,6 +205,7 @@ describe("pushToBuffer", () => {
       -101,
     );
     expect(mockRedisClient.sadd).toHaveBeenCalledWith("dirty:rooms", "room-1");
+    expect(mockRedisClient.exec).toHaveBeenCalledOnce();
   });
 });
 
