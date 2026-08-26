@@ -257,6 +257,31 @@ describe("getCommandsInBuffer", () => {
     expect(result).toBeNull();
   });
 
+  it("returns an empty delta when an empty buffer is at the client sequence", async () => {
+    mockRedisClient.zrange.mockResolvedValue([]);
+    mockRedisClient.zrangebyscore.mockResolvedValue([]);
+    mockRedisClient.get.mockResolvedValue("3");
+    const { getCommandsInBuffer } = await loadState();
+
+    const result = await getCommandsInBuffer("room-1", 3);
+
+    expect(result).toEqual([]);
+  });
+
+  it.each([2, 4])(
+    "returns null for client sequence %i when an empty buffer is at sequence 3",
+    async (afterSeq) => {
+      mockRedisClient.zrange.mockResolvedValue([]);
+      mockRedisClient.zrangebyscore.mockResolvedValue([]);
+      mockRedisClient.get.mockResolvedValue("3");
+      const { getCommandsInBuffer } = await loadState();
+
+      const result = await getCommandsInBuffer("room-1", afterSeq);
+
+      expect(result).toBeNull();
+    },
+  );
+
   it("skips unparseable entries", async () => {
     mockRedisClient.zrange.mockResolvedValue(["cmd-1", "1"]);
     mockRedisClient.zrangebyscore.mockResolvedValue(["{invalid}"]);
