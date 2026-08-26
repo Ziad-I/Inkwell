@@ -127,6 +127,45 @@ describe("refresh token storage and rotation", () => {
     expect(mockDb.update).toHaveBeenCalled();
   });
 
+  it("issues the family-revoke only after the rotation transaction commits", async () => {
+    const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
+    const reusedToken = generateOpaqueToken();
+    mockTx.limit.mockReturnValue([
+      makeRefreshRecord({ revokedAt: new Date(Date.now() - 1000) }),
+    ]);
+
+    const originalTransaction =
+      mockDb.transaction.getMockImplementation() ?? undefined;
+    const originalUpdate = mockDb.update.getMockImplementation() ?? undefined;
+
+    const order: string[] = [];
+    try {
+      mockDb.transaction.mockImplementation(async (cb) => {
+        order.push("tx");
+        const result = await cb(mockTx);
+        order.push("txCommit");
+        return result;
+      });
+      mockDb.update.mockImplementation(() => {
+        order.push("familyRevoke");
+        return mockDb;
+      });
+
+      await expect(rotateRefreshToken(reusedToken)).rejects.toThrow(AuthError);
+
+      expect(order).toEqual(["tx", "txCommit", "familyRevoke"]);
+    } finally {
+      mockDb.transaction.mockImplementation(
+        originalTransaction ?? (async (cb) => cb(mockTx)),
+      );
+      if (originalUpdate) {
+        mockDb.update.mockImplementation(originalUpdate);
+      } else {
+        mockDb.update.mockReturnThis();
+      }
+    }
+  });
+
   it("rejects rotation when the stored token is expired", async () => {
     const { rotateRefreshToken, generateOpaqueToken } = await loadAuthService();
     const expiredToken = generateOpaqueToken();
