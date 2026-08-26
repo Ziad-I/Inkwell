@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockDb } from "../../mocks/db.js";
-import { de } from "zod/locales";
 
 const mockBoard = {
   id: "550e8400-e29b-41d4-a716-446655440000",

@@ -69,4 +69,17 @@ describe("user queries and creation", () => {
       email: "a@b.c",
     });
   });
+
+  it("updates a user and returns the row; null when user is gone", async () => {
+    const { updateUser } = await loadUsersService();
+    mockDb.returning.mockResolvedValueOnce([
+      { id: USER_ID, username: "new", email: "a@b.c", passwordHash: "h" },
+    ]);
+    const updated = await updateUser(USER_ID, { username: "new" });
+    expect(updated?.username).toBe("new");
+    expect(mockDb.set).toHaveBeenCalledWith({ username: "new" });
+
+    mockDb.returning.mockResolvedValueOnce([]);
+    expect(await updateUser("gone", { username: "x" })).toBeNull();
+  });
 });
