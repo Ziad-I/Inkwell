@@ -54,7 +54,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
           reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
-        console.log(`Broadcasting command:create for commandId: ${commandId}`);
+        // console.log(`Broadcasting command:create for commandId: ${commandId}`);
         socket.to(roomId).emit("command:create", commandId, command);
         ack?.();
       } catch (err) {
