@@ -1,6 +1,7 @@
 import { db } from "@/db/index.js";
 import { snapshots } from "@/db/schema.js";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import logger from "@/config/logger.js";
 import type { BoardState } from "@/types/types.js";
 import { getBoardState } from "@/services/state.js";
 import { env } from "@/config/config.js";
@@ -8,8 +9,13 @@ import { env } from "@/config/config.js";
 /**
  * Retention is gated behind a cheap indexed count(*) — the ordered
  * delete subquery only runs once the board is actually over budget.
+ *
+ * Requires: index on snapshots.boardId (for the count),
+ * ideally composite (boardId, createdAt desc) for the offset query.
  */
 async function pruneSnapshots(roomId: string) {
+  if (env.SNAPSHOT_RETENTION <= 0) return;
+
   const counts = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(snapshots)
@@ -23,7 +29,7 @@ async function pruneSnapshots(roomId: string) {
     .select({ id: snapshots.id })
     .from(snapshots)
     .where(eq(snapshots.boardId, roomId))
-    .orderBy(desc(snapshots.createdAt))
+    .orderBy(desc(snapshots.createdAt), desc(snapshots.id))
     .offset(env.SNAPSHOT_RETENTION);
 
   await db
@@ -42,7 +48,13 @@ export async function saveSnapshot(roomId: string, state: BoardState) {
     .insert(snapshots)
     .values({ boardId: roomId, state })
     .returning();
-  await pruneSnapshots(roomId);
+
+  try {
+    await pruneSnapshots(roomId);
+  } catch (err) {
+    logger.error(`Failed to prune snapshots for room ${roomId}: ${err}`);
+  }
+
   return result[0]!;
 }
 
