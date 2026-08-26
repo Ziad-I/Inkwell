@@ -33,15 +33,9 @@ describe("presence:move", () => {
       setTimeout(() => reject(new Error("timeout waiting for presence:move")), 3000);
     });
 
-    await new Promise<void>((resolve, reject) => {
-      socket1.emit("room:join", { roomId: boardId }, () => {
-        socket2.emit("room:join", { roomId: boardId }, () => {
-          socket2.emit("presence:move", { pos: { x: 100, y: 200 } });
-          resolve();
-        });
-      });
-      setTimeout(() => reject(new Error("timeout")), 3000);
-    });
+    await roomJoin(socket1, boardId);
+    await roomJoin(socket2, boardId);
+    socket2.emit("presence:move", { pos: { x: 100, y: 200 } });
 
     await presencePromise;
     socket1.disconnect();

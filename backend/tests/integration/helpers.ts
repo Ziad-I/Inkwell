@@ -8,6 +8,7 @@ export function connectClient(
   cookie?: string,
 ): Promise<ClientSocket> {
   return new Promise((resolve, reject) => {
+    let settled = false;
     const socket = ioc(`http://localhost:${port}`, {
       transports: ["websocket"],
       forceNew: true,
@@ -17,9 +18,25 @@ export function connectClient(
         ...(cookie ? { Cookie: cookie } : {}),
       },
     });
-    socket.on("connect", () => resolve(socket));
-    socket.on("connect_error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connection timeout")), 3000);
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      socket.disconnect();
+      reject(new Error("connection timeout"));
+    }, 3000);
+    socket.on("connect", () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(socket);
+    });
+    socket.on("connect_error", (err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      socket.disconnect();
+      reject(err);
+    });
   });
 }
 
@@ -28,20 +45,22 @@ export function roomJoin(
   roomId: string,
 ): Promise<{ err: unknown; data: unknown }> {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("ack timeout")), 3000);
     socket.emit("room:join", { roomId }, (err: unknown, data: unknown) => {
+      clearTimeout(timeout);
       resolve({ err, data });
     });
-    setTimeout(() => reject(new Error("ack timeout")), 3000);
   });
 }
 
 export function roomLeave(socket: ClientSocket, roomId: string): Promise<void> {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error("ack timeout")), 3000);
     socket.emit("room:leave", { roomId }, (err: unknown) => {
+      clearTimeout(timeout);
       if (err) reject(new Error(String(err)));
       else resolve();
     });
-    setTimeout(() => reject(new Error("ack timeout")), 3000);
   });
 }
 
