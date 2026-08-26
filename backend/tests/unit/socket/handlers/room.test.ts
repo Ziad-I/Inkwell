@@ -11,18 +11,28 @@ function createMockSocket(
   rooms: string[] = [],
 ) {
   const joined = new Set<string>(rooms);
+  const order: string[] = [];
+  const broadcast = {
+    emit: vi.fn((...args: unknown[]) => order.push(`emit:${String(args[0])}`)),
+  };
   return {
     data: data ?? { userId: "user-123", principalType: "guest" },
     handshake: { headers: { cookie } },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     join: vi.fn(),
-    leave: vi.fn((roomId: string) => {
+    leave: vi.fn(async (roomId: string) => {
+      order.push("leave:start");
       joined.delete(roomId);
+      order.push("leave:end");
     }),
-    to: vi.fn().mockReturnThis(),
+    to: vi.fn((roomId: string) => {
+      order.push(`to:${roomId}`);
+      return broadcast;
+    }),
     id: "mock-socket-id",
     rooms: joined,
+    order,
   };
 }
 
@@ -300,6 +310,44 @@ describe("registerRoomHandlers — room:leave", () => {
     expect(socket.data.roomId).toBeUndefined();
     expect(socket.data.boardAccess).toBeUndefined();
     expect(ack).toHaveBeenCalledWith();
+  });
+
+  it("awaits adapter leave before presence, focus mutation, and ack", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      { userId: "user-123", roomId: RID, principalType: "guest", boardAccess: makeAccess("editor") },
+      undefined,
+      [RID],
+    );
+    let release!: () => void;
+    (socket.leave as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise<void>((resolve) => { release = resolve; }),
+    );
+    const io = createMockServer();
+    registerRoomHandlers(socket as never, io as never);
+    const ack = vi.fn();
+    const pending = getHandler(socket, "room:leave")({ roomId: RID }, ack);
+    await Promise.resolve();
+    expect(ack).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+    expect(socket.data.roomId).toBe(RID);
+    release();
+    await pending;
+    expect(socket.to).toHaveBeenCalledWith(RID);
+    expect(socket.data.roomId).toBeUndefined();
+    expect(ack).toHaveBeenCalledWith();
+  });
+
+  it("maps adapter leave rejection to INTERNAL_SERVER_ERROR without side effects", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket({ userId: "user-123", roomId: RID, principalType: "guest", boardAccess: makeAccess("editor") }, undefined, [RID]);
+    (socket.leave as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("adapter down"));
+    registerRoomHandlers(socket as never, createMockServer() as never);
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, ack);
+    expect(ack).toHaveBeenCalledWith("INTERNAL_SERVER_ERROR");
+    expect(socket.to).not.toHaveBeenCalled();
+    expect(socket.data.roomId).toBe(RID);
   });
 
   it("is idempotent: a second leave of the same room emits nothing and still acks", async () => {

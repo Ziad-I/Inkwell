@@ -50,6 +50,13 @@
       "when": 1787330721055,
       "tag": "0006_greedy_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787774400000,
+      "tag": "0007_refresh_rotation_grace",
+      "breakpoints": true
     }
   ]
 }

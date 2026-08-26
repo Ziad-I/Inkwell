@@ -59,10 +59,29 @@ export async function updateProfile(req: Request, res: Response) {
     return;
   }
 
-  const updated = await updateUser(req.userId, {
-    ...(username !== undefined ? { username } : {}),
-    ...(email !== undefined ? { email } : {}),
-  });
+  let updated;
+  try {
+    updated = await updateUser(req.userId, {
+      ...(username !== undefined ? { username } : {}),
+      ...(email !== undefined ? { email } : {}),
+    });
+  } catch (err) {
+    const wrapped = err as { cause?: unknown };
+    const pgError = (wrapped.cause ?? err) as {
+      code?: unknown;
+      constraint?: unknown;
+    };
+    if (pgError.code !== "23505") throw err;
+    if (pgError.constraint === "user_email_unique") {
+      res.status(409).json({ message: "Email is already registered" });
+      return;
+    }
+    if (pgError.constraint === "user_username_unique") {
+      res.status(409).json({ message: "Username is already taken" });
+      return;
+    }
+    throw err;
+  }
   if (!updated) {
     res.status(401).json({ message: "User not found" });
     return;

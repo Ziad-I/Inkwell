@@ -73,6 +73,9 @@ export const refreshTokens = pgTable("refresh_token", {
   revokedAt: timestamp("revoked_at", {
     withTimezone: true,
   }),
+  rotationGraceExpiresAt: timestamp("rotation_grace_expires_at", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", {
     withTimezone: true,
   })

@@ -64,6 +64,15 @@ export async function getRefreshTokenByRawToken(rawToken: string) {
   return rows[0] ?? null;
 }
 
+export async function expireRefreshRotationGrace(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const token = rawToken.includes("=") ? rawToken.slice(rawToken.indexOf("=") + 1) : rawToken;
+  await _db
+    .update(refreshTokens)
+    .set({ rotationGraceExpiresAt: new Date(0) })
+    .where(eq(refreshTokens.tokenHash, hashToken(token)));
+}
+
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;

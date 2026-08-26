@@ -8,6 +8,9 @@ import { refreshTokens } from "@/db/schema.js";
 import { env } from "@/config/config.js";
 
 const BCRYPT_ROUNDS = 10;
+// Allows an in-flight duplicate request to observe rotation without treating
+// it as theft. The duplicate remains unauthorized; only family revocation is deferred.
+const REFRESH_ROTATION_GRACE_MS = 5_000;
 
 // ─── Passwords ────────────────────────────────────────────────────────────────
 
@@ -159,6 +162,12 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
     }
 
     if (record.revokedAt) {
+      if (
+        record.rotationGraceExpiresAt &&
+        record.rotationGraceExpiresAt.getTime() > Date.now()
+      ) {
+        return { status: "not_found" };
+      }
       // Reuse of an already-rotated token. Don't write here — return and
       // let the caller issue the family-revoke as an independent statement.
       return { status: "reused", userId: record.userId };
@@ -176,6 +185,7 @@ export async function rotateRefreshToken(oldToken: string): Promise<{
       .update(refreshTokens)
       .set({
         revokedAt: new Date(),
+        rotationGraceExpiresAt: new Date(now + REFRESH_ROTATION_GRACE_MS),
       })
       .where(eq(refreshTokens.id, record.id));
 

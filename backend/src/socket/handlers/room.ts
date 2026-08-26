@@ -153,7 +153,7 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
         return;
       }
 
-      socket.leave(roomId);
+      await socket.leave(roomId);
       socket.to(roomId).emit("presence:leave", socketData.userId);
       if (socketData.roomId === roomId) {
         // delete (not "= undefined"): exactOptionalPropertyTypes forbids

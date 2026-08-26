@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import supertest from "supertest";
 import jwt from "jsonwebtoken";
 import {
+  expireRefreshRotationGrace,
   getRefreshTokenByRawToken,
   httpServer,
   seedRefreshToken,
@@ -117,7 +118,7 @@ describe("auth API", () => {
     expect(newCookie).not.toBe(oldCookie);
   });
 
-  it("rejects a reused (rotated-out) refresh token", async () => {
+  it("rejects replay without revoking the replacement during rotation grace", async () => {
     const { payload } = await registerUser();
     const login = await api().post("/api/auth/login").send(payload);
     const cookie = getRefreshCookie(login);
@@ -125,10 +126,11 @@ describe("auth API", () => {
     const first = await api().post("/api/auth/refresh").set("Cookie", cookie);
     expect(first.status).toBe(200);
 
-    const second = await api()
-      .post("/api/auth/refresh")
-      .set("Cookie", cookie);
+    const newCookie = getRefreshCookie(first);
+    const second = await api().post("/api/auth/refresh").set("Cookie", cookie);
     expect(second.status).toBe(401);
+    const replacement = await api().post("/api/auth/refresh").set("Cookie", newCookie);
+    expect(replacement.status).toBe(200);
   });
 
   it("allows exactly one concurrent rotation of the same refresh cookie", async () => {
@@ -145,6 +147,11 @@ describe("auth API", () => {
       200,
       401,
     ]);
+    const winner = results.find((result) => result.status === 200)!;
+    const replacement = await api()
+      .post("/api/auth/refresh")
+      .set("Cookie", getRefreshCookie(winner));
+    expect(replacement.status).toBe(200);
   });
 
   it("revokes sibling login cookies when an old refresh token is replayed", async () => {
@@ -157,6 +164,7 @@ describe("auth API", () => {
     const rotation = await api().post("/api/auth/refresh").set("Cookie", cookieA);
     expect(rotation.status).toBe(200);
 
+    await expireRefreshRotationGrace(cookieA);
     const replay = await api().post("/api/auth/refresh").set("Cookie", cookieA);
     expect(replay.status).toBe(401);
 

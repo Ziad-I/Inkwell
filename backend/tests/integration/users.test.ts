@@ -48,6 +48,32 @@ describe("users API", () => {
 });
 
 describe("PATCH /api/users/me", () => {
+  it("returns 409 when concurrent users claim the same email", async () => {
+    const suffix = crypto.randomUUID();
+    const registrations = await Promise.all(
+      ["a", "b"].map((label) =>
+        api().post("/api/auth/register").send({
+          username: `${label}_${suffix}`,
+          email: `${label}_${suffix}@test.local`,
+          password: "supersecret",
+        }),
+      ),
+    );
+    const target = `shared_${suffix}@test.local`;
+    const results = await Promise.all(
+      registrations.map((registration) =>
+        api()
+          .patch("/api/users/me")
+          .set("Authorization", `Bearer ${registration.body.accessToken}`)
+          .send({ email: target }),
+      ),
+    );
+    expect(results.map((result) => result.status).sort()).toEqual([200, 409]);
+    expect(results.find((result) => result.status === 409)?.body).toEqual({
+      message: "Email is already registered",
+    });
+  });
+
   it("401 without a token", async () => {
     expect(
       (await api().patch("/api/users/me").send({ username: "x" })).status,
