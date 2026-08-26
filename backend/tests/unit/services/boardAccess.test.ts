@@ -10,6 +10,7 @@ const makeBoard = (overrides: Record<string, unknown> = {}) => ({
   defaultRole: "editor" as const,
   createdAt: new Date(),
   updatedAt: new Date(),
+  archivedAt: null,
   ...overrides,
 });
 

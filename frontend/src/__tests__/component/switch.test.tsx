@@ -23,6 +23,6 @@ describe("Switch", () => {
 
   it("is disabled when disabled prop is set", () => {
     render(<Switch disabled />);
-    expect(screen.getByRole("switch")).toBeDisabled();
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-disabled", "true");
   });
 });

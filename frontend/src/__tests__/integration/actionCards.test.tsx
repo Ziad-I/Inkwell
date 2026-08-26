@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { waitFor, render, screen } from "@testing-library/react";
+import { waitFor, render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { useAuthStore } from "@/stores/authStore";
@@ -115,6 +115,13 @@ describe("ActionCards integration", () => {
         expect.any(Object),
       );
     });
+    // Terminal state: isCreating has been reset once the handler settles.
+    await waitFor(() => {
+      expect(screen.getByText("Create Board")).toBeInTheDocument();
+      expect(
+        (screen.getByText("Create Board") as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
   });
 
   it("disables the Only me option and shows a hint for guests", async () => {
@@ -130,11 +137,11 @@ describe("ActionCards integration", () => {
       screen.getByText("Sign in to create boards with draw permissions."),
     ).toBeInTheDocument();
 
-    const nativeSelect = document.querySelector("select") as HTMLSelectElement;
-    const anyone = [...nativeSelect.options].find((o) => o.value === "anyone")!;
-    const onlyMe = [...nativeSelect.options].find((o) => o.value === "owner")!;
-    expect(onlyMe.disabled).toBe(true);
-    expect(anyone.disabled).toBe(false);
+    fireEvent.click(screen.getByRole("combobox"));
+    const anyone = await screen.findByRole("option", { name: /anyone/i });
+    const onlyMe = screen.getByRole("option", { name: /only me/i });
+    expect(onlyMe).toHaveAttribute("aria-disabled", "true");
+    expect(anyone).not.toHaveAttribute("aria-disabled");
   });
 
   it("enables the Only me option for authenticated users", async () => {
@@ -155,8 +162,8 @@ describe("ActionCards integration", () => {
       screen.queryByText("Sign in to create boards only you can draw on."),
     ).not.toBeInTheDocument();
 
-    const nativeSelect = document.querySelector("select") as HTMLSelectElement;
-    const onlyMe = [...nativeSelect.options].find((o) => o.value === "owner")!;
-    expect(onlyMe.disabled).toBe(false);
+    fireEvent.click(screen.getByRole("combobox"));
+    const onlyMe = await screen.findByRole("option", { name: /only me/i });
+    expect(onlyMe).not.toHaveAttribute("aria-disabled", "true");
   });
 });

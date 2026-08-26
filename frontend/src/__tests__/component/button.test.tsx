@@ -4,11 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { Button } from "@/components/ui/button";
 
 describe("Button", () => {
-  it("renders as child element when asChild is true", () => {
+  it("renders as custom element via render prop", () => {
     render(
-      <Button asChild>
-        <a href="/test">Link Button</a>
-      </Button>,
+      <Button render={<a href="/test" />}>Link Button</Button>,
     );
     const link = screen.getByRole("link", { name: /link button/i });
     expect(link).toBeInTheDocument();

@@ -94,7 +94,9 @@ export function SizeSettings({ title }: WidgetProps) {
 
           <Slider
             value={[strokeWidth]}
-            onValueChange={([value]) => setStrokeWidth(value)}
+            onValueChange={(value) =>
+              setStrokeWidth(Array.isArray(value) ? value[0] : value)
+            }
             min={1}
             max={50}
             step={1}
@@ -134,7 +136,9 @@ export function OpacitySettings({ title }: WidgetProps) {
 
         <Slider
           value={[opacity * 100]}
-          onValueChange={([value]) => setOpacity(value / 100)}
+          onValueChange={(value) =>
+            setOpacity((Array.isArray(value) ? value[0] : value) / 100)
+          }
           min={0}
           max={100}
           step={1}

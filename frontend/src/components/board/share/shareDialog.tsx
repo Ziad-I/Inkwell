@@ -74,18 +74,20 @@ export default function ShareDialog({
 
   return (
     <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
-        >
-          <div className="flex items-center gap-2">
-            <Share2 size={12} />
-            {!collapsed && <span className="text-xs font-medium">Share</span>}
-          </div>
-          {!collapsed && <ChevronRight size={10} />}
-        </Button>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
+          />
+        }
+      >
+        <div className="flex items-center gap-2">
+          <Share2 size={12} />
+          {!collapsed && <span className="text-xs font-medium">Share</span>}
+        </div>
+        {!collapsed && <ChevronRight size={10} />}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -100,6 +102,7 @@ export default function ShareDialog({
             <Select
               value={role}
               onValueChange={(value) => setRole(value as InviteRole)}
+              items={{ editor: "Editor", viewer: "Viewer" }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -123,6 +126,13 @@ export default function ShareDialog({
             <Select
               value={expiry}
               onValueChange={(value) => setExpiry(value as ExpiryPreset)}
+              items={{
+                never: "Never",
+                "1h": "1 hour",
+                "1d": "1 day",
+                "7d": "7 days",
+                "30d": "30 days",
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />

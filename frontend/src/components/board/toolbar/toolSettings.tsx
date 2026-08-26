@@ -110,20 +110,22 @@ export default function ToolSettings() {
                   open={openPanel === id}
                   onOpenChange={(open) => setOpenPanel(open ? id : null)}
                 >
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon size={12} />
-                        {!collapsed && (
-                          <span className="text-xs font-medium">{label}</span>
-                        )}
-                      </div>
-                      <ChevronRight size={10} />
-                    </Button>
+                  <PopoverTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
+                      />
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon size={12} />
+                      {!collapsed && (
+                        <span className="text-xs font-medium">{label}</span>
+                      )}
+                    </div>
+                    <ChevronRight size={10} />
                   </PopoverTrigger>
                   <Component title={title} />
                 </Popover>
