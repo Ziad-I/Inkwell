@@ -419,3 +419,35 @@ describe("command:redo", () => {
     );
   });
 });
+
+describe.each(["command:create", "command:update", "command:finalize"] as const)("malformed %s payloads", (event) => {
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["string", "garbage"],
+    ["missing command", { id: "cmd-9" }],
+  ])("rejects %s payload", async (_label, payload) => {
+    const { registerCommandHandlers } = await import("@/socket/handlers/command.js");
+    const socket = createMockSocket();
+    registerCommandHandlers(socket as never, createMockServer() as never);
+    const ack = vi.fn();
+    await getHandler(socket, event)(payload as never, ack);
+    expect(socket.emit).toHaveBeenCalledWith("command:reject", expect.anything(), "INVALID_COMMAND");
+    expect(ack).toHaveBeenCalledWith("INVALID_COMMAND");
+  });
+});
+
+describe.each(["command:cancel", "command:undo", "command:redo"] as const)("malformed %s payloads", (event) => {
+  it.each([
+    ["undefined", undefined],
+    ["bad id type", { id: 42 }],
+    ["missing id", {}],
+  ])("rejects %s payload", async (_label, payload) => {
+    const { registerCommandHandlers } = await import("@/socket/handlers/command.js");
+    const socket = createMockSocket();
+    registerCommandHandlers(socket as never, createMockServer() as never);
+    const ack = vi.fn();
+    await getHandler(socket, event)(payload as never, ack);
+    expect(socket.emit).toHaveBeenCalledWith("command:reject", expect.anything(), "INVALID_COMMAND");
+  });
+});

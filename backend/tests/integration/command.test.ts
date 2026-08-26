@@ -351,3 +351,75 @@ describe("draw permissions", () => {
     socket.disconnect();
   });
 });
+
+function roomJoin(
+  socket: ClientSocket,
+  roomId: string,
+): Promise<{ err: unknown; data: unknown }> {
+  return new Promise((resolve, reject) => {
+    socket.emit("room:join", { roomId }, (err: unknown, data: unknown) => {
+      resolve({ err, data });
+    });
+    setTimeout(() => reject(new Error("ack timeout")), 3000);
+  });
+}
+
+describe("malformed socket input", () => {
+  let boardId: string;
+
+  beforeAll(async () => {
+    boardId = await seedBoard({ title: "Malformed Input" });
+  });
+
+  afterAll(async () => {
+    await cleanupTestData(boardId);
+  });
+
+  it("rejects malformed payloads and keeps the connection usable", async () => {
+    const socket = await connectClient();
+    let rejectsSeen = 0;
+    const rejected = new Promise<void>((resolve, reject) => {
+      socket.on("command:reject", (_id: unknown, reason: unknown) => {
+        try {
+          expect(reason).toBe("INVALID_COMMAND");
+          rejectsSeen += 1;
+          if (rejectsSeen === 2) resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      setTimeout(() => reject(new Error("no command:reject")), 3000);
+    });
+    socket.emit("command:create", null);
+    socket.emit("command:create", { id: "m1" });
+    await rejected;
+
+    const joined = await roomJoin(socket, boardId);
+    expect(joined.err).toBeNull();
+
+    await new Promise<void>((resolve, reject) => {
+      socket.emit(
+        "command:create",
+        makeStrokeCommand("cmd-ok1", "test-user"),
+        (err: unknown) => {
+          try {
+            expect(err).toBeUndefined();
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+      );
+      setTimeout(() => reject(new Error("timeout")), 3000);
+    });
+
+    socket.disconnect();
+  });
+
+  it("acks INVALID_ROOM_ID for a non-UUID join", async () => {
+    const socket = await connectClient();
+    const res = await roomJoin(socket, "not-a-uuid");
+    expect(res.err).toBe("INVALID_ROOM_ID");
+    socket.disconnect();
+  });
+});

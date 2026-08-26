@@ -19,6 +19,7 @@ import type {
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 import { getLatestSnapshot } from "@/services/snapshot.js";
+import { roomJoinSchema } from "@/socket/validation.js";
 import logger from "@/config/logger.js";
 
 type AckWithAccess = Ack<{
@@ -34,7 +35,12 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
       ack?: AckWithAccess,
     ) => {
       try {
-        const { roomId, lastSeq } = payload;
+        const parsedJoin = roomJoinSchema.safeParse(payload);
+        if (!parsedJoin.success) {
+          ack?.("INVALID_ROOM_ID");
+          return;
+        }
+        const { roomId, lastSeq } = parsedJoin.data;
         const socketData = socket.data as SocketData;
         const userId = socketData.userId;
 
