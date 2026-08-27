@@ -27,10 +27,17 @@ describe("initBoardState", () => {
 
     await initBoardState("room-1", initialState);
 
-    expect(mockRedisClient.multi).toHaveBeenCalled();
-    expect(mockRedisClient.del).toHaveBeenCalled();
-    expect(mockRedisClient.hset).toHaveBeenCalled();
-    expect(mockRedisClient.set).toHaveBeenCalled();
+    expect(mockRedisClient.del).toHaveBeenCalledWith(
+      "board:room-1:state",
+      "board:room-1:seq",
+      "board:room-1:buffer",
+    );
+    expect(mockRedisClient.hset).toHaveBeenCalledWith(
+      "board:room-1:state",
+      "cmd-1",
+      JSON.stringify(mockCommand),
+    );
+    expect(mockRedisClient.set).toHaveBeenCalledWith("board:room-1:seq", 1);
     expect(mockRedisClient.exec).toHaveBeenCalled();
   });
 
@@ -43,11 +50,7 @@ describe("initBoardState", () => {
 
     await initBoardState("room-1", cmds);
 
-    const setCall = mockRedisClient.set.mock.calls.find((c: unknown[]) =>
-      (c[0] as string).includes("seq"),
-    );
-    expect(setCall).toBeDefined();
-    expect(setCall?.[1]).toBe(10);
+    expect(mockRedisClient.set).toHaveBeenCalledWith("board:room-1:seq", 10);
   });
 });
 
@@ -127,9 +130,12 @@ describe("clearBoardState", () => {
 
     await clearBoardState("room-1");
 
-    expect(mockRedisClient.multi).toHaveBeenCalled();
-    expect(mockRedisClient.del).toHaveBeenCalled();
-    expect(mockRedisClient.srem).toHaveBeenCalled();
+    expect(mockRedisClient.del).toHaveBeenCalledWith(
+      "board:room-1:state",
+      "board:room-1:seq",
+      "board:room-1:buffer",
+    );
+    expect(mockRedisClient.srem).toHaveBeenCalledWith("dirty:rooms", "room-1");
     expect(mockRedisClient.exec).toHaveBeenCalled();
   });
 });
@@ -140,10 +146,7 @@ describe("markRoomClean", () => {
 
     await markRoomClean("room-1");
 
-    expect(mockRedisClient.srem).toHaveBeenCalledWith(
-      expect.stringContaining("dirty"),
-      "room-1",
-    );
+    expect(mockRedisClient.srem).toHaveBeenCalledWith("dirty:rooms", "room-1");
   });
 });
 
@@ -186,12 +189,23 @@ describe("pushToBuffer", () => {
 
     await pushToBuffer("room-1", cmd);
 
-    expect(mockRedisClient.multi).toHaveBeenCalled();
-    expect(mockRedisClient.hset).toHaveBeenCalled();
-    expect(mockRedisClient.zadd).toHaveBeenCalled();
-    expect(mockRedisClient.zremrangebyrank).toHaveBeenCalled();
-    expect(mockRedisClient.sadd).toHaveBeenCalled();
-    expect(mockRedisClient.exec).toHaveBeenCalled();
+    expect(mockRedisClient.hset).toHaveBeenCalledWith(
+      "board:room-1:state",
+      "cmd-1",
+      JSON.stringify(cmd),
+    );
+    expect(mockRedisClient.zadd).toHaveBeenCalledWith(
+      "board:room-1:buffer",
+      1,
+      JSON.stringify(cmd),
+    );
+    expect(mockRedisClient.zremrangebyrank).toHaveBeenCalledWith(
+      "board:room-1:buffer",
+      0,
+      -101,
+    );
+    expect(mockRedisClient.sadd).toHaveBeenCalledWith("dirty:rooms", "room-1");
+    expect(mockRedisClient.exec).toHaveBeenCalledOnce();
   });
 });
 
@@ -242,6 +256,31 @@ describe("getCommandsInBuffer", () => {
 
     expect(result).toBeNull();
   });
+
+  it("returns an empty delta when an empty buffer is at the client sequence", async () => {
+    mockRedisClient.zrange.mockResolvedValue([]);
+    mockRedisClient.zrangebyscore.mockResolvedValue([]);
+    mockRedisClient.get.mockResolvedValue("3");
+    const { getCommandsInBuffer } = await loadState();
+
+    const result = await getCommandsInBuffer("room-1", 3);
+
+    expect(result).toEqual([]);
+  });
+
+  it.each([2, 4])(
+    "returns null for client sequence %i when an empty buffer is at sequence 3",
+    async (afterSeq) => {
+      mockRedisClient.zrange.mockResolvedValue([]);
+      mockRedisClient.zrangebyscore.mockResolvedValue([]);
+      mockRedisClient.get.mockResolvedValue("3");
+      const { getCommandsInBuffer } = await loadState();
+
+      const result = await getCommandsInBuffer("room-1", afterSeq);
+
+      expect(result).toBeNull();
+    },
+  );
 
   it("skips unparseable entries", async () => {
     mockRedisClient.zrange.mockResolvedValue(["cmd-1", "1"]);

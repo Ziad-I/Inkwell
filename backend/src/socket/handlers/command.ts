@@ -7,6 +7,7 @@ import {
   applyUndo,
   applyRedo,
 } from "@/services/state.js";
+import { commandEnvelopeSchema, commandIdSchema } from "@/socket/validation.js";
 import logger from "@/config/logger.js";
 
 export function reject(
@@ -26,7 +27,19 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     "command:create",
     async (payload: { id: CommandID; command: Command }, ack?: Ack) => {
       const { roomId, userId } = socket.data as SocketData;
-      const { id: commandId, command } = payload;
+      const parsed = commandEnvelopeSchema.safeParse(payload);
+      if (!parsed.success) {
+        reject(
+          socket,
+          typeof payload === "object" && payload !== null && "id" in payload
+            ? String((payload as { id?: unknown }).id ?? "")
+            : "",
+          "INVALID_COMMAND",
+          ack,
+        );
+        return;
+      }
+      const { id: commandId, command } = parsed.data;
 
       try {
         if (!roomId) {
@@ -41,7 +54,7 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
           reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
-        console.log(`Broadcasting command:create for commandId: ${commandId}`);
+        // console.log(`Broadcasting command:create for commandId: ${commandId}`);
         socket.to(roomId).emit("command:create", commandId, command);
         ack?.();
       } catch (err) {
@@ -55,7 +68,19 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     "command:update",
     async (payload: { id: CommandID; command: Command }, ack?: Ack) => {
       const { roomId, userId } = socket.data as SocketData;
-      const { id: commandId, command } = payload;
+      const parsed = commandEnvelopeSchema.safeParse(payload);
+      if (!parsed.success) {
+        reject(
+          socket,
+          typeof payload === "object" && payload !== null && "id" in payload
+            ? String((payload as { id?: unknown }).id ?? "")
+            : "",
+          "INVALID_COMMAND",
+          ack,
+        );
+        return;
+      }
+      const { id: commandId, command } = parsed.data;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
@@ -82,7 +107,21 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     "command:finalize",
     async (payload: { id: CommandID; command: Command }, ack?: AckWithSeq) => {
       const { roomId, userId } = socket.data as SocketData;
-      const { id: commandId, command } = payload;
+      const parsed = commandEnvelopeSchema.safeParse(payload);
+      if (!parsed.success) {
+        reject(
+          socket,
+          typeof payload === "object" && payload !== null && "id" in payload
+            ? String((payload as { id?: unknown }).id ?? "")
+            : "",
+          "INVALID_COMMAND",
+          ack,
+        );
+        return;
+      }
+      const { id: commandId, command } = parsed.data;
+      // zod infers seq as number | undefined; Command (exactOptionalPropertyTypes) forbids explicit undefined
+      const { seq, ...commandBase } = command;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
@@ -96,7 +135,10 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
           reject(socket, commandId, "UNAUTHORIZED_NOT_COMMAND_OWNER", ack);
           return;
         }
-        const finalized = await applyFinalize(roomId, command);
+        const finalized = await applyFinalize(
+          roomId,
+          seq === undefined ? commandBase : { ...commandBase, seq },
+        );
         socket.to(roomId).emit("command:finalize", commandId, finalized);
         ack?.(undefined, { seq: finalized.seq });
       } catch (err) {
@@ -108,7 +150,19 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
 
   socket.on("command:cancel", async (payload: { id: CommandID }, ack?: Ack) => {
     const { roomId, userId } = socket.data as SocketData;
-    const { id: commandId } = payload;
+    const parsed = commandIdSchema.safeParse(payload);
+    if (!parsed.success) {
+      reject(
+        socket,
+        typeof payload === "object" && payload !== null && "id" in payload
+          ? String((payload as { id?: unknown }).id ?? "")
+          : "",
+        "INVALID_COMMAND",
+        ack,
+      );
+      return;
+    }
+    const { id: commandId } = parsed.data;
     try {
       if (!roomId) {
         reject(socket, commandId, "NOT_IN_ROOM", ack);
@@ -139,7 +193,19 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     "command:undo",
     async (payload: { id: CommandID }, ack?: AckWithSeq) => {
       const { roomId, userId } = socket.data as SocketData;
-      const { id: commandId } = payload;
+      const parsed = commandIdSchema.safeParse(payload);
+      if (!parsed.success) {
+        reject(
+          socket,
+          typeof payload === "object" && payload !== null && "id" in payload
+            ? String((payload as { id?: unknown }).id ?? "")
+            : "",
+          "INVALID_COMMAND",
+          ack,
+        );
+        return;
+      }
+      const { id: commandId } = parsed.data;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);
@@ -176,7 +242,19 @@ export async function registerCommandHandlers(socket: Socket, io: Server) {
     "command:redo",
     async (payload: { id: CommandID }, ack?: AckWithSeq) => {
       const { roomId, userId } = socket.data as SocketData;
-      const { id: commandId } = payload;
+      const parsed = commandIdSchema.safeParse(payload);
+      if (!parsed.success) {
+        reject(
+          socket,
+          typeof payload === "object" && payload !== null && "id" in payload
+            ? String((payload as { id?: unknown }).id ?? "")
+            : "",
+          "INVALID_COMMAND",
+          ack,
+        );
+        return;
+      }
+      const { id: commandId } = parsed.data;
       try {
         if (!roomId) {
           reject(socket, commandId, "NOT_IN_ROOM", ack);

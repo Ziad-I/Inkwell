@@ -39,7 +39,7 @@ apiRouter.use("/auth", authRouter);
 apiRouter.use("/users", usersRouter);
 apiRouter.use("/invites", invitesRouter);
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: env.API_RATE_LIMIT_MAX });
 app.use("/api", apiLimiter, apiRouter);
 
 // Global error handler

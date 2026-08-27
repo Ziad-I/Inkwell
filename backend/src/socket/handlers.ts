@@ -10,7 +10,7 @@ export function registerSocketHandlers(io: SocketServer) {
   registerRoomCleanup(io);
 
   io.on("connection", (socket: Socket) => {
-    console.log(`Client connected: ${socket.id}`);
+    // console.log(`Client connected: ${socket.id}`);
 
     registerRoomHandlers(socket, io);
     registerPresenceHandlers(socket, io);

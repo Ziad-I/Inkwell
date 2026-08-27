@@ -106,9 +106,10 @@ export async function getCommandsInBuffer(roomId: string, afterSeq: number) {
   // oldestRaw is [member, score] when WITHSCORES is used
   const oldestSeq = oldestRaw[1] ? parseInt(oldestRaw[1], 10) : null;
 
-  // Buffer has no entries at all — caller should fall back to full state
+  // An empty buffer after snapshot restore can still serve a current client.
   if (oldestSeq === null) {
-    return null;
+    const currentSeq = await getSequence(roomId);
+    return afterSeq === currentSeq ? [] : null;
   }
 
   const clientIsBehindBuffer = afterSeq < oldestSeq - 1;

@@ -1,53 +1,17 @@
 import { describe, it, expect } from "vitest";
 import supertest from "supertest";
-import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
 import {
   httpServer,
-  port,
   getBoardRow,
   countSnapshots,
-  isRedisRoomAlive,
 } from "./setup.js";
+import {
+  connectClient,
+  roomJoin,
+  waitForRoomTeardown,
+} from "./helpers.js";
 
 const request = () => supertest(httpServer);
-
-function connectClient(auth?: Record<string, unknown>): Promise<ClientSocket> {
-  return new Promise((resolve, reject) => {
-    const socket = ioc(`http://localhost:${port}`, {
-      transports: ["websocket"],
-      forceNew: true,
-      auth: auth ?? { userId: "test-user" },
-    });
-    socket.on("connect", () => resolve(socket));
-    socket.on("connect_error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connection timeout")), 3000);
-  });
-}
-
-export function roomJoin(
-  socket: ClientSocket,
-  roomId: string,
-): Promise<{ err: unknown; data: unknown }> {
-  return new Promise((resolve, reject) => {
-    socket.emit("room:join", { roomId }, (err: unknown, data: unknown) => {
-      try {
-        resolve({ err, data });
-      } catch (e) {
-        reject(e);
-      }
-    });
-    setTimeout(() => reject(new Error("ack timeout")), 3000);
-  });
-}
-
-async function waitForRoomTeardown(roomId: string, timeoutMs = 5000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    if (!(await isRedisRoomAlive(roomId))) return;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  throw new Error(`room ${roomId} still alive after ${timeoutMs}ms`);
-}
 
 describe("board creation — anonymous (ephemeral)", () => {
   it("creates an ephemeral room with no DB row, fallback GET, joinable socket", async () => {

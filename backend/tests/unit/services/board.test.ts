@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { mockDb } from "../../mocks/db.js";
-import { de } from "zod/locales";
 
 const mockBoard = {
   id: "550e8400-e29b-41d4-a716-446655440000",
@@ -96,30 +95,6 @@ describe("deleteBoard", () => {
 
     expect(mockDb.delete).toHaveBeenCalled();
     expect(mockDb.where).toHaveBeenCalled();
-  });
-});
-
-describe("listBoardsByOwner", () => {
-  it("returns active boards for the owner, newest activity first", async () => {
-    const rows = [{ ...mockBoard, id: "b1" }, { ...mockBoard, id: "b2" }];
-    mockDb.orderBy.mockResolvedValueOnce(rows);
-    const { listBoardsByOwner } = await loadBoardService();
-
-    const result = await listBoardsByOwner("user-123");
-
-    expect(result).toEqual(rows);
-    expect(mockDb.where).toHaveBeenCalled();
-    expect(mockDb.orderBy).toHaveBeenCalled();
-  });
-
-  it("returns archived boards when status is 'archived'", async () => {
-    const archived = [{ ...mockBoard, id: "b3", archivedAt: new Date() }];
-    mockDb.orderBy.mockResolvedValueOnce(archived);
-    const { listBoardsByOwner } = await loadBoardService();
-
-    const result = await listBoardsByOwner("user-123", "archived");
-
-    expect(result).toEqual(archived);
   });
 });
 

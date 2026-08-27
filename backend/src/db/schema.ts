@@ -73,6 +73,9 @@ export const refreshTokens = pgTable("refresh_token", {
   revokedAt: timestamp("revoked_at", {
     withTimezone: true,
   }),
+  rotationGraceExpiresAt: timestamp("rotation_grace_expires_at", {
+    withTimezone: true,
+  }),
   createdAt: timestamp("created_at", {
     withTimezone: true,
   })
@@ -138,7 +141,14 @@ export const snapshots = pgTable(
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => [index("snapshot_board_id_idx").on(table.boardId)],
+  (table) => [
+    // Composite: covers both the count(*) gate and the ordered offset
+    // query in pruneSnapshots without an in-memory sort as boards grow.
+    index("snapshot_board_id_created_at_idx").on(
+      table.boardId,
+      table.createdAt,
+    ),
+  ],
 );
 
 export type User = typeof users.$inferSelect;

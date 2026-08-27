@@ -1,120 +1,136 @@
-import { describe, it, expect, vi } from "vitest";
-import { z } from "zod";
+import { describe, it, expect, vi, afterEach, type MockInstance } from "vitest";
 
-const envSchema = z.object({
-  APP_NAME: z.string().default("Backend"),
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  LOG_LEVEL: z
-    .enum(["error", "warn", "info", "http", "debug", "silly"])
-    .default("info"),
-  PORT: z.preprocess(
-    (val) =>
-      typeof val === "string" && val.trim() !== ""
-        ? Number(val)
-        : typeof val === "number"
-          ? val
-          : undefined,
-    z.number().int().positive().default(5000),
-  ),
-  DATABASE_URL: z.string(),
-  REDIS_URL: z.string(),
-  CORS_ORIGIN: z.string().default("http://localhost:5173"),
-  SNAPSHOT_INTERVAL: z.preprocess(
-    (val) =>
-      typeof val === "string" && val.trim() !== ""
-        ? Number(val)
-        : typeof val === "number"
-          ? val
-          : undefined,
-    z.number().int().positive().default(60000),
-  ),
-  SNAPSHOT_RETENTION: z.preprocess(
-    (val) =>
-      typeof val === "string" && val.trim() !== ""
-        ? Number(val)
-        : typeof val === "number"
-          ? val
-          : undefined,
-    z.number().int().positive().default(3),
-  ),
+const ENV_KEYS = [
+  "APP_NAME",
+  "NODE_ENV",
+  "LOG_LEVEL",
+  "PORT",
+  "DATABASE_URL",
+  "REDIS_URL",
+  "CORS_ORIGIN",
+  "SNAPSHOT_RETENTION",
+  "API_RATE_LIMIT_MAX",
+  "ACCESS_TOKEN_SECRET",
+  "ACCESS_TOKEN_TTL",
+  "REFRESH_TOKEN_TTL",
+] as const;
+
+type EnvKey = (typeof ENV_KEYS)[number];
+
+const VALID_ACCESS_TOKEN_SECRET = "unit-test-access-token-secret-0123456789";
+
+// Sane baseline for OTHER unit files in this worker: exactly what tests/setup.ts
+// establishes plus the token values auth-related modules need at import time.
+const BASELINE_ENV: Record<EnvKey, string> = {
+  NODE_ENV: "test",
+  PORT: "5000",
+  DATABASE_URL: "postgres://inkwell:inkwell_test@localhost:5433/inkwell_test",
+  REDIS_URL: "redis://localhost:6380",
+  LOG_LEVEL: "error",
+  APP_NAME: "inkwell-test",
+  CORS_ORIGIN: "http://localhost:5173",
+  SNAPSHOT_RETENTION: "3",
+  API_RATE_LIMIT_MAX: "100",
+  ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET,
+  ACCESS_TOKEN_TTL: "900",
+  REFRESH_TOKEN_TTL: "604800",
+};
+
+let loadEnvSpy: MockInstance | undefined;
+let exitSpy: MockInstance | undefined;
+let consoleErrorSpy: MockInstance | undefined;
+
+function isolateEnv(overrides: Partial<Record<EnvKey, string>> = {}) {
+  for (const key of ENV_KEYS) delete process.env[key];
+  for (const [key, value] of Object.entries(overrides)) {
+    process.env[key] = value;
+  }
+
+  vi.resetModules();
+  loadEnvSpy = vi
+    .spyOn(process, "loadEnvFile")
+    .mockImplementation(() => undefined);
+  exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => {
+    throw new Error(`process.exit:${code}`);
+  }) as never);
+  consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+}
+
+afterEach(() => {
+  loadEnvSpy?.mockRestore();
+  exitSpy?.mockRestore();
+  consoleErrorSpy?.mockRestore();
+
+  for (const key of ENV_KEYS) delete process.env[key];
+  for (const [key, value] of Object.entries(BASELINE_ENV)) {
+    process.env[key] = value;
+  }
 });
 
-describe("config schema validation", () => {
-  it("uses defaults for optional fields", () => {
-    const result = envSchema.parse({
-      DATABASE_URL: "postgres://test:test@localhost:5432/test",
-      REDIS_URL: "redis://localhost:6379",
-    });
-    expect(result.APP_NAME).toBe("Backend");
-    expect(result.NODE_ENV).toBe("development");
-    expect(result.LOG_LEVEL).toBe("info");
-    expect(result.PORT).toBe(5000);
-    expect(result.CORS_ORIGIN).toBe("http://localhost:5173");
-    expect(result.SNAPSHOT_INTERVAL).toBe(60000);
-    expect(result.SNAPSHOT_RETENTION).toBe(3);
+describe("config (real module)", () => {
+  it("applies documented defaults when optional vars are absent", async () => {
+    isolateEnv({ ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET });
+
+    const { env } = await import("@/config/config.js");
+
+    expect(env.APP_NAME).toBe("Backend");
+    expect(env.NODE_ENV).toBe("development");
+    expect(env.LOG_LEVEL).toBe("info");
+    expect(env.PORT).toBe(5000);
+    expect(env.CORS_ORIGIN).toBe("http://localhost:5173");
+    expect(env.SNAPSHOT_RETENTION).toBe(3);
+    expect(env.API_RATE_LIMIT_MAX).toBe(100);
+    expect(env.ACCESS_TOKEN_TTL).toBe(900);
+    expect(env.REFRESH_TOKEN_TTL).toBe(604800);
+    expect(loadEnvSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("parses PORT from string", () => {
-    const result = envSchema.parse({
+  it("coerces numeric strings to numbers", async () => {
+    isolateEnv({
+      ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET,
       PORT: "3000",
-      DATABASE_URL: "postgres://test:test@localhost:5432/test",
-      REDIS_URL: "redis://localhost:6379",
+      SNAPSHOT_RETENTION: "7",
+      API_RATE_LIMIT_MAX: "250",
+      ACCESS_TOKEN_TTL: "120",
+      REFRESH_TOKEN_TTL: "1209600",
     });
-    expect(result.PORT).toBe(3000);
+
+    const { env } = await import("@/config/config.js");
+
+    expect(env.PORT).toBe(3000);
+    expect(env.SNAPSHOT_RETENTION).toBe(7);
+    expect(env.API_RATE_LIMIT_MAX).toBe(250);
+    expect(env.ACCESS_TOKEN_TTL).toBe(120);
+    expect(env.REFRESH_TOKEN_TTL).toBe(1209600);
   });
 
-  it("parses PORT from number", () => {
-    const result = envSchema.parse({
-      PORT: 4000,
-      DATABASE_URL: "postgres://test:test@localhost:5432/test",
-      REDIS_URL: "redis://localhost:6379",
+  it("exits when ACCESS_TOKEN_SECRET is missing", async () => {
+    isolateEnv({});
+
+    await expect(import("@/config/config.js")).rejects.toThrow(
+      "process.exit:1",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("exits when ACCESS_TOKEN_SECRET is shorter than 24 chars", async () => {
+    isolateEnv({ ACCESS_TOKEN_SECRET: "short-secret" });
+
+    await expect(import("@/config/config.js")).rejects.toThrow(
+      "process.exit:1",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("exits when PORT is not positive", async () => {
+    isolateEnv({
+      ACCESS_TOKEN_SECRET: VALID_ACCESS_TOKEN_SECRET,
+      PORT: "-1",
     });
-    expect(result.PORT).toBe(4000);
-  });
 
-  it("rejects invalid NODE_ENV", () => {
-    expect(() =>
-      envSchema.parse({
-        NODE_ENV: "invalid",
-        DATABASE_URL: "postgres://test:test@localhost:5432/test",
-        REDIS_URL: "redis://localhost:6379",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects invalid LOG_LEVEL", () => {
-    expect(() =>
-      envSchema.parse({
-        LOG_LEVEL: "invalid",
-        DATABASE_URL: "postgres://test:test@localhost:5432/test",
-        REDIS_URL: "redis://localhost:6379",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects non-positive PORT", () => {
-    expect(() =>
-      envSchema.parse({
-        PORT: "-1",
-        DATABASE_URL: "postgres://test:test@localhost:5432/test",
-        REDIS_URL: "redis://localhost:6379",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects missing DATABASE_URL", () => {
-    expect(() =>
-      envSchema.parse({ REDIS_URL: "redis://localhost:6379" }),
-    ).toThrow();
-  });
-
-  it("rejects missing REDIS_URL", () => {
-    expect(() =>
-      envSchema.parse({
-        DATABASE_URL: "postgres://test:test@localhost:5432/test",
-      }),
-    ).toThrow();
+    await expect(import("@/config/config.js")).rejects.toThrow(
+      "process.exit:1",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

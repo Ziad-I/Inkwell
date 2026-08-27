@@ -176,4 +176,17 @@ describe("authorizeBoardAccess", () => {
     expect(access.role).toBe("editor");
     expect(access.boardId).toBe("ephemeral-1");
   });
+
+  it("never grants owner to a guest whose id matches the ownerId (spoofed handshake)", async () => {
+    invitesMock.validateInviteToken.mockResolvedValue(null);
+    const { authorizeBoardAccess } = await load();
+    const access = await authorizeBoardAccess({
+      boardId: "room-abc",
+      board: makeBoard({ ownerId: "owner-1" }),
+      principal: { type: "guest", id: "owner-1" },
+      inviteToken: null,
+    });
+    expect(access.role).not.toBe("owner");
+    expect(access.role).toBe("editor");
+  });
 });

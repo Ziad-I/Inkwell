@@ -1,41 +1,9 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import { port, seedBoard, seedInvite, cleanupTestData } from "./setup.js";
+import { seedBoard, seedInvite, seedUser, cleanupTestData } from "./setup.js";
+import type { Socket as ClientSocket } from "socket.io-client";
+import { connectClient, roomJoin } from "./helpers.js";
 
 const boardIds: string[] = [];
-
-function connectClient(
-  auth?: Record<string, unknown>,
-  cookie?: string,
-): Promise<ClientSocket> {
-  return new Promise((resolve, reject) => {
-    const socket = ioc(`http://localhost:${port}`, {
-      transports: ["websocket"],
-      forceNew: true,
-      auth: auth ?? { userId: "test-user" },
-      ...(cookie ? { extraHeaders: { Cookie: cookie } } : {}),
-    });
-    socket.on("connect", () => resolve(socket));
-    socket.on("connect_error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connection timeout")), 3000);
-  });
-}
-
-function roomJoin(
-  socket: ClientSocket,
-  roomId: string,
-): Promise<{ err: unknown; data: unknown }> {
-  return new Promise((resolve, reject) => {
-    socket.emit("room:join", { roomId }, (err: unknown, data: unknown) => {
-      try {
-        resolve({ err, data });
-      } catch (e) {
-        reject(e);
-      }
-    });
-    setTimeout(() => reject(new Error("ack timeout")), 3000);
-  });
-}
 
 describe("socket join authorization via invite cookies", () => {
   it("resolves an editor invite cookie to editor access", async () => {
@@ -420,6 +388,41 @@ describe("socket operation permissions", () => {
       command: makeCommand("cmd-n", "never-joined"),
     });
     await rejectPromise;
+    socket.disconnect();
+  });
+});
+
+describe("identity spoofing prevention", () => {
+  it("does not grant owner to a guest presenting the owner's userId", async () => {
+    const ownerId = await seedUser();
+    const boardId = await seedBoard({ ownerId, defaultRole: "editor" });
+    boardIds.push(boardId);
+
+    const impostor = await connectClient({ userId: ownerId }); // no token
+    const joined = await roomJoin(impostor, boardId);
+
+    expect(joined.err).toBeNull();
+    expect(joined.data).toMatchObject({ role: "editor" });
+    impostor.disconnect();
+  });
+
+  it("grants owner to a socket authenticated with the owner's token", async () => {
+    const { default: request } = await import("supertest");
+    const { httpServer } = await import("./setup.js");
+    const stamp = Date.now();
+    const reg = await request(httpServer).post("/api/auth/register").send({
+      username: `own_${stamp}`, email: `own_${stamp}@test.local`, password: "supersecret",
+    });
+    const token = reg.body.accessToken as string;
+
+    const created = await request(httpServer).post("/api/boards")
+      .set("Authorization", `Bearer ${token}`).send({ name: "Mine" });
+    const boardId = created.body.id as string;
+    boardIds.push(boardId);
+
+    const socket = await connectClient({ token });
+    const joined = await roomJoin(socket, boardId);
+    expect(joined.data).toMatchObject({ role: "owner", permissions: { read: true, draw: true } });
     socket.disconnect();
   });
 });
