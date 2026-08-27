@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import Logo from "@/components/home/logo";
 import { ThemeToggle } from "@/components/home/themeToggle";
 import { UserMenu } from "@/components/auth/userMenu";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/authStore";
 
 export function Header() {
@@ -21,22 +21,30 @@ export function Header() {
         <div className="flex items-center space-x-2">
           {status === "unauthenticated" && (
             <>
-              <Button render={<Link to="/login" />} variant="ghost" size="sm">
+              <ButtonLink
+                render={<Link to="/login" />}
+                variant="ghost"
+                size="sm"
+              >
                 Sign in
-              </Button>
-              <Button
+              </ButtonLink>
+              <ButtonLink
                 render={<Link to="/register" />}
                 variant="default"
                 size="sm"
               >
                 Create account
-              </Button>
+              </ButtonLink>
             </>
           )}
           {status === "authenticated" && (
-            <Button render={<Link to="/dashboard" />} variant="ghost" size="sm">
+            <ButtonLink
+              render={<Link to="/dashboard" />}
+              variant="ghost"
+              size="sm"
+            >
               My Boards
-            </Button>
+            </ButtonLink>
           )}
           <UserMenu />
           <ThemeToggle />

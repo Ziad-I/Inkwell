@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -22,10 +22,10 @@ export default function ErrorPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="text-center">
-        <Button className="w-full" render={<Link to="/" />}>
+        <ButtonLink className="w-full" render={<Link to="/" />}>
           <Home className="w-4 h-4 mr-2" />
           Back to Home
-        </Button>
+        </ButtonLink>
       </CardContent>
     </Card>
   );
