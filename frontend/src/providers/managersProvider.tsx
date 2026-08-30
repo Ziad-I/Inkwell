@@ -33,10 +33,20 @@ export function BoardManagersProvider({
   useEffect(() => {
     if (!userId || !roomId) return;
 
-    const { setSessionStatus, reset } = useSessionStore.getState();
+    const { setSession, reset } = useSessionStore.getState();
     const { accessToken } = useAuthStore.getState();
 
-    setSessionStatus({ status: "connecting" });
+    const epoch = `interim:${roomId}:${userId}`;
+
+    setSession({
+      epoch,
+      roomId,
+      phase: "connecting",
+      role: null,
+      permissions: { read: false, draw: false },
+      canDraw: false,
+      error: null,
+    });
 
     async function initManagers() {
       if (!userId) return;

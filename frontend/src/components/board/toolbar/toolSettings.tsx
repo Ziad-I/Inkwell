@@ -81,9 +81,8 @@ const settingButtons = [
 export default function ToolSettings() {
   const [collapsed, setCollapsed] = useState(false);
   const [openPanel, setOpenPanel] = useState<string | null>(null);
-  const sessionStatus = useSessionStore((state) => state.sessionStatus);
-  const showShare =
-    sessionStatus.status === "ready" && sessionStatus.role === "owner";
+  const session = useSessionStore((state) => state.session);
+  const showShare = session.phase === "ready" && session.role === "owner";
 
   return (
     <>

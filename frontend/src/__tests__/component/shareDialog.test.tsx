@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
 import { useSessionStore } from "@/stores/sessionStore";
-import type { SessionStatus } from "@/types/session";
+import type { BoardSessionSnapshot } from "@/types/session";
 
 const apiMock = vi.hoisted(() => ({
   default: { post: vi.fn() },
@@ -192,21 +192,34 @@ describe("ShareDialog", () => {
 });
 
 describe("ToolSettings share gating", () => {
-  async function renderToolSettings(sessionStatus: SessionStatus) {
-    useSessionStore.setState({ sessionStatus });
+  const snapshot = (
+    overrides: Partial<BoardSessionSnapshot> = {},
+  ): BoardSessionSnapshot => ({
+    epoch: "gen-1",
+    roomId: "b1",
+    phase: "ready",
+    role: "owner",
+    permissions: { read: true, draw: true },
+    canDraw: true,
+    error: null,
+    ...overrides,
+  });
+
+  async function renderToolSettings(session: BoardSessionSnapshot) {
+    useSessionStore.setState({ session });
     const { default: ToolSettings } =
       await import("@/components/board/toolbar/toolSettings");
     return render(<ToolSettings />);
   }
 
   it("shows the Share button for owners", async () => {
-    await renderToolSettings({ status: "ready", role: "owner" });
+    await renderToolSettings(snapshot({ role: "owner" }));
 
     expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
   });
 
   it("hides the Share button for editors", async () => {
-    await renderToolSettings({ status: "ready", role: "editor" });
+    await renderToolSettings(snapshot({ role: "editor" }));
 
     expect(
       screen.queryByRole("button", { name: "Share" }),
@@ -214,7 +227,7 @@ describe("ToolSettings share gating", () => {
   });
 
   it("hides the Share button for viewers", async () => {
-    await renderToolSettings({ status: "ready", role: "viewer" });
+    await renderToolSettings(snapshot({ role: "viewer" }));
 
     expect(
       screen.queryByRole("button", { name: "Share" }),
@@ -222,7 +235,14 @@ describe("ToolSettings share gating", () => {
   });
 
   it("hides the Share button while joining", async () => {
-    await renderToolSettings({ status: "joining" });
+    await renderToolSettings(
+      snapshot({
+        phase: "joining",
+        role: null,
+        permissions: { read: false, draw: false },
+        canDraw: false,
+      }),
+    );
 
     expect(
       screen.queryByRole("button", { name: "Share" }),

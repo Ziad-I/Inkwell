@@ -1,3 +1,4 @@
+import type { BoardSessionSnapshot } from "@/types/session";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 describe("settingsStore", () => {
@@ -92,5 +93,56 @@ describe("presenceStore", () => {
     const { usePresenceStore } = await import("@/stores/presenceStore");
     usePresenceStore.getState().setAnonymousName("Alice");
     expect(usePresenceStore.getState().anonymousName).toBe("Alice");
+  });
+});
+
+describe("sessionStore", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  const idleSnapshot: BoardSessionSnapshot = {
+    epoch: "",
+    roomId: "",
+    phase: "idle",
+    role: null,
+    permissions: { read: false, draw: false },
+    canDraw: false,
+    error: null,
+  };
+
+  it("initializes with an idle snapshot", async () => {
+    const { useSessionStore } = await import("@/stores/sessionStore");
+    expect(useSessionStore.getState().session).toEqual(idleSnapshot);
+  });
+
+  it("replaces the session snapshot", async () => {
+    const { useSessionStore } = await import("@/stores/sessionStore");
+    const ready: BoardSessionSnapshot = {
+      epoch: "gen-1",
+      roomId: "room-1",
+      phase: "ready",
+      role: "editor",
+      permissions: { read: true, draw: true },
+      canDraw: true,
+      error: null,
+    };
+    useSessionStore.getState().setSession(ready);
+    expect(useSessionStore.getState().session).toBe(ready);
+  });
+
+  it("resets to the idle snapshot", async () => {
+    const { useSessionStore } = await import("@/stores/sessionStore");
+    useSessionStore.getState().setSession({
+      epoch: "gen-1",
+      roomId: "room-1",
+      phase: "reconciling",
+      role: "editor",
+      permissions: { read: true, draw: true },
+      canDraw: false,
+      error: null,
+    } satisfies BoardSessionSnapshot);
+    useSessionStore.getState().reset();
+    expect(useSessionStore.getState().session).toEqual(idleSnapshot);
   });
 });

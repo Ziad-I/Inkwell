@@ -1,16 +1,24 @@
 import { create } from "zustand";
-import type { SessionStatus } from "@/types/session";
+import type { BoardSessionSnapshot } from "@/types/session";
 
 type SessionState = {
-  sessionStatus: SessionStatus;
-  setSessionStatus: (status: SessionStatus) => void;
+  session: BoardSessionSnapshot;
+  setSession: (snapshot: BoardSessionSnapshot) => void;
   reset: () => void;
 };
 
-const initialState: SessionStatus = { status: "idle" };
+const initialSnapshot: BoardSessionSnapshot = {
+  epoch: "",
+  roomId: "",
+  phase: "idle",
+  role: null,
+  permissions: { read: false, draw: false },
+  canDraw: false,
+  error: null,
+};
 
 export const useSessionStore = create<SessionState>()((set) => ({
-  sessionStatus: initialState,
-  setSessionStatus: (status) => set({ sessionStatus: status }),
-  reset: () => set({ sessionStatus: initialState }),
+  session: initialSnapshot,
+  setSession: (snapshot) => set({ session: snapshot }),
+  reset: () => set({ session: initialSnapshot }),
 }));

@@ -16,7 +16,7 @@ function BoardPage() {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
 
-  const sessionStatus = useSessionStore((state) => state.sessionStatus);
+  const session = useSessionStore((state) => state.session);
 
   useEffect(() => {
     if (!roomId) {
@@ -25,19 +25,19 @@ function BoardPage() {
   }, [roomId, navigate]);
 
   useEffect(() => {
-    if (sessionStatus.status !== "error") {
+    if (session.phase !== "error") {
       return;
     }
 
     toast.error("An error occurred while joining the board.");
     navigate("/", { replace: true });
-  }, [sessionStatus.status, navigate]);
+  }, [session.phase, navigate]);
 
   const isLoading =
-    sessionStatus.status === "idle" ||
-    sessionStatus.status === "connecting" ||
-    sessionStatus.status === "joining" ||
-    sessionStatus.status === "syncing";
+    session.phase === "idle" ||
+    session.phase === "connecting" ||
+    session.phase === "joining" ||
+    session.phase === "syncing";
 
   return (
     <BoardManagersProvider
