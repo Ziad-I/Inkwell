@@ -29,6 +29,7 @@ export interface StageOperations {
   redrawDrawingLayer: () => void;
   redrawOverlayLayer: () => void;
   toggleDrawing: (enabled: boolean) => void;
+  resetRoomScene: () => void;
 }
 
 export interface Settings {

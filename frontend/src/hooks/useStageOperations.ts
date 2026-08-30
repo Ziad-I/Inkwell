@@ -207,6 +207,23 @@ export function useStageOperations() {
         layer.listening(enabled);
       }
     },
+
+    resetRoomScene: () => {
+      const drawingLayer = drawingLayerRef.current;
+      const overlayLayer = overlayLayerRef.current;
+
+      drawingLayer?.destroyChildren();
+      overlayLayer?.destroyChildren();
+
+      for (const node of removedNodesRegistry.current.values()) {
+        node.destroy();
+      }
+      removedNodesRegistry.current.clear();
+
+      stageOperations.current.redrawDrawingLayer();
+      stageOperations.current.redrawOverlayLayer();
+      stageOperations.current.toggleDrawing(false);
+    },
   });
 
   return {

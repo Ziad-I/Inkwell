@@ -1,7 +1,4 @@
-import type {
-  BoardPermissions,
-  BoardRole,
-} from "@/types/events";
+import type { BoardPermissions, BoardRole } from "@/types/events";
 
 export type SessionStatus = {
   status: Status;
@@ -17,3 +14,12 @@ export type Status =
   | "syncing"
   | "ready"
   | "error";
+
+export type ReconciliationReason =
+  | "protocol-validation"
+  | "sequence-gap"
+  | "sequence-conflict"
+  | "ack-timeout"
+  | "malformed-ack"
+  | "disconnect-with-pending-operation"
+  | "ambiguous-delta";

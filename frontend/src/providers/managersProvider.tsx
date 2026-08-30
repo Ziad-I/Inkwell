@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ToolManager } from "@/core/toolManager";
 import { CommandManager } from "@/core/commandManager";
+import type { MutationCapability } from "@/types/operations";
 import { ConnectionManager } from "@/core/connectionManager";
+import { BoardDocument } from "@/collaboration/boardDocument";
+import { OperationJournal } from "@/collaboration/operationJournal";
 import type { StageOperations } from "@/types/common";
 import { BoardManagersContext } from "@/context/boardManagersContext";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -42,12 +45,26 @@ export function BoardManagersProvider({
         auth: { userId, userName, userColor, token: accessToken },
       });
 
-      const commandMgr = new CommandManager(
+      const epoch = `interim:${roomId}:${userId}`;
+      const capability: MutationCapability = {
+        epoch,
+        ready: true,
+        canDraw: true,
+      };
+
+      const commandMgr = new CommandManager({
+        epoch,
         userId,
         roomId,
         stageOperations,
         connection,
-      );
+        document: new BoardDocument(),
+        journal: new OperationJournal(),
+        getCapability: () => capability,
+        requestReconciliation: (reason) =>
+          console.warn(`[interim] reconciliation requested: ${reason}`),
+        notifyCommandFailure: (message) => console.warn(`[interim] ${message}`),
+      });
 
       const mgr = new ToolManager({
         stageOps: stageOperations,

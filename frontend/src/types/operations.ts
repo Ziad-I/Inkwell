@@ -29,3 +29,9 @@ export type OperationResolution =
   | { type: "uncertain"; record: OperationRecord; reason: UncertainReason }
   | { type: "already-resolved"; record: OperationRecord }
   | { type: "not-found" };
+
+export type MutationCapability = {
+  epoch: string;
+  ready: boolean;
+  canDraw: boolean;
+};
