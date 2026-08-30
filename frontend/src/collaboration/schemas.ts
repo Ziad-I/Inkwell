@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 import {
   idSchema,
@@ -7,7 +7,6 @@ import {
   pointSchema,
   commandSchema,
 } from "@/types/command";
-import type { ProtocolParseResult } from "@/types/collaboration";
 
 export const commandEnvelopeSchema = z
   .strictObject({
@@ -66,6 +65,10 @@ export const presenceJoinArgsSchema = z.tuple([
 ]);
 export const presenceLeaveArgsSchema = z.tuple([idSchema]);
 export const presenceMoveArgsSchema = z.tuple([idSchema, pointSchema]);
+
+export type ProtocolParseResult<T> =
+  | { success: true; data: T }
+  | { success: false; schemaName: string; error: ZodError };
 
 export function parseProtocol<T>(
   schemaName: string,

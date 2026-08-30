@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { BoardDocument } from "@/collaboration/boardDocument";
-import type { DurableTransition } from "@/types/collaboration";
+import type { DurableTransition } from "@/types/transitions";
 import type { CommandStatus, RenderableCommand } from "@/types/command";
 
 const strokePayload = {

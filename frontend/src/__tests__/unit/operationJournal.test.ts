@@ -4,7 +4,7 @@ import {
   MAX_OPERATION_HISTORY,
   OperationJournal,
 } from "@/collaboration/operationJournal";
-import type { OperationRecord } from "@/types/collaboration";
+import type { OperationRecord } from "@/types/operations";
 import type { RenderableCommand } from "@/types/command";
 
 function command(id: string): RenderableCommand {

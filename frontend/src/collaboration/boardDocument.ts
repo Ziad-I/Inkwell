@@ -3,12 +3,8 @@ import type {
   CommandStatus,
   RenderableCommand,
 } from "@/types/command";
-import type {
-  DurableTransition,
-  TransitionKind,
-  ReplacementResult,
-  TransitionResult,
-} from "@/types/collaboration";
+import type { DurableTransition, TransitionKind } from "@/types/transitions";
+import type { ReplacementResult, TransitionResult } from "@/types/transitions";
 
 type DocumentSnapshot = {
   commands: Map<CommandID, RenderableCommand>;

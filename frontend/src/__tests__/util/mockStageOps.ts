@@ -40,6 +40,7 @@ export function createMockStageOps(
     zoomIn: vi.fn(),
     zoomOut: vi.fn(),
     resetZoom: vi.fn(),
+    resetRoomScene: vi.fn(),
     ...overrides,
   } as StageOperations;
 }

@@ -8,7 +8,7 @@ import {
 import { z } from "zod";
 import type { ClientEmitEvents, ClientListenEvents } from "@/types/events";
 import { parseProtocol } from "@/collaboration/schemas";
-import { type AckErrorCategory } from "@/types/collaboration";
+import { type AckErrorCategory } from "@/types/operations";
 
 /** Default acknowledgement deadline shared by join and durable commands. */
 export const ACK_DEADLINE_MS = 8_000;

@@ -1,9 +1,7 @@
 import type { CommandID } from "@/types/command";
-import type {
-  OperationRecord,
-  OperationResolution,
-  UncertainReason,
-} from "@/types/collaboration";
+import type { UncertainReason } from "@/types/operations";
+import type { OperationRecord } from "@/types/operations";
+import type { OperationResolution } from "@/types/operations";
 
 /**
  * Maximum number of resolved operation records retained for handling
