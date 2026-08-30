@@ -19,8 +19,8 @@ const PRESET_COLORS = [
   "#000080",
 ];
 const SHAPE_KINDS = ["rectangle", "circle", "line", "arrow"] as const;
-const LINE_CAPS = ["butt", "round", "square"];
-const LINE_JOINS = ["miter", "round", "bevel"];
+const LINE_CAPS = ["butt", "round", "square"] as const;
+const LINE_JOINS = ["miter", "round", "bevel"] as const;
 const BASE_GRID_SPACING = 50;
 const MIN_SCREEN_GRID_SPACING = 28;
 const MAX_SCREEN_GRID_SPACING = 96;
@@ -69,3 +69,5 @@ export {
 };
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
+export type LineCap = (typeof LINE_CAPS)[number];
+export type LineJoin = (typeof LINE_JOINS)[number];

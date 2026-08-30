@@ -1,4 +1,4 @@
-import type { Point } from "@/types/common";
+import type { Point } from "@/types/command";
 import { useBoardManagers } from "@/context/boardManagersContext";
 import type { PresenceMeta } from "@/types/command";
 import { useCallback, useEffect, useRef, useState } from "react";

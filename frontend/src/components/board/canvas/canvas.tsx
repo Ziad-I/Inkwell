@@ -14,7 +14,8 @@ import {
   DEFAULT_VIEWPOINT_POS,
   PRESENCE_EMIT_INTERVAL_MS,
 } from "@/lib/constants";
-import type { Point, StageOperations } from "@/types/common";
+import type { StageOperations } from "@/types/common";
+import type { Point } from "@/types/command";
 import { Tools } from "@/types/tool";
 import GridLayer from "@/components/board/canvas/gridLayer";
 

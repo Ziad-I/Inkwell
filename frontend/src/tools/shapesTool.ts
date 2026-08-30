@@ -1,4 +1,4 @@
-import type { Point } from "@/types/common";
+import type { Point } from "@/types/command";
 import { type CommandID, type ShapePayload } from "@/types/command";
 import { Tools, type ToolContext } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";

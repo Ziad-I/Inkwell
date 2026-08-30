@@ -1,4 +1,4 @@
-import type { Point } from "@/types/common";
+import type { Point } from "@/types/command";
 import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
 import { Circle, Group, Rect, Text } from "react-konva";
 import type Konva from "konva";

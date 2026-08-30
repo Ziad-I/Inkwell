@@ -52,13 +52,9 @@ export class CommandFactory {
         return new EraseCommand(operation, stageOps);
       case "transform":
         return new TransformCommand(operation, stageOps);
-      case "tombstone":
-        throw new Error("TombstoneCommand not yet implemented");
-      case "restore":
-        throw new Error("RestoreCommand not yet implemented");
       default:
         throw new Error(
-          `Unknown operation type: ${(operation as Command).type}`
+          `Unknown operation type: ${(operation as Command).type}`,
         );
     }
   }

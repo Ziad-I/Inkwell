@@ -1,9 +1,5 @@
 import type Konva from "konva";
-
-export interface Point {
-  x: number;
-  y: number;
-}
+import type { Point } from "@/types/command";
 
 export interface StageOperations {
   getScale: () => number;

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import Konva from "konva";
-import type { Point, StageOperations } from "@/types/common";
+import type { StageOperations } from "@/types/common";
+import type { Point } from "@/types/command";
 import type { Shape, ShapeConfig } from "konva/lib/Shape";
 import {
   MIN_SCALE,

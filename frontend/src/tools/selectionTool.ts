@@ -1,7 +1,7 @@
 import Konva from "konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Tools, type ToolContext } from "@/types/tool";
-import type { Point } from "@/types/common";
+import type { Point } from "@/types/command";
 import { BaseTool } from "./baseTool";
 import { Move } from "lucide-react";
 import type { CommandID, TransformPayload, NodeState } from "@/types/command";

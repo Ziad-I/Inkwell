@@ -3,7 +3,8 @@ import type {
   ShapePayload,
 } from "@/types/command";
 import { BaseCommand } from "@/commands/baseCommand";
-import type { Point, StageOperations } from "@/types/common";
+import type { StageOperations } from "@/types/common";
+import type { Point } from "@/types/command";
 import Konva from "konva";
 
 type ShapeNode = Konva.Rect | Konva.Circle | Konva.Line | Konva.Arrow;

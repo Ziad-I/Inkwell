@@ -432,9 +432,7 @@ describe("DashboardPage integration", () => {
     });
     // Terminal UI: the loading lifecycle finished (finally ran) and the
     // empty state rendered.
-    expect(
-      await screen.findByText("No active boards yet"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("No active boards yet")).toBeInTheDocument();
   });
 
   it("shows a toast when creating a board fails and stays on the page", async () => {
@@ -443,9 +441,7 @@ describe("DashboardPage integration", () => {
     await renderDashboard();
 
     await screen.findByText("Alpha");
-    await user.click(
-      screen.getAllByRole("button", { name: /New board/i })[0],
-    );
+    await user.click(screen.getAllByRole("button", { name: /New board/i })[0]);
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
