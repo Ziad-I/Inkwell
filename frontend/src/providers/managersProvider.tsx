@@ -55,8 +55,7 @@ export function BoardManagersProvider({
       const commandMgr = new CommandManager({
         epoch,
         userId,
-        roomId,
-        stageOperations,
+        stageOps: stageOperations,
         connection,
         document: new BoardDocument(),
         journal: new OperationJournal(),
