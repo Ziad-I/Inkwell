@@ -34,6 +34,14 @@ const RESULTING_STATUS: Record<TransitionKind, CommandStatus> = {
 // removing the prune step.
 const MAX_DURABLE_HISTORY = 100;
 
+/**
+ * BoardDocument manages the state of commands and their transitions.
+ * It tracks both durable commands and ephemeral
+ * previews, handles the application of transitions,
+ * and ensures the integrity of command sequences.
+ * Used for maintaining the state of a collaborative board document,
+ * including handling command previews and applying transitions in a consistent manner.
+ */
 export class BoardDocument {
   private commands = new Map<CommandID, RenderableCommand>();
   private previews = new Map<CommandID, RenderableCommand>();
