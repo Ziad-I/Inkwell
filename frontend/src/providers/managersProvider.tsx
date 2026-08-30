@@ -1,15 +1,27 @@
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { toast } from "sonner";
 import { ToolManager } from "@/core/toolManager";
 import { CommandManager } from "@/core/commandManager";
 import type { MutationCapability } from "@/types/operations";
 import { ConnectionManager } from "@/core/connectionManager";
+import { activeBoardSessionSlot } from "@/collaboration/sessionSlot";
 import { BoardDocument } from "@/collaboration/boardDocument";
 import { OperationJournal } from "@/collaboration/operationJournal";
+import { BoardSession } from "@/collaboration/boardSession";
+import type { Point } from "@/types/command";
 import type { StageOperations } from "@/types/common";
 import { BoardManagersContext } from "@/context/boardManagersContext";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useCollabIdentity } from "@/hooks/useCollabIdentity";
+import type { BoardSessionSnapshot } from "@/types/session";
 
 interface BoardManagersProviderProps {
   url: string;
@@ -26,86 +38,174 @@ export function BoardManagersProvider({
 }: BoardManagersProviderProps) {
   const { id: userId, name: userName, color: userColor } = useCollabIdentity();
 
+  const [epoch, setEpoch] = useState("");
   const toolManagerRef = useRef<ToolManager | null>(null);
   const commandManagerRef = useRef<CommandManager | null>(null);
-  const connectionManagerRef = useRef<ConnectionManager | null>(null);
+  const coordinatorRef = useRef<BoardSession | null>(null);
+
+  const emitPresence = useCallback(
+    (pos: Point) => coordinatorRef.current?.emitPresence(pos) ?? false,
+    [],
+  );
 
   useEffect(() => {
     if (!userId || !roomId) return;
 
-    const { setSession, reset } = useSessionStore.getState();
+    const abortController = new AbortController();
+    const epoch = crypto.randomUUID();
     const { accessToken } = useAuthStore.getState();
 
-    const epoch = `interim:${roomId}:${userId}`;
+    // Every instance below is local to this effect run. Cleanup and the
+    // post-initialization checks close over these locals — never over refs —
+    // so a stale epoch can never touch a newer one.
+    const connection = new ConnectionManager(url, {
+      auth: { userId, userName, userColor, token: accessToken },
+    });
+    const document = new BoardDocument();
+    const journal = new OperationJournal();
 
-    setSession({
+    // The coordinator needs the command manager, while the command
+    // manager's capability gate needs the coordinator's snapshot. A const
+    // holder breaks the cycle and gives both closures epoch-scoped
+    // access to this run's coordinator only.
+    const activeCoordinator: { current: BoardSession | null } = {
+      current: null,
+    };
+
+    const commandMgr = new CommandManager({
       epoch,
-      roomId,
-      phase: "connecting",
-      role: null,
-      permissions: { read: false, draw: false },
-      canDraw: false,
-      error: null,
+      userId,
+      stageOps: stageOperations,
+      connection,
+      document,
+      journal,
+      getCapability: (): MutationCapability => {
+        const snapshot = activeCoordinator.current?.getSnapshot();
+        if (!snapshot || snapshot.epoch !== epoch) {
+          return { epoch, ready: false, canDraw: false };
+        }
+        return {
+          epoch: snapshot.epoch,
+          ready: snapshot.phase === "ready",
+          canDraw: snapshot.canDraw,
+        };
+      },
+      requestReconciliation: (reason) => {
+        activeCoordinator.current?.requestReconciliation(reason);
+      },
+      notifyCommandFailure: (message) => {
+        toast.error(message);
+      },
     });
 
-    async function initManagers() {
-      if (!userId) return;
+    const toolManager = new ToolManager({
+      stageOps: stageOperations,
+      commandManager: commandMgr,
+    });
 
-      const connection = new ConnectionManager(url, {
-        auth: { userId, userName, userColor, token: accessToken },
-      });
+    const localCoordinator = new BoardSession({
+      epoch,
+      roomId,
+      connection,
+      commands: commandMgr,
+      document,
+      journal,
+      // TODO: ToolManager.cancelActiveGesture will be done later.
+      // Deactivating the effective tool cancels its in-flight gesture (e.g.
+      // BrushTool.onDeactivate cancels a pending stroke command) without
+      // unregistering the tool.
+      cancelGesture: () => {
+        toolManager.getEffectiveTool()?.onDeactivate?.();
+      },
+      // TODO: remote presence display is to be rewired later. The
+      // presence store only holds the local anonymous identity; resetting it
+      // on every disconnect/reconciliation would revert the user's chosen
+      // name and color, so there is nothing to clear here yet.
+      clearPresence: () => {},
+      publish: (snapshot: BoardSessionSnapshot) => {
+        useSessionStore.getState().setSession(snapshot);
+      },
+    });
+    activeCoordinator.current = localCoordinator;
 
-      const epoch = `interim:${roomId}:${userId}`;
-      const capability: MutationCapability = {
-        epoch,
-        ready: true,
-        canDraw: true,
-      };
+    // Register before starting so the coordinator stays disposable through
+    // the registry (the logout boundary) even if this effect's own cleanup
+    // never runs.
+    const unregister = activeBoardSessionSlot.register({
+      epoch,
+      dispose: () => {
+        localCoordinator.dispose();
+      },
+    });
 
-      const commandMgr = new CommandManager({
-        epoch,
-        userId,
-        stageOps: stageOperations,
-        connection,
-        document: new BoardDocument(),
-        journal: new OperationJournal(),
-        getCapability: () => capability,
-        requestReconciliation: (reason) =>
-          console.warn(`[interim] reconciliation requested: ${reason}`),
-        notifyCommandFailure: (message) => console.warn(`[interim] ${message}`),
-      });
+    toolManagerRef.current = toolManager;
+    commandManagerRef.current = commandMgr;
+    coordinatorRef.current = localCoordinator;
+    setEpoch(epoch);
 
-      const mgr = new ToolManager({
-        stageOps: stageOperations,
-        commandManager: commandMgr,
-      });
+    let finalized = false;
+    const finalizeLocal = () => {
+      if (finalized) {
+        return;
+      }
+      finalized = true;
+      localCoordinator.dispose();
+      toolManager.destroy();
+      commandMgr.destroy();
+      connection.disconnect();
+      stageOperations.resetRoomScene();
+    };
 
-      // Assign refs before initiating the connection
-      connectionManagerRef.current = connection;
-      commandManagerRef.current = commandMgr;
-      toolManagerRef.current = mgr;
+    void (async () => {
+      try {
+        await toolManager.initTools();
+      } catch (error) {
+        console.error("Tool initialization failed", error);
+      }
 
-      await mgr.initTools();
-      connection.connect();
-    }
+      const stale =
+        abortController.signal.aborted ||
+        toolManagerRef.current !== toolManager ||
+        commandManagerRef.current !== commandMgr ||
+        coordinatorRef.current !== localCoordinator;
 
-    initManagers();
+      if (stale) {
+        // A newer epoch or this effect's cleanup already took over:
+        // destroy the local instances and never connect.
+        finalizeLocal();
+        return;
+      }
+
+      localCoordinator.start();
+    })();
 
     return () => {
-      connectionManagerRef.current?.disconnect?.();
-      toolManagerRef.current?.destroy?.();
-      commandManagerRef.current?.destroy?.();
-      reset();
+      abortController.abort();
+      unregister();
+      finalizeLocal();
+      useSessionStore.getState().reset();
+      // Clear refs only if this epoch still owns them.
+      if (toolManagerRef.current === toolManager) {
+        toolManagerRef.current = null;
+      }
+      if (commandManagerRef.current === commandMgr) {
+        commandManagerRef.current = null;
+      }
+      if (coordinatorRef.current === localCoordinator) {
+        coordinatorRef.current = null;
+      }
     };
   }, [stageOperations, url, userColor, userId, userName, roomId]);
 
   const value = useMemo(
     () => ({
+      epoch,
       toolManagerRef,
       commandManagerRef,
-      connectionManagerRef,
+      coordinatorRef,
+      emitPresence,
     }),
-    [],
+    [epoch, emitPresence],
   );
 
   return (

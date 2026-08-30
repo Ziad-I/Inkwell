@@ -1,12 +1,21 @@
 import { createContext, useContext } from "react";
 import type { ToolManager } from "@/core/toolManager";
 import type { CommandManager } from "@/core/commandManager";
-import type { ConnectionManager } from "@/core/connectionManager";
+import type { BoardSession } from "@/collaboration/boardSession";
+import type { Point } from "@/types/command";
 
 export type BoardManagersContextValue = {
+  /** Epoch id of the session that owns the current manager refs. */
+  epoch: string;
   toolManagerRef: React.RefObject<ToolManager | null>;
   commandManagerRef: React.RefObject<CommandManager | null>;
-  connectionManagerRef: React.RefObject<ConnectionManager | null>;
+  coordinatorRef: React.RefObject<BoardSession | null>;
+  /**
+   * Volatile presence emission routed through the session coordinator;
+   * returns false while no coordinator is active or the session is not
+   * ready. Presentation must not touch the transport directly.
+   */
+  emitPresence: (pos: Point) => boolean;
 };
 
 export const BoardManagersContext =

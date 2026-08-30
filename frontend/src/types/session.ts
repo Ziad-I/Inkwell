@@ -1,6 +1,6 @@
 import type { BoardPermissions, BoardRole } from "@/types/events";
 
-/** Lifecycle phases of one board session generation. */
+/** Lifecycle phases of one board session epoch. */
 export type SessionPhase =
   | "idle"
   | "connecting"

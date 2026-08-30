@@ -14,8 +14,8 @@ import {
   DEFAULT_VIEWPOINT_POS,
   PRESENCE_EMIT_INTERVAL_MS,
 } from "@/lib/constants";
-import type { StageOperations } from "@/types/common";
 import type { Point } from "@/types/command";
+import type { StageOperations } from "@/types/common";
 import { Tools } from "@/types/tool";
 import GridLayer from "@/components/board/canvas/gridLayer";
 
@@ -33,7 +33,7 @@ function InfiniteCanvas({
   overlayLayerRef,
 }: InfiniteCanvasProps) {
   const { width, height } = useWindowSize();
-  const { toolManagerRef, commandManagerRef, connectionManagerRef } =
+  const { toolManagerRef, commandManagerRef, emitPresence } =
     useBoardManagers();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -138,9 +138,7 @@ function InfiniteCanvas({
 
     const now = performance.now();
     if (now - lastEmitTimeRef.current >= PRESENCE_EMIT_INTERVAL_MS) {
-      connectionManagerRef.current?.emit("presence:move", {
-        pos: worldPos,
-      });
+      emitPresence(worldPos);
       lastEmitTimeRef.current = now;
     }
 
