@@ -13,10 +13,12 @@ export interface PresenceDotProps {
   visible: boolean;
   userColor: string;
   userName: string;
+  /** Declarative position (world coordinates); imperative setPos still overrides. */
+  pos?: Point | null;
 }
 
 export const PresenceDot = forwardRef<PresenceDotHandle, PresenceDotProps>(
-  function PresenceDot({ radius, visible, userColor, userName }, ref) {
+  function PresenceDot({ radius, visible, userColor, userName, pos }, ref) {
     const nodeRef = useRef<Konva.Group | null>(null);
 
     useImperativeHandle(
@@ -45,7 +47,13 @@ export const PresenceDot = forwardRef<PresenceDotHandle, PresenceDotProps>(
     const badgeY = -radius - badgeHeight - 3;
 
     return (
-      <Group ref={nodeRef} x={0} y={0} visible={visible} listening={false}>
+      <Group
+        ref={nodeRef}
+        x={pos?.x ?? 0}
+        y={pos?.y ?? 0}
+        visible={visible}
+        listening={false}
+      >
         <Group x={0} y={badgeY} listening={false}>
           <Rect
             width={badgeWidth}
