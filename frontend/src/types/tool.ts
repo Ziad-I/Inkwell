@@ -17,12 +17,23 @@ export type ToolMetadata = {
   icon?: React.ComponentType<LucideProps>;
   cursor?: string;
   exclusive?: boolean;
+  /**
+   * Tools that mutate board content. Mutating tools require draw
+   * capability before activation; defaults to true.
+   */
+  mutating?: boolean;
 };
 
 export interface Tool {
   meta: ToolMetadata;
   onActivate?: () => void;
   onDeactivate?: () => void;
+  /**
+   * Cancels any in-flight gesture: captures the pending command id,
+   * resets local gesture state first, then cancels the command. Must be
+   * idempotent and must never finalize.
+   */
+  cancelGesture?: () => void;
   onPointerDown?: (e: KonvaEventObject<PointerEvent>) => void;
   onPointerMove?: (e: KonvaEventObject<PointerEvent>) => void;
   onPointerUp?: (e: KonvaEventObject<PointerEvent>) => void;

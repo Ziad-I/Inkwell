@@ -6,6 +6,7 @@ import {
   Tools,
 } from "@/types/tool";
 import type { KonvaEventObject } from "konva/lib/Node";
+import type { MutationCapability } from "@/types/operations";
 import { toolLoaders } from "@/core/toolLoaders";
 import { useToolStore } from "@/stores/toolStore";
 
@@ -15,10 +16,17 @@ export class ToolManager {
   private overrideStack: Tools[] = [];
   private loaders: Record<Tools, ToolLoader>;
   private ctx: ToolContext;
+  private readonly getCapability?: () => MutationCapability;
+  private destroyed = false;
 
-  constructor(ctx: ToolContext, loaders?: Record<Tools, ToolLoader>) {
+  constructor(
+    ctx: ToolContext,
+    loaders?: Record<Tools, ToolLoader>,
+    getCapability?: () => MutationCapability,
+  ) {
     this.ctx = ctx;
     this.loaders = loaders ?? toolLoaders;
+    this.getCapability = getCapability;
   }
 
   private updateStore() {
@@ -39,26 +47,38 @@ export class ToolManager {
     this.updateStore();
   }
 
+  /** Whether the current capability allows activating mutating tools. */
+  private mutationAllowed(): boolean {
+    if (!this.getCapability) return true;
+    const capability = this.getCapability();
+    return capability.ready && capability.canDraw;
+  }
+
   async initTools() {
     const entries = Object.entries(this.loaders) as [Tools, ToolLoader][];
     for (const [, loader] of entries) {
       if (loader.eager) {
         const maybe = loader.load(this.ctx);
         const tool = maybe instanceof Promise ? await maybe : maybe;
+        if (this.destroyed) return;
         this.register(tool);
       }
     }
     if (this.loaders[Tools.Brush]) {
+      // May be rejected while the session is not yet drawable; the
+      // provider activates the default tool once readiness is published.
       await this.activateTool(Tools.Brush);
     } else {
       this.setActiveTool(null);
     }
 
+    if (this.destroyed) return;
     this.updateStore();
   }
 
-  async activateTool(id: Tools): Promise<void> {
-    if (this.activeTool?.meta.id === id) return;
+  async activateTool(id: Tools): Promise<boolean> {
+    if (this.destroyed) return false;
+    if (this.activeTool?.meta.id === id) return true;
 
     let tool = this.tools.get(id) ?? null;
     if (!tool) {
@@ -66,16 +86,28 @@ export class ToolManager {
       if (!loader) throw new Error(`No loader for tool ${id}`);
       const maybe = loader.load(this.ctx);
       tool = maybe instanceof Promise ? await maybe : maybe;
+      if (this.destroyed) return false;
       this.register(tool);
     }
-    if (this.activeTool?.meta.id === id) return;
+    if (this.destroyed) return false;
+    if (this.activeTool?.meta.id === id) return true;
+
+    if (tool.meta.mutating !== false && !this.mutationAllowed()) {
+      return false;
+    }
+
     this.setActiveTool(id);
-    console.log(`Activated tool: ${id}`);
+    return true;
+  }
+
+  /** Cancels the in-flight gesture of the effective (active) tool. */
+  cancelActiveGesture(): void {
+    this.getEffectiveTool()?.cancelGesture?.();
   }
 
   register(tool: Tool) {
+    if (this.destroyed) return;
     this.tools.set(tool.meta.id, tool);
-    console.log(`Registered tool: ${tool.meta.id}`);
   }
 
   unregister(id: Tools) {
@@ -94,7 +126,6 @@ export class ToolManager {
       this.activeTool = null;
     }
     this.tools.delete(id);
-    console.log(`Unregistered tool: ${id}`);
     this.applyCursor(this.getEffectiveTool()?.meta.id ?? null);
   }
 
@@ -103,6 +134,7 @@ export class ToolManager {
   }
 
   applyCursor(id: Tools | null) {
+    if (this.destroyed) return;
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
 
@@ -119,6 +151,7 @@ export class ToolManager {
   }
 
   pushOverride(id: Tools) {
+    if (this.destroyed) return;
     const tool = this.tools.get(id);
     if (tool === undefined) {
       console.warn("Cannot push override for unregistered tool:", id);
@@ -166,22 +199,27 @@ export class ToolManager {
   }
 
   handlePointerDown(e: KonvaEventObject<PointerEvent>) {
+    if (this.destroyed) return;
     this.getEffectiveTool()?.onPointerDown?.(e);
   }
 
   handlePointerMove(e: KonvaEventObject<PointerEvent>) {
+    if (this.destroyed) return;
     this.getEffectiveTool()?.onPointerMove?.(e);
   }
 
   handlePointerUp(e: KonvaEventObject<PointerEvent>) {
+    if (this.destroyed) return;
     this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
   handlePointerLeave(e: KonvaEventObject<PointerEvent>) {
+    if (this.destroyed) return;
     this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
   handlePointerCancel(e: KonvaEventObject<PointerEvent>) {
+    if (this.destroyed) return;
     this.getEffectiveTool()?.onPointerUp?.(e);
   }
 
@@ -190,6 +228,9 @@ export class ToolManager {
   }
 
   destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
+
     this.tools.forEach((tool) => tool.onDeactivate?.());
     this.tools.clear();
     this.activeTool = null;

@@ -4,15 +4,19 @@ import ToolButton from "@/components/board/toolbar/toolButton";
 import { useBoardManagers } from "@/context/boardManagersContext";
 import type { Tools } from "@/types/tool";
 import { useToolStore } from "@/stores/toolStore";
+import { useSessionStore } from "@/stores/sessionStore";
+
+const VIEW_ONLY_REASON = "drawing is disabled (view-only session)";
 
 export default function Toolbar() {
   const { toolManagerRef } = useBoardManagers();
 
   const activeTool = useToolStore((state) => state.activeToolId);
   const allTools = useToolStore((state) => state.allTools);
+  const canDraw = useSessionStore((state) => state.session.canDraw);
 
   const handleToolClick = (toolId: Tools) => {
-    toolManagerRef.current?.activateTool(toolId);
+    void toolManagerRef.current?.activateTool(toolId);
   };
 
   return (
@@ -26,6 +30,8 @@ export default function Toolbar() {
                 toolLabel={tool.label!}
                 toolIcon={tool.icon!}
                 isActive={tool.id === activeTool}
+                disabled={!canDraw && tool.mutating !== false}
+                disabledReason={VIEW_ONLY_REASON}
                 onClick={() => handleToolClick(tool.id)}
               />
             </div>

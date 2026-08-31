@@ -13,6 +13,7 @@ export class ShapesTool extends BaseTool {
     icon: Square,
     cursor: "crosshair",
     exclusive: true,
+    mutating: true,
   };
 
   private shapeCommandId: CommandID | null = null;
@@ -62,12 +63,14 @@ export class ShapesTool extends BaseTool {
     } as ShapePayload;
   }
 
-  private cancelActiveShape() {
-    if (this.shapeCommandId && this.isDrawing) {
-      this.ctx.commandManager.cancelCommand(this.shapeCommandId);
-    }
+  cancelGesture(): void {
+    const commandId = this.shapeCommandId;
 
     this.resetState();
+
+    if (commandId !== null) {
+      this.ctx.commandManager.cancelCommand(commandId);
+    }
   }
 
   private hasMinimumSize() {
@@ -88,22 +91,31 @@ export class ShapesTool extends BaseTool {
   }
 
   onDeactivate() {
-    this.cancelActiveShape();
+    this.cancelGesture();
   }
 
   onPointerDown(_: KonvaEventObject<PointerEvent>) {
     const pointerWorldPoint = this.getPointerWorldPoint();
     if (!pointerWorldPoint) return;
 
-    this.isDrawing = true;
-    this.startPoint = pointerWorldPoint;
-    this.lastPoint = pointerWorldPoint;
     this.initPayload(pointerWorldPoint);
 
-    this.shapeCommandId = this.ctx.commandManager.startCommand(
+    const commandId = this.ctx.commandManager.startCommand(
       "shape",
       this.shapeCommandPayload!,
     );
+
+    // Transaction boundary: the gesture only starts once a command
+    // exists. On denial every local flag is reset before anything else.
+    if (commandId === null) {
+      this.resetState();
+      return;
+    }
+
+    this.shapeCommandId = commandId;
+    this.startPoint = pointerWorldPoint;
+    this.lastPoint = pointerWorldPoint;
+    this.isDrawing = true;
   }
 
   onPointerMove(_: KonvaEventObject<PointerEvent>) {

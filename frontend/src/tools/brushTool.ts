@@ -13,6 +13,7 @@ export class BrushTool extends BaseTool {
     icon: Brush,
     cursor: "crosshair",
     exclusive: true,
+    mutating: true,
   };
 
   private strokeCommandId: CommandID | null = null;
@@ -99,15 +100,27 @@ export class BrushTool extends BaseTool {
 
   onActivate() {}
 
-  onDeactivate() {
-    // Cancel any pending operation when tool is deactivated
-    if (this.isDrawing && this.strokeCommandId) {
-      this.ctx.commandManager.cancelCommand(this.strokeCommandId);
-      this.isDrawing = false;
-      this.pts = [];
-      this.strokeCommandId = null;
-      this.strokeCommandPayload = null;
+  /**
+   * Cancels any in-flight stroke: resets local gesture state first,
+   * then cancels the pending command. Idempotent; never finalizes.
+   */
+  cancelGesture(): void {
+    const commandId = this.strokeCommandId;
+
+    this.isDrawing = false;
+    this.pts = [];
+    this.strokeCommandId = null;
+    this.strokeCommandPayload = null;
+
+    if (commandId !== null) {
+      this.ctx.commandManager.cancelCommand(commandId);
     }
+  }
+
+  onDeactivate() {
+    // Cancel any pending operation when the tool is deactivated; never
+    // commit a stroke that did not complete through pointer-up.
+    this.cancelGesture();
   }
 
   initPayload() {
@@ -132,19 +145,31 @@ export class BrushTool extends BaseTool {
     const p = stage.getPointerPosition();
     if (!p) return;
 
-    this.isDrawing = true;
-    const wp = this.ctx.stageOps.screenToWorld(p.x, p.y);
-    this.pts = [wp];
-
     const layer = this.ctx.stageOps.getDrawingLayer();
     if (!layer) return;
 
+    const wp = this.ctx.stageOps.screenToWorld(p.x, p.y);
+    this.pts = [wp];
+
     this.initPayload();
 
-    this.strokeCommandId = this.ctx.commandManager.startCommand(
+    const commandId = this.ctx.commandManager.startCommand(
       "stroke",
       this.strokeCommandPayload!,
     );
+
+    // Transaction boundary: the gesture only starts once a command
+    // exists. On denial every local flag is reset before anything else.
+    if (commandId === null) {
+      this.pts = [];
+      this.strokeCommandPayload = null;
+      this.strokeCommandId = null;
+      this.isDrawing = false;
+      return;
+    }
+
+    this.strokeCommandId = commandId;
+    this.isDrawing = true;
   }
 
   onPointerMove(_event: KonvaEventObject<PointerEvent>) {

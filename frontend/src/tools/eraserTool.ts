@@ -12,6 +12,7 @@ export class EraserTool extends BaseTool {
     icon: EraserIcon,
     cursor: "cell",
     exclusive: true,
+    mutating: true,
   };
 
   private eraseCommandId: CommandID | null = null;
@@ -36,6 +37,8 @@ export class EraserTool extends BaseTool {
   }
 
   private eraseAtPointer() {
+    if (this.eraseCommandId === null) return;
+
     this.ctx.stageOps.redrawDrawingLayer();
     const stage = this.ctx.stageOps.getStage();
     if (!stage) return;
@@ -55,7 +58,7 @@ export class EraserTool extends BaseTool {
         return;
       }
 
-      this.ctx.commandManager.updateCommand(this.eraseCommandId!, {
+      this.ctx.commandManager.updateCommand(this.eraseCommandId, {
         erasedNodes: [...this.erasedNodeIds],
       });
     }
@@ -66,17 +69,27 @@ export class EraserTool extends BaseTool {
     // this.ctx.stageOps.redrawDrawingLayer();
   }
 
-  onDeactivate(): void {
-    // Only cancel if we have a pending command (isErasing means still in progress)
-    if (this.isErasing && this.eraseCommandId) {
-      this.ctx.commandManager.cancelCommand(this.eraseCommandId);
-    }
+  /**
+   * Cancels any in-flight erase: resets local gesture state first,
+   * then cancels the pending command. Idempotent; never finalizes.
+   */
+  cancelGesture(): void {
+    const commandId = this.eraseCommandId;
 
-    // Clean up state
-    this.erasedNodeIds.clear();
     this.isErasing = false;
+    this.erasedNodeIds.clear();
     this.eraseCommandId = null;
     this.eraseCommandPayload = null;
+
+    if (commandId !== null) {
+      this.ctx.commandManager.cancelCommand(commandId);
+    }
+  }
+
+  onDeactivate(): void {
+    // Cancel any pending erase when the tool is deactivated; never
+    // commit an erase that did not complete through pointer-up.
+    this.cancelGesture();
   }
 
   initPayload() {
@@ -84,13 +97,26 @@ export class EraserTool extends BaseTool {
   }
 
   onPointerDown(_event: KonvaEventObject<PointerEvent>) {
-    this.isErasing = true;
     this.initPayload();
 
-    this.eraseCommandId = this.ctx.commandManager.startCommand(
+    const commandId = this.ctx.commandManager.startCommand(
       "erase",
       this.eraseCommandPayload!,
     );
+
+    // Transaction boundary: the gesture only starts once a command
+    // exists. On denial every local flag is reset before any node or
+    // manager operation (no erase pass, no redraw).
+    if (commandId === null) {
+      this.erasedNodeIds.clear();
+      this.eraseCommandId = null;
+      this.eraseCommandPayload = null;
+      this.isErasing = false;
+      return;
+    }
+
+    this.eraseCommandId = commandId;
+    this.isErasing = true;
 
     this.eraseAtPointer();
   }

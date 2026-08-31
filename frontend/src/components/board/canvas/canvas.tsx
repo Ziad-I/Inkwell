@@ -9,6 +9,7 @@ import LocalPresenceDot from "@/components/board/presence/localPresenceDot";
 import RemotePresenceDot from "@/components/board/presence/remotePresenceDot";
 import useKeyBindings from "@/hooks/useKeyBindings";
 import useWindowSize from "@/hooks/useWindowSize";
+import { useSessionStore } from "@/stores/sessionStore";
 import {
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
@@ -35,6 +36,8 @@ function InfiniteCanvas({
   const { width, height } = useWindowSize();
   const { toolManagerRef, commandManagerRef, emitPresence } =
     useBoardManagers();
+
+  const canDraw = useSessionStore((state) => state.session.canDraw);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const spaceRef = useRef(false);
@@ -118,8 +121,23 @@ function InfiniteCanvas({
     };
   }, []);
 
+  /**
+   * UX-layer capability gate: gestures of mutating tools must not even
+   * start (or continue) while drawing is disabled. Non-mutating tools
+   * keep working; every actual mutation is rechecked deeper down by the
+   * command manager.
+   */
+  const canDispatchToActiveTool = () => {
+    if (canDraw) return true;
+    const tool = toolManagerRef.current?.getEffectiveTool();
+    return tool?.meta.mutating !== true;
+  };
+
   const onPointerDown = (e: KonvaEventObject<PointerEvent>) => {
     if (spaceRef.current) {
+      return;
+    }
+    if (!canDispatchToActiveTool()) {
       return;
     }
     toolManagerRef.current?.handlePointerDown(e);
@@ -143,6 +161,10 @@ function InfiniteCanvas({
     }
 
     if (spaceRef.current) {
+      return;
+    }
+
+    if (!canDispatchToActiveTool()) {
       return;
     }
 
@@ -207,6 +229,17 @@ function InfiniteCanvas({
     },
   );
 
+  // History mutations require draw capability; the command manager
+  // rechecks before any durable operation.
+  const undo = () => {
+    if (!canDraw) return;
+    commandManagerRef.current?.undo();
+  };
+  const redo = () => {
+    if (!canDraw) return;
+    commandManagerRef.current?.redo();
+  };
+
   useKeyBindings(
     {
       // Space: handle both down and up (no need to re-check inputs or call preventDefault if hook handles those)
@@ -228,15 +261,13 @@ function InfiniteCanvas({
       },
 
       // Single-key activations (keydown only)
-      e: () => toolManagerRef.current?.activateTool(Tools.Eraser),
-      b: () => console.log(toolManagerRef.current?.getTools()),
-      d: () => drawingLayerRef.current?.toggleHitCanvas(),
+      e: () => void toolManagerRef.current?.activateTool(Tools.Eraser),
 
       // Undo / redo (include shift variants)
-      "ctrl+z": () => commandManagerRef.current?.undo(),
-      "meta+z": () => commandManagerRef.current?.undo(),
-      "ctrl+y": () => commandManagerRef.current?.redo(),
-      "meta+y": () => commandManagerRef.current?.redo(),
+      "ctrl+z": undo,
+      "meta+z": undo,
+      "ctrl+y": redo,
+      "meta+y": redo,
     },
     {
       allowRepeat: false,

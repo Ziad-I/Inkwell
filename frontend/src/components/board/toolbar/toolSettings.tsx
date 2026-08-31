@@ -33,6 +33,7 @@ const settingButtons = [
     label: "Color",
     title: "Color Settings",
     component: ColorSettings,
+    mutating: true,
   },
   {
     id: "shape",
@@ -40,6 +41,7 @@ const settingButtons = [
     label: "Shape",
     title: "Shapes",
     component: ShapeKindSettings,
+    mutating: true,
   },
   {
     id: "size",
@@ -47,6 +49,7 @@ const settingButtons = [
     label: "Size",
     title: "Size Settings",
     component: SizeSettings,
+    mutating: true,
   },
   {
     id: "opacity",
@@ -54,6 +57,7 @@ const settingButtons = [
     label: "Opacity",
     title: "Opacity Settings",
     component: OpacitySettings,
+    mutating: true,
   },
   {
     id: "lineCap",
@@ -61,6 +65,7 @@ const settingButtons = [
     label: "Line Cap",
     title: "Line Cap Settings",
     component: LineCapSettings,
+    mutating: true,
   },
   {
     id: "general",
@@ -68,6 +73,7 @@ const settingButtons = [
     label: "General",
     title: "General Settings",
     component: GeneralSettings,
+    mutating: false,
   },
   {
     id: "presence",
@@ -75,6 +81,7 @@ const settingButtons = [
     label: "Presence",
     title: "Presence Info",
     component: PresenceSettings,
+    mutating: false,
   },
 ];
 
@@ -83,6 +90,7 @@ export default function ToolSettings() {
   const [openPanel, setOpenPanel] = useState<string | null>(null);
   const session = useSessionStore((state) => state.session);
   const showShare = session.phase === "ready" && session.role === "owner";
+  const canDraw = session.canDraw;
 
   return (
     <>
@@ -103,32 +111,48 @@ export default function ToolSettings() {
 
           <div className="flex flex-col gap-1 w-full">
             {settingButtons.map(
-              ({ id, icon: Icon, label, title, component: Component }) => (
-                <Popover
-                  key={id}
-                  open={openPanel === id}
-                  onOpenChange={(open) => setOpenPanel(open ? id : null)}
-                >
-                  <PopoverTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
-                      />
-                    }
+              ({
+                id,
+                icon: Icon,
+                label,
+                title,
+                component: Component,
+                mutating,
+              }) => {
+                const disabled = !canDraw && mutating;
+                return (
+                  <Popover
+                    key={id}
+                    open={openPanel === id}
+                    onOpenChange={(open) => setOpenPanel(open ? id : null)}
                   >
-                    <div className="flex items-center gap-2">
-                      <Icon size={12} />
-                      {!collapsed && (
-                        <span className="text-xs font-medium">{label}</span>
-                      )}
-                    </div>
-                    <ChevronRight size={10} />
-                  </PopoverTrigger>
-                  <Component title={title} />
-                </Popover>
-              ),
+                    <PopoverTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex items-center justify-between w-full p-2 h-8 hover:bg-accent"
+                          title={
+                            disabled
+                              ? `${title} — drawing is disabled (view-only session)`
+                              : title
+                          }
+                          disabled={disabled}
+                        />
+                      }
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon size={12} />
+                        {!collapsed && (
+                          <span className="text-xs font-medium">{label}</span>
+                        )}
+                      </div>
+                      <ChevronRight size={10} />
+                    </PopoverTrigger>
+                    <Component title={title} />
+                  </Popover>
+                );
+              },
             )}
           </div>
           <Separator orientation="horizontal" />

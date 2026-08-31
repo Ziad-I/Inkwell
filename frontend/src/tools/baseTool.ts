@@ -18,6 +18,7 @@ export abstract class BaseTool implements Tool {
   // default lifecycle hooks (no-op)
   onActivate() {}
   onDeactivate() {}
+  cancelGesture?() {}
   onPointerDown(_: Konva.KonvaEventObject<PointerEvent>) {}
   onPointerMove(_: Konva.KonvaEventObject<PointerEvent>) {}
   onPointerUp(_: Konva.KonvaEventObject<PointerEvent>) {}

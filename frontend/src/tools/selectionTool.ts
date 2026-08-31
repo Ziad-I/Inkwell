@@ -21,6 +21,7 @@ export class SelectionTool extends BaseTool {
     icon: Move,
     cursor: "move",
     exclusive: false,
+    mutating: true,
   };
 
   private readonly MIN_DRAG = 4; // px: minimum drag distance
@@ -57,10 +58,19 @@ export class SelectionTool extends BaseTool {
       if (this.transformPayload || this.transformCommandId) return;
 
       this.initPPayload();
-      this.transformCommandId = this.ctx.commandManager.startCommand(
+      const commandId = this.ctx.commandManager.startCommand(
         "transform",
         this.transformPayload!,
       );
+
+      // Transaction boundary: without a command the transform is not
+      // tracked; leave no pending state behind.
+      if (commandId === null) {
+        this.transformPayload = null;
+        this.transformCommandId = null;
+        return;
+      }
+      this.transformCommandId = commandId;
     });
 
     this.transformer.on("transformend dragend", () => {
@@ -320,6 +330,35 @@ export class SelectionTool extends BaseTool {
     this.ctx.stageOps.redrawDrawingLayer();
   }
 
+  /**
+   * Cancels any in-flight selection gesture: rolls back a pending
+   * transform command, destroys the transformer, selection rectangle
+   * and guides overlay nodes, and clears selection state. Idempotent;
+   * never finalizes — pointer-up remains the only commit path.
+   */
+  cancelGesture(): void {
+    const commandId = this.transformCommandId;
+
+    // Reset local gesture state first so transformer event handlers
+    // fired during teardown observe no pending command and stay inert.
+    this.transformPayload = null;
+    this.transformCommandId = null;
+    this.isSelecting = false;
+    this.isTransforming = false;
+    this.startPoint = null;
+
+    this.cleanupSelectionBox();
+
+    if (this.transformer) {
+      this.transformer.nodes([]);
+      this.removeTransformer();
+    }
+
+    if (commandId !== null) {
+      this.ctx.commandManager.cancelCommand(commandId);
+    }
+  }
+
   onActivate(): void {
     this.createTransformer();
     this.ctx.commandManager.on(
@@ -329,31 +368,10 @@ export class SelectionTool extends BaseTool {
   }
 
   onDeactivate(): void {
-    this.cleanupSelectionBox();
+    // Switching tools cancels the in-flight gesture; a transform that
+    // never completed through pointer-up must never be committed.
+    this.cancelGesture();
 
-    // Finalize any pending transform command before removing transformer
-    if (this.transformCommandId && this.transformPayload) {
-      // Update the transform with final state
-      for (const transform of this.transformPayload.transforms) {
-        const node = this.ctx.stageOps.getNodeById(transform.nodeId);
-        if (!node) continue;
-        const afterState = this.getNodeState(node);
-        transform.after = afterState;
-      }
-
-      this.ctx.commandManager.updateCommand(
-        this.transformCommandId,
-        this.transformPayload,
-      );
-      this.ctx.commandManager.finalizeCommand(this.transformCommandId);
-    }
-
-    this.removeTransformer();
-    this.isSelecting = false;
-    this.startPoint = null;
-    this.isTransforming = false;
-    this.transformPayload = null;
-    this.transformCommandId = null;
     this.ctx.commandManager.off(
       ["command:undo", "command:redo"],
       this.handleClearSelection,

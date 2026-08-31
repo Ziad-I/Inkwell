@@ -11,17 +11,18 @@ import { ToolManager } from "@/core/toolManager";
 import { CommandManager } from "@/core/commandManager";
 import type { MutationCapability } from "@/types/operations";
 import { ConnectionManager } from "@/core/connectionManager";
-import { activeBoardSessionSlot } from "@/collaboration/sessionSlot";
+import { activeBoardSessionSlot as activeBoardSessionRegistry } from "@/collaboration/sessionSlot";
 import { BoardDocument } from "@/collaboration/boardDocument";
 import { OperationJournal } from "@/collaboration/operationJournal";
-import { BoardSession } from "@/collaboration/boardSession";
-import type { Point } from "@/types/command";
+import { BoardSession as BoardSessionCoordinator } from "@/collaboration/boardSession";
 import type { StageOperations } from "@/types/common";
+import type { Point } from "@/types/command";
+import { Tools } from "@/types/tool";
 import { BoardManagersContext } from "@/context/boardManagersContext";
 import { useSessionStore } from "@/stores/sessionStore";
+import { useRemotePresenceStore } from "@/stores/remotePresenceStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useCollabIdentity } from "@/hooks/useCollabIdentity";
-import type { BoardSessionSnapshot } from "@/types/session";
 
 interface BoardManagersProviderProps {
   url: string;
@@ -41,7 +42,7 @@ export function BoardManagersProvider({
   const [epoch, setEpoch] = useState("");
   const toolManagerRef = useRef<ToolManager | null>(null);
   const commandManagerRef = useRef<CommandManager | null>(null);
-  const coordinatorRef = useRef<BoardSession | null>(null);
+  const coordinatorRef = useRef<BoardSessionCoordinator | null>(null);
 
   const emitPresence = useCallback(
     (pos: Point) => coordinatorRef.current?.emitPresence(pos) ?? false,
@@ -68,8 +69,23 @@ export function BoardManagersProvider({
     // manager's capability gate needs the coordinator's snapshot. A const
     // holder breaks the cycle and gives both closures epoch-scoped
     // access to this run's coordinator only.
-    const activeCoordinator: { current: BoardSession | null } = {
+    const activeCoordinator: { current: BoardSessionCoordinator | null } = {
       current: null,
+    };
+
+    // One capability source shared by the command and tool managers: the
+    // coordinator snapshot of this epoch. A foreign or missing
+    // snapshot always resolves to a not-ready capability.
+    const getCapability = (): MutationCapability => {
+      const snapshot = activeCoordinator.current?.getSnapshot();
+      if (!snapshot || snapshot.epoch !== epoch) {
+        return { epoch, ready: false, canDraw: false };
+      }
+      return {
+        epoch: snapshot.epoch,
+        ready: snapshot.phase === "ready",
+        canDraw: snapshot.canDraw,
+      };
     };
 
     const commandMgr = new CommandManager({
@@ -79,17 +95,7 @@ export function BoardManagersProvider({
       connection,
       document,
       journal,
-      getCapability: (): MutationCapability => {
-        const snapshot = activeCoordinator.current?.getSnapshot();
-        if (!snapshot || snapshot.epoch !== epoch) {
-          return { epoch, ready: false, canDraw: false };
-        }
-        return {
-          epoch: snapshot.epoch,
-          ready: snapshot.phase === "ready",
-          canDraw: snapshot.canDraw,
-        };
-      },
+      getCapability,
       requestReconciliation: (reason) => {
         activeCoordinator.current?.requestReconciliation(reason);
       },
@@ -98,32 +104,58 @@ export function BoardManagersProvider({
       },
     });
 
-    const toolManager = new ToolManager({
-      stageOps: stageOperations,
-      commandManager: commandMgr,
-    });
+    const toolManager = new ToolManager(
+      {
+        stageOps: stageOperations,
+        commandManager: commandMgr,
+      },
+      undefined,
+      getCapability,
+    );
 
-    const localCoordinator = new BoardSession({
+    // Mutating tool activation is capability-gated and the session is
+    // never ready before the coordinator starts, so the default tool is
+    // activated once the first ready-and-drawable snapshot is published.
+    let defaultToolActivated = false;
+
+    const localCoordinator = new BoardSessionCoordinator({
       epoch,
       roomId,
       connection,
       commands: commandMgr,
       document,
       journal,
-      // TODO: ToolManager.cancelActiveGesture will be done later.
-      // Deactivating the effective tool cancels its in-flight gesture (e.g.
-      // BrushTool.onDeactivate cancels a pending stroke command) without
-      // unregistering the tool.
+      // The coordinator owns gesture cancellation: switching capability
+      // phases must cancel the effective tool's in-flight gesture.
       cancelGesture: () => {
-        toolManager.getEffectiveTool()?.onDeactivate?.();
+        toolManager.cancelActiveGesture();
       },
-      // TODO: remote presence display is to be rewired later. The
-      // presence store only holds the local anonymous identity; resetting it
-      // on every disconnect/reconciliation would revert the user's chosen
-      // name and color, so there is nothing to clear here yet.
-      clearPresence: () => {},
-      publish: (snapshot: BoardSessionSnapshot) => {
+      // Remote presence is session-scoped state: cleared on disconnect,
+      // reconciliation, and teardown so stale users never render.
+      clearPresence: () => {
+        useRemotePresenceStore.getState().clearAll();
+      },
+      onPresenceJoin: (remoteUserId, meta) => {
+        useRemotePresenceStore.getState().applyJoin(remoteUserId, meta);
+      },
+      onPresenceMove: (remoteUserId, pos) => {
+        useRemotePresenceStore.getState().applyMove(remoteUserId, pos);
+      },
+      onPresenceLeave: (remoteUserId) => {
+        useRemotePresenceStore.getState().applyLeave(remoteUserId);
+      },
+      publish: (snapshot) => {
         useSessionStore.getState().setSession(snapshot);
+        if (
+          !defaultToolActivated &&
+          snapshot.phase === "ready" &&
+          snapshot.canDraw
+        ) {
+          defaultToolActivated = true;
+          void toolManager.activateTool(Tools.Brush).catch(() => {
+            // A board without a brush loader keeps no default tool.
+          });
+        }
       },
     });
     activeCoordinator.current = localCoordinator;
@@ -131,7 +163,7 @@ export function BoardManagersProvider({
     // Register before starting so the coordinator stays disposable through
     // the registry (the logout boundary) even if this effect's own cleanup
     // never runs.
-    const unregister = activeBoardSessionSlot.register({
+    const unregister = activeBoardSessionRegistry.register({
       epoch,
       dispose: () => {
         localCoordinator.dispose();
@@ -184,6 +216,10 @@ export function BoardManagersProvider({
       unregister();
       finalizeLocal();
       useSessionStore.getState().reset();
+      // Remote users belong to this epoch's session; the cleanup runs
+      // before any newer epoch connects, so clearing here can never
+      // wipe a successor's presence.
+      useRemotePresenceStore.getState().clearAll();
       // Clear refs only if this epoch still owns them.
       if (toolManagerRef.current === toolManager) {
         toolManagerRef.current = null;
