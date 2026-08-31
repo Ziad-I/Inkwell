@@ -1,4 +1,4 @@
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 import {
   forwardRef,
   useCallback,

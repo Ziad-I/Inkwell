@@ -13,7 +13,7 @@ import type {
   RenderableCommand,
   StrokePayload,
 } from "@/types/command";
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 
 const ROOM_ID = "board-42";
 const EPOCH = "gen-abc";

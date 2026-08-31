@@ -16,7 +16,7 @@ import { BoardDocument } from "@/collaboration/boardDocument";
 import { OperationJournal } from "@/collaboration/operationJournal";
 import { BoardSession as BoardSessionCoordinator } from "@/collaboration/boardSession";
 import type { StageOperations } from "@/types/common";
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 import { Tools } from "@/types/tool";
 import { BoardManagersContext } from "@/context/boardManagersContext";
 import { useSessionStore } from "@/stores/sessionStore";

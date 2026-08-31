@@ -1,5 +1,5 @@
 import type { Command, CommandID, PresenceMeta } from "@/types/command";
-import type { Point } from "@/types/command";
+import type { Point } from "./common";
 
 export type BoardRole = "owner" | "editor" | "viewer";
 export type BoardPermissions = { read: boolean; draw: boolean };

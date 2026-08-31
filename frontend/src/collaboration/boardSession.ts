@@ -6,11 +6,11 @@ import {
 } from "@/core/connectionManager";
 import type {
   PresenceMeta,
-  Point,
   Command,
   CommandID,
   RenderableCommand,
 } from "@/types/command";
+import type { Point } from "@/types/common";
 import type {
   BoardSessionSnapshot,
   ReconciliationReason,

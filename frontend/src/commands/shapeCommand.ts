@@ -4,7 +4,7 @@ import type {
 } from "@/types/command";
 import { BaseCommand } from "@/commands/baseCommand";
 import type { StageOperations } from "@/types/common";
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 import Konva from "konva";
 
 type ShapeNode = Konva.Rect | Konva.Circle | Konva.Line | Konva.Arrow;

@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import type { ToolManager } from "@/core/toolManager";
 import type { CommandManager } from "@/core/commandManager";
 import type { BoardSession } from "@/collaboration/boardSession";
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 
 export type BoardManagersContextValue = {
   /** Epoch id of the session that owns the current manager refs. */

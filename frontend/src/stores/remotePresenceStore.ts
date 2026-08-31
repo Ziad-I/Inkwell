@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Point } from "@/types/command";
+import type { Point } from "@/types/common";
 import type { PresenceMeta } from "@/types/command";
 
 export type RemotePresenceUser = {
