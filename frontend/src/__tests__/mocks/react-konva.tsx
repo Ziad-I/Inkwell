@@ -4,11 +4,15 @@ type KonvaProps = Record<string, unknown> & { children?: React.ReactNode };
 
 function createMockComponent(displayName: string, testId: string) {
   const Component = ({ children, ...props }: KonvaProps) => {
+    // react-konva consumes `ref` for Konva nodes (it is never a DOM ref),
+    // and its props are Konva configs, not DOM attributes: only DOM-safe
+    // lowercase identifying attributes are forwarded to the mock element.
     const filteredProps: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(props)) {
-      if (typeof value !== "function") {
-        filteredProps[key] = value;
-      }
+      if (key === "ref") continue;
+      if (typeof value === "function") continue;
+      if (key !== key.toLowerCase()) continue;
+      filteredProps[key] = value;
     }
     return React.createElement("div", {
       "data-testid": testId,
@@ -29,10 +33,30 @@ export const Circle = createMockComponent("Circle", "konva-circle");
 export const Ellipse = createMockComponent("Ellipse", "konva-ellipse");
 export const Text = createMockComponent("Text", "konva-text");
 export const Group = createMockComponent("Group", "konva-group");
-export const Transformer = createMockComponent("Transformer", "konva-transformer");
+export const Transformer = createMockComponent(
+  "Transformer",
+  "konva-transformer",
+);
 export const Image = createMockComponent("Image", "konva-image");
 export const Path = createMockComponent("Path", "konva-path");
 export const Arrow = createMockComponent("Arrow", "konva-arrow");
-export const RegularPolygon = createMockComponent("RegularPolygon", "konva-regular-polygon");
+export const RegularPolygon = createMockComponent(
+  "RegularPolygon",
+  "konva-regular-polygon",
+);
 
-export default { Stage, Layer, Rect, Line, Circle, Ellipse, Text, Group, Transformer, Image, Path, Arrow, RegularPolygon };
+export default {
+  Stage,
+  Layer,
+  Rect,
+  Line,
+  Circle,
+  Ellipse,
+  Text,
+  Group,
+  Transformer,
+  Image,
+  Path,
+  Arrow,
+  RegularPolygon,
+};

@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import Konva from "konva";
-import type { StageOperations } from "@/types/common";
-import type { Point } from "@/types/common";
+import type { Point, StageOperations } from "@/types/common";
 import type { Shape, ShapeConfig } from "konva/lib/Shape";
 import {
   MIN_SCALE,
@@ -15,6 +14,7 @@ export function useStageOperations() {
   const stageRef = useRef<Konva.Stage | null>(null);
   const drawingLayerRef = useRef<Konva.Layer | null>(null);
   const overlayLayerRef = useRef<Konva.Layer | null>(null);
+  const presenceLayerRef = useRef<Konva.Layer | null>(null);
 
   const removedNodesRegistry = useRef<Map<string, Konva.Node>>(new Map());
 
@@ -208,6 +208,15 @@ export function useStageOperations() {
       }
     },
 
+    /**
+     * Clears every manager-owned scene node: the drawing layer (command
+     * nodes) and the overlay layer, which contains ONLY imperative
+     * interaction nodes added via `addOverlayNode` (selection boxes,
+     * guides, transformer chrome). The declarative react-konva presence
+     * layer (local/remote presence dots) is deliberately never touched:
+     * destroying its children would break react-konva reconciliation and
+     * make presence dots disappear permanently.
+     */
     resetRoomScene: () => {
       const drawingLayer = drawingLayerRef.current;
       const overlayLayer = overlayLayerRef.current;
@@ -231,5 +240,6 @@ export function useStageOperations() {
     stageRef,
     drawingLayerRef,
     overlayLayerRef,
+    presenceLayerRef,
   };
 }

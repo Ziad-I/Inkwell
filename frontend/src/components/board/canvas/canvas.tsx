@@ -25,6 +25,7 @@ interface InfiniteCanvasProps {
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
   overlayLayerRef: React.RefObject<Konva.Layer | null>;
+  presenceLayerRef: React.RefObject<Konva.Layer | null>;
 }
 
 function InfiniteCanvas({
@@ -32,6 +33,7 @@ function InfiniteCanvas({
   stageRef,
   drawingLayerRef,
   overlayLayerRef,
+  presenceLayerRef,
 }: InfiniteCanvasProps) {
   const { width, height } = useWindowSize();
   const { toolManagerRef, commandManagerRef, emitPresence } =
@@ -308,7 +310,19 @@ function InfiniteCanvas({
             width={width - 1}
             height={height - 1}
           />
-          <Layer ref={overlayLayerRef}>
+          {/*
+            Manager-owned interaction overlay: selection boxes, snap
+            guides, transformer chrome — imperative nodes added via
+            stageOperations.addOverlayNode. resetRoomScene destroys its
+            children, so no declarative react-konva UI may live here.
+          */}
+          <Layer ref={overlayLayerRef} name="overlayLayer" />
+          {/*
+            Declarative presence UI, isolated from the interaction overlay:
+            resetRoomScene never touches this layer, so presence dots
+            survive room syncs (which install a full replacement scene).
+          */}
+          <Layer ref={presenceLayerRef} name="presenceLayer">
             <LocalPresenceDot ref={dotRef} />
             <RemotePresenceDot />
           </Layer>

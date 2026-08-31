@@ -53,8 +53,13 @@ interface BoardRuntimeRootProps {
 }
 
 function BoardRuntimeRoot({ roomId, onRetry }: BoardRuntimeRootProps) {
-  const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
-    useStageOperations();
+  const {
+    stageOperations,
+    stageRef,
+    drawingLayerRef,
+    overlayLayerRef,
+    presenceLayerRef,
+  } = useStageOperations();
 
   return (
     <BoardManagersProvider
@@ -66,6 +71,7 @@ function BoardRuntimeRoot({ roomId, onRetry }: BoardRuntimeRootProps) {
         stageRef={stageRef}
         drawingLayerRef={drawingLayerRef}
         overlayLayerRef={overlayLayerRef}
+        presenceLayerRef={presenceLayerRef}
         stageOperations={stageOperations}
         onRetry={onRetry}
       />
@@ -77,6 +83,7 @@ interface BoardRuntimeProps {
   stageRef: React.RefObject<Konva.Stage | null>;
   drawingLayerRef: React.RefObject<Konva.Layer | null>;
   overlayLayerRef: React.RefObject<Konva.Layer | null>;
+  presenceLayerRef: React.RefObject<Konva.Layer | null>;
   stageOperations: StageOperations;
   onRetry: () => void;
 }
@@ -110,6 +117,7 @@ function BoardRuntime({
   stageRef,
   drawingLayerRef,
   overlayLayerRef,
+  presenceLayerRef,
   stageOperations,
   onRetry,
 }: BoardRuntimeProps) {
@@ -124,6 +132,7 @@ function BoardRuntime({
         stageRef={stageRef}
         drawingLayerRef={drawingLayerRef}
         overlayLayerRef={overlayLayerRef}
+        presenceLayerRef={presenceLayerRef}
         stageOperations={stageOperations}
       />
 
