@@ -125,9 +125,15 @@ export class ShapesTool extends BaseTool {
     if (!pointerWorldPoint) return;
 
     this.lastPoint = pointerWorldPoint;
-    this.ctx.commandManager.updateCommand(this.shapeCommandId, {
+    const updated = this.ctx.commandManager.updateCommand(this.shapeCommandId, {
       end: pointerWorldPoint,
     });
+    if (!updated) {
+      // The pending command is gone (e.g. the server rejected it) or
+      // mutations are blocked: reset the gesture so no stale command ID
+      // survives into later pointer events.
+      this.cancelGesture();
+    }
   }
 
   onPointerUp(_: KonvaEventObject<PointerEvent>) {
@@ -136,13 +142,24 @@ export class ShapesTool extends BaseTool {
     const pointerWorldPoint = this.getPointerWorldPoint();
     if (pointerWorldPoint) {
       this.lastPoint = pointerWorldPoint;
-      this.ctx.commandManager.updateCommand(this.shapeCommandId, {
-        end: pointerWorldPoint,
-      });
+      const updated = this.ctx.commandManager.updateCommand(
+        this.shapeCommandId,
+        { end: pointerWorldPoint },
+      );
+      if (!updated) {
+        this.cancelGesture();
+        return;
+      }
     }
 
     if (this.hasMinimumSize()) {
-      this.ctx.commandManager.finalizeCommand(this.shapeCommandId);
+      const finalized = this.ctx.commandManager.finalizeCommand(
+        this.shapeCommandId,
+      );
+      if (!finalized) {
+        this.cancelGesture();
+        return;
+      }
     } else {
       this.ctx.commandManager.cancelCommand(this.shapeCommandId);
     }

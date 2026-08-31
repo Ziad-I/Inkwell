@@ -1282,6 +1282,83 @@ describe("BoardSession", () => {
     });
   });
 
+  describe("safety-path hardening against throwing tool callbacks", () => {
+    it("a throwing cancelGesture cannot abort the disconnect reconciliation", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const harness = await readyHarness({
+        cancelGesture: () => {
+          throw new Error("tool callback failed");
+        },
+      });
+      harness.pendingOperations.push({
+        operationId: "op-1",
+        commandId: "cmd-local",
+        kind: "finalize",
+        status: "pending",
+        optimisticCanonical: strokeAt(1, "user-1"),
+      });
+
+      expect(() => harness.deliverDisconnect("transport close")).not.toThrow();
+      await harness.flush();
+
+      // The command manager still saw the disconnect, so pending durable
+      // operations were marked uncertain and reconciliation was requested.
+      expect(harness.handleDisconnect).toHaveBeenCalledTimes(1);
+      expect(harness.snapshot().phase).toBe("reconciling");
+      expect(harness.journalClear).toHaveBeenCalledTimes(1);
+      expect(harness.lastJoinPayload()).toEqual({ roomId: ROOM_ID });
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cancelGesture"),
+        expect.any(Error),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it("a throwing cancelGesture cannot abort a requested reconciliation", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const harness = await readyHarness({
+        cancelGesture: () => {
+          throw new Error("tool callback failed");
+        },
+      });
+
+      expect(() =>
+        harness.coordinator.requestReconciliation("sequence-gap"),
+      ).not.toThrow();
+      await harness.flush();
+
+      // Local state was cleared and the replacement join was emitted
+      // despite the tool callback throwing.
+      expect(harness.clearPresence).toHaveBeenCalledTimes(1);
+      expect(harness.clearPreviews).toHaveBeenCalledTimes(1);
+      expect(harness.journalClear).toHaveBeenCalledTimes(1);
+      expect(harness.pendingJoinCount()).toBe(2);
+      expect(harness.lastJoinPayload()).toEqual({ roomId: ROOM_ID });
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cancelGesture"),
+        expect.any(Error),
+      );
+      errorSpy.mockRestore();
+    });
+
+    it("a throwing cancelGesture cannot abort the offline freeze on disconnect", async () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const harness = await readyHarness({
+        cancelGesture: () => {
+          throw new Error("tool callback failed");
+        },
+      });
+
+      expect(() => harness.deliverDisconnect("transport close")).not.toThrow();
+
+      // Without pending operations the session still freezes offline and
+      // the command manager still processed the disconnect.
+      expect(harness.snapshot().phase).toBe("offline");
+      expect(harness.handleDisconnect).toHaveBeenCalledTimes(1);
+      errorSpy.mockRestore();
+    });
+  });
+
   describe("reconnect", () => {
     it("moves to offline when the transport disconnects after ready", async () => {
       const harness = await readyHarness();

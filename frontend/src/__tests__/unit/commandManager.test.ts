@@ -503,6 +503,93 @@ describe("CommandManager", () => {
     });
   });
 
+  describe("stale pending command tolerance", () => {
+    it("cancelCommand with an unknown ID warns once and returns false instead of throwing", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const h = readyHarness();
+
+      let cancelled = true;
+      expect(() => {
+        cancelled = h.manager.cancelCommand("cmd-unknown");
+      }).not.toThrow();
+
+      expect(cancelled).toBe(false);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cmd-unknown"),
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("updateCommand with an unknown ID returns false instead of throwing", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const h = readyHarness();
+
+      let updated = true;
+      expect(() => {
+        updated = h.manager.updateCommand("cmd-unknown", {
+          points: [0, 0, 1, 1],
+        });
+      }).not.toThrow();
+
+      expect(updated).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cmd-unknown"),
+      );
+      expect(events(h.connection, "command:update")).toHaveLength(0);
+      warnSpy.mockRestore();
+    });
+
+    it("finalizeCommand with an unknown ID returns false instead of throwing", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const h = readyHarness();
+
+      let finalized = true;
+      expect(() => {
+        finalized = h.manager.finalizeCommand("cmd-unknown");
+      }).not.toThrow();
+
+      expect(finalized).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("cmd-unknown"),
+      );
+      expect(events(h.connection, "command:finalize")).toHaveLength(0);
+      expect(h.manager.getUndoStack()).toEqual([]);
+      warnSpy.mockRestore();
+    });
+
+    it("updateCommand and finalizeCommand return true while the command is live", () => {
+      const h = readyHarness();
+      const id = validLocalStroke(h.manager);
+      expect(h.manager.updateCommand(id, { points: [0, 0, 5, 5] })).toBe(true);
+      expect(h.manager.finalizeCommand(id)).toBe(true);
+      expect(h.manager.getUndoStack()).toEqual([id]);
+    });
+
+    it("a rejected preview leaves update, finalize, and cancel all returning false", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const h = readyHarness();
+      const id = validLocalStroke(h.manager, "node-rejected");
+
+      h.manager.handleRejection(id, "INVALID_COMMAND");
+      expect(h.manager.getOperation(id)).toBeUndefined();
+
+      expect(h.manager.updateCommand(id, { points: [0, 0, 5, 5] })).toBe(false);
+      expect(h.manager.finalizeCommand(id)).toBe(false);
+      expect(h.manager.cancelCommand(id)).toBe(false);
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      warnSpy.mockRestore();
+    });
+
+    it("cancelCommand returns true after cancelling a live pending command", () => {
+      const h = readyHarness();
+      const id = validLocalStroke(h.manager, "node-live");
+      expect(h.manager.cancelCommand(id)).toBe(true);
+      expect(h.manager.getOperation(id)).toBeUndefined();
+      expect(events(h.connection, "command:cancel")).toHaveLength(1);
+    });
+  });
+
   describe("per-command throttles", () => {
     it("emits the first update of each command immediately", async () => {
       vi.useFakeTimers();

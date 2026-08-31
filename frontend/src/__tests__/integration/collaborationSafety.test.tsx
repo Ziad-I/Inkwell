@@ -680,6 +680,38 @@ describe("collaboration safety integration", () => {
     });
   });
 
+  describe("rejected preview recovery", () => {
+    it("a rejected preview no longer wedges the active tool gesture", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const { socket, pointer } = await mountSession();
+      await driveToReady();
+
+      // A live, un-finalized brush gesture.
+      await drawPendingStroke(pointer);
+      const command = lastLocalCommand(socket);
+
+      emitServer("command:reject", command.id, "INVALID_COMMAND");
+      await flush(2);
+      expect(commandManager().getOperation(command.id)).toBeUndefined();
+
+      // The tool still holds the stale command ID: subsequent pointer
+      // events and gesture cancellation must not throw, and the session
+      // must remain usable.
+      const tools = toolManager();
+      expect(() => {
+        act(() => {
+          pointer.current = { x: 90, y: 60 };
+          tools.handlePointerMove({} as never);
+          tools.handlePointerUp({} as never);
+          tools.cancelActiveGesture();
+        });
+      }).not.toThrow();
+
+      expect(useSessionStore.getState().session.phase).toBe("ready");
+      warnSpy.mockRestore();
+    });
+  });
+
   describe("disconnect with a pending gesture", () => {
     it("rolls back a mid-gesture brush preview and leaves no ghost after a delta rejoin", async () => {
       const { socket, stageOps, pointer } = await mountSession();

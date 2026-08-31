@@ -193,9 +193,18 @@ export class BrushTool extends BaseTool {
     if (screenDist < this.MIN_POINT_DISTANCE) return; // skip close points
 
     this.pts.push(wp);
-    this.ctx.commandManager.updateCommand(this.strokeCommandId!, {
-      points: this.flattenPoints(this.pts),
-    });
+    const updated = this.ctx.commandManager.updateCommand(
+      this.strokeCommandId!,
+      {
+        points: this.flattenPoints(this.pts),
+      },
+    );
+    if (!updated) {
+      // The pending command is gone (e.g. the server rejected it) or
+      // mutations are blocked: reset the gesture so no stale command ID
+      // survives into later pointer events.
+      this.cancelGesture();
+    }
   }
 
   onPointerUp(_event: KonvaEventObject<PointerEvent>) {
@@ -205,13 +214,26 @@ export class BrushTool extends BaseTool {
     const simplifiedPoints = this.rdp(this.pts, this.RDP_EPSILON / scale);
     const finalPoints = this.chaikin(simplifiedPoints);
 
-    this.ctx.commandManager.updateCommand(this.strokeCommandId!, {
-      points: this.flattenPoints(finalPoints),
-    });
+    const updated = this.ctx.commandManager.updateCommand(
+      this.strokeCommandId!,
+      {
+        points: this.flattenPoints(finalPoints),
+      },
+    );
+    if (!updated) {
+      this.cancelGesture();
+      return;
+    }
 
     // Check if the stroke has enough points to finalize
     if (finalPoints.length >= 2) {
-      this.ctx.commandManager.finalizeCommand(this.strokeCommandId!);
+      const finalized = this.ctx.commandManager.finalizeCommand(
+        this.strokeCommandId!,
+      );
+      if (!finalized) {
+        this.cancelGesture();
+        return;
+      }
     } else {
       // Cancel the command if it doesn't meet the minimum requirements
       this.ctx.commandManager.cancelCommand(this.strokeCommandId!);

@@ -58,9 +58,18 @@ export class EraserTool extends BaseTool {
         return;
       }
 
-      this.ctx.commandManager.updateCommand(this.eraseCommandId, {
-        erasedNodes: [...this.erasedNodeIds],
-      });
+      const updated = this.ctx.commandManager.updateCommand(
+        this.eraseCommandId,
+        {
+          erasedNodes: [...this.erasedNodeIds],
+        },
+      );
+      if (!updated) {
+        // The pending command is gone (e.g. the server rejected it) or
+        // mutations are blocked: reset the gesture so no stale command ID
+        // survives into later pointer events.
+        this.cancelGesture();
+      }
     }
   }
 
@@ -133,7 +142,16 @@ export class EraserTool extends BaseTool {
 
     // Check if any nodes were actually erased
     if (this.erasedNodeIds.size > 0) {
-      this.ctx.commandManager.finalizeCommand(this.eraseCommandId);
+      const finalized = this.ctx.commandManager.finalizeCommand(
+        this.eraseCommandId,
+      );
+      if (!finalized) {
+        // The pending command is gone (e.g. the server rejected it) or
+        // mutations are blocked: reset the gesture so no stale state
+        // survives.
+        this.cancelGesture();
+        return;
+      }
     } else {
       // Cancel the command if nothing was erased
       this.ctx.commandManager.cancelCommand(this.eraseCommandId);

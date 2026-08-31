@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CommandManager } from "@/core/commandManager";
+import { CommandManager } from "@/core/commandManager";
+import type { MutationCapability } from "@/types/operations";
+import { BoardDocument } from "@/collaboration/boardDocument";
+import { OperationJournal } from "@/collaboration/operationJournal";
 import type { StageOperations } from "@/types/common";
 import type { CommandID } from "@/types/command";
 import { BrushTool } from "@/tools/brushTool";
@@ -93,9 +96,9 @@ function fireTransformerEvent(
 function createCommands(startId: CommandID | null = "cmd-1") {
   return {
     startCommand: vi.fn((): CommandID | null => startId),
-    updateCommand: vi.fn(),
-    finalizeCommand: vi.fn(),
-    cancelCommand: vi.fn(),
+    updateCommand: vi.fn((): boolean => true),
+    finalizeCommand: vi.fn((): boolean => true),
+    cancelCommand: vi.fn((): boolean => true),
     on: vi.fn(),
     off: vi.fn(),
   };
@@ -133,7 +136,12 @@ function createHarness(commands: CommandsMock) {
     screenToWorld: vi.fn((x: number, y: number) => ({ x, y })),
     worldToScreen: vi.fn((x: number, y: number) => ({ x, y })),
     getScale: vi.fn(() => 1),
-    createNode: vi.fn(),
+    createNode: vi.fn(
+      (_Ctor: unknown, config: { id?: string } | undefined) => ({
+        id: vi.fn(() => config?.id ?? "node-anon"),
+        setAttrs: vi.fn(),
+      }),
+    ),
   };
 
   return {
@@ -225,6 +233,44 @@ describe("BrushTool gesture safety", () => {
 
     expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
   });
+
+  it("treats a false update result on pointer-move as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.updateCommand.mockReturnValue(false);
+    const { ctx, pointer } = createHarness(commands);
+    const brush = new BrushTool(ctx);
+
+    brush.onPointerDown(evt());
+    pointer.current = { x: 42, y: 42 };
+    brush.onPointerMove(evt());
+
+    // The manager could not apply the update (e.g. the server rejected the
+    // preview): the gesture resets and cancels the stale command.
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
+    expect(commands.finalizeCommand).not.toHaveBeenCalled();
+
+    // Later pointer events stay inert.
+    pointer.current = { x: 70, y: 70 };
+    brush.onPointerMove(evt());
+    brush.onPointerUp(evt());
+    expect(commands.updateCommand).toHaveBeenCalledTimes(1);
+    expect(commands.finalizeCommand).not.toHaveBeenCalled();
+  });
+
+  it("treats a false finalize result on pointer-up as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.finalizeCommand.mockReturnValue(false);
+    const { ctx, pointer } = createHarness(commands);
+    const brush = new BrushTool(ctx);
+
+    brush.onPointerDown(evt());
+    pointer.current = { x: 60, y: 60 };
+    brush.onPointerMove(evt());
+    brush.onPointerUp(evt());
+
+    expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -280,6 +326,42 @@ describe("ShapesTool gesture safety", () => {
     shapes.onPointerUp(evt());
 
     expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+  });
+
+  it("treats a false update result on pointer-move as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.updateCommand.mockReturnValue(false);
+    const { ctx, pointer } = createHarness(commands);
+    const shapes = new ShapesTool(ctx);
+
+    shapes.onPointerDown(evt());
+    pointer.current = { x: 30, y: 30 };
+    shapes.onPointerMove(evt());
+
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
+    expect(commands.finalizeCommand).not.toHaveBeenCalled();
+
+    // Later pointer events stay inert.
+    pointer.current = { x: 70, y: 70 };
+    shapes.onPointerMove(evt());
+    shapes.onPointerUp(evt());
+    expect(commands.updateCommand).toHaveBeenCalledTimes(1);
+    expect(commands.finalizeCommand).not.toHaveBeenCalled();
+  });
+
+  it("treats a false finalize result on pointer-up as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.finalizeCommand.mockReturnValue(false);
+    const { ctx, pointer } = createHarness(commands);
+    const shapes = new ShapesTool(ctx);
+
+    shapes.onPointerDown(evt());
+    pointer.current = { x: 70, y: 70 };
+    shapes.onPointerMove(evt());
+    shapes.onPointerUp(evt());
+
+    expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
   });
 });
 
@@ -339,6 +421,40 @@ describe("EraserTool gesture safety", () => {
     eraser.onPointerUp(evt());
 
     expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+  });
+
+  it("treats a false update result on pointer-move as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.updateCommand.mockReturnValue(false);
+    const harness = createHarness(commands);
+    const eraser = new EraserTool(harness.ctx);
+
+    eraser.onPointerDown(evt());
+    expect(commands.updateCommand).toHaveBeenCalledTimes(1);
+
+    // The manager could not apply the erase update: the gesture resets
+    // and cancels the stale command.
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
+
+    // Later pointer events stay inert.
+    harness.pointer.current = { x: 40, y: 40 };
+    eraser.onPointerMove(evt());
+    eraser.onPointerUp(evt());
+    expect(commands.updateCommand).toHaveBeenCalledTimes(1);
+    expect(commands.finalizeCommand).not.toHaveBeenCalled();
+  });
+
+  it("treats a false finalize result on pointer-up as a gesture reset", () => {
+    const commands = createCommands("cmd-1");
+    commands.finalizeCommand.mockReturnValue(false);
+    const { ctx } = createHarness(commands);
+    const eraser = new EraserTool(ctx);
+
+    eraser.onPointerDown(evt());
+    eraser.onPointerUp(evt());
+
+    expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+    expect(commands.cancelCommand).toHaveBeenCalledWith("cmd-1");
   });
 });
 
@@ -430,5 +546,139 @@ describe("SelectionTool gesture safety", () => {
     selection.onPointerUp({ target: harness.stage } as never);
 
     expect(commands.finalizeCommand).toHaveBeenCalledWith("cmd-1");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rejected-preview recovery against a REAL CommandManager
+// ---------------------------------------------------------------------------
+
+describe("rejected preview recovery (real CommandManager)", () => {
+  function realManagerHarness() {
+    const harness = createHarness({
+      startCommand: vi.fn(),
+      updateCommand: vi.fn(),
+      finalizeCommand: vi.fn(),
+      cancelCommand: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    });
+    const capability: MutationCapability = {
+      epoch: "gen-1",
+      ready: true,
+      canDraw: true,
+    };
+    const connection = {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      cleanup: vi.fn(),
+      onConnect: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      once: vi.fn(),
+      setAuth: vi.fn(),
+      subscribeLifecycle: vi.fn(() => () => {}),
+      emitVolatile: vi.fn(),
+      emit: vi.fn(),
+      onValidated: vi.fn(() => () => {}),
+      emitWithAck: vi.fn(() => new Promise<never>(() => {})),
+    };
+
+    const manager = new CommandManager({
+      epoch: "gen-1",
+      userId: "user-1",
+      stageOps: harness.ctx.stageOps,
+      connection: connection as never,
+      document: new BoardDocument(),
+      journal: new OperationJournal(),
+      getCapability: () => capability,
+      requestReconciliation: vi.fn(),
+      notifyCommandFailure: vi.fn(),
+    });
+
+    const createdCommandId = (): CommandID => {
+      const creation = connection.emit.mock.calls.find(
+        (call) => call[0] === "command:create",
+      );
+      if (!creation) throw new Error("no command:create emission recorded");
+      return (creation[1] as { id: CommandID }).id;
+    };
+
+    return {
+      manager,
+      connection,
+      pointer: harness.pointer,
+      ctx: {
+        stageOps: harness.ctx.stageOps,
+        commandManager: manager,
+      },
+      createdCommandId,
+    };
+  }
+
+  it("a rejected preview no longer breaks the tool gesture path", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { manager, connection, pointer, ctx, createdCommandId } =
+      realManagerHarness();
+    const brush = new BrushTool(ctx);
+
+    // Start a stroke through the tool, exactly like a real gesture.
+    brush.onPointerDown(evt());
+    pointer.current = { x: 42, y: 42 };
+    expect(() => brush.onPointerMove(evt())).not.toThrow();
+    const commandId = createdCommandId();
+    expect(manager.getOperation(commandId)).toBeDefined();
+
+    // The server rejects the un-finalized preview.
+    const emissionsBeforeRejection = connection.emit.mock.calls.filter(
+      (call) => call[0] !== "command:create",
+    ).length;
+    manager.handleRejection(commandId, "INVALID_COMMAND");
+    expect(manager.getOperation(commandId)).toBeUndefined();
+
+    // The tool still holds the stale command ID: pointer events and
+    // gesture cancellation must complete without throwing.
+    pointer.current = { x: 80, y: 80 };
+    expect(() => brush.onPointerMove(evt())).not.toThrow();
+    expect(() => brush.onPointerUp(evt())).not.toThrow();
+    expect(() => brush.cancelGesture()).not.toThrow();
+
+    // No further emissions reference the rejected command.
+    const emissionsAfterRejection = connection.emit.mock.calls.filter(
+      (call) => call[0] !== "command:create",
+    ).length;
+    expect(emissionsAfterRejection).toBe(emissionsBeforeRejection);
+    warnSpy.mockRestore();
+  });
+
+  it("a shapes tool gesture survives a rejected preview", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { manager, pointer, ctx, createdCommandId } = realManagerHarness();
+    const shapes = new ShapesTool(ctx);
+
+    shapes.onPointerDown(evt());
+    pointer.current = { x: 42, y: 42 };
+    shapes.onPointerMove(evt());
+    manager.handleRejection(createdCommandId(), "INVALID_COMMAND");
+
+    pointer.current = { x: 80, y: 80 };
+    expect(() => shapes.onPointerMove(evt())).not.toThrow();
+    expect(() => shapes.onPointerUp(evt())).not.toThrow();
+    expect(() => shapes.cancelGesture()).not.toThrow();
+    warnSpy.mockRestore();
+  });
+
+  it("an eraser gesture survives a rejected preview", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { manager, ctx, createdCommandId } = realManagerHarness();
+    const eraser = new EraserTool(ctx);
+
+    eraser.onPointerDown(evt());
+    manager.handleRejection(createdCommandId(), "INVALID_COMMAND");
+
+    expect(() => eraser.onPointerMove(evt())).not.toThrow();
+    expect(() => eraser.onPointerUp(evt())).not.toThrow();
+    expect(() => eraser.cancelGesture()).not.toThrow();
+    warnSpy.mockRestore();
   });
 });

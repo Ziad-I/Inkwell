@@ -231,7 +231,16 @@ export class ToolManager {
     if (this.destroyed) return;
     this.destroyed = true;
 
-    this.tools.forEach((tool) => tool.onDeactivate?.());
+    this.tools.forEach((tool) => {
+      try {
+        tool.onDeactivate?.();
+      } catch (error) {
+        // One throwing tool callback must neither abort the deactivation
+        // of the remaining tools nor the caller's teardown sequence
+        // (command manager, transport, scene reset).
+        console.error(`Tool ${tool.meta.id} failed to deactivate`, error);
+      }
+    });
     this.tools.clear();
     this.activeTool = null;
     this.overrideStack = [];

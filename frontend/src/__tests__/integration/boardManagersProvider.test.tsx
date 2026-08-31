@@ -387,6 +387,42 @@ describe("BoardManagersProvider epoch safety", () => {
     );
     expect(resets).toHaveLength(1);
   });
+
+  it("a throwing tool onDeactivate cannot abort teardown: transport and scene are still torn down", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const release = toolGate.defer();
+    const stageOps = createStageOperationsFake();
+    const { unmount } = renderProvider("room-a", stageOps);
+
+    await act(async () => {
+      release();
+    });
+    await flushAsync();
+
+    const sockets = createdSockets();
+    expect(sockets).toHaveLength(1);
+
+    const toolsBeforeUnmount = [...toolGate.created];
+    toolsBeforeUnmount[0].onDeactivate.mockImplementation(() => {
+      throw new Error("deactivate boom");
+    });
+
+    expect(() => unmount()).not.toThrow();
+
+    // The connection was torn down and the scene reset despite the
+    // throwing tool callback: finalizeLocal completed.
+    expect(sockets[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(sockets[0].removeAllListeners).toHaveBeenCalledTimes(1);
+    expect(stageOps.resetRoomScene).toHaveBeenCalledTimes(1);
+    for (const tool of toolsBeforeUnmount) {
+      expect(tool.onDeactivate).toHaveBeenCalledTimes(1);
+    }
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("failed to deactivate"),
+      expect.any(Error),
+    );
+    errorSpy.mockRestore();
+  });
 });
 
 describe("BoardManagersProvider session wiring", () => {

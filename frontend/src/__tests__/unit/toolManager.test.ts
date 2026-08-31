@@ -167,6 +167,30 @@ describe("ToolManager", async () => {
     expect(tm.getTool("brush")).toBeNull();
   });
 
+  it("destroy deactivates every tool even when a callback throws", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const tm = new ToolManager(createMockContext(), {});
+    const boom = vi.fn(() => {
+      throw new Error("deactivate boom");
+    });
+    const after = vi.fn();
+    tm.register({ meta: { id: "brush" as const }, onDeactivate: boom });
+    tm.register({ meta: { id: "eraser" as const }, onDeactivate: after });
+
+    expect(() => tm.destroy()).not.toThrow();
+
+    // The throwing tool was deactivated AND the remaining tool still ran.
+    expect(boom).toHaveBeenCalledTimes(1);
+    expect(after).toHaveBeenCalledTimes(1);
+    expect(tm.getTool("brush")).toBeNull();
+    expect(tm.getTool("eraser")).toBeNull();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("brush"),
+      expect.any(Error),
+    );
+    errorSpy.mockRestore();
+  });
+
   describe("destroyed flag", () => {
     it("activateTool is a rejected no-op after destroy", async () => {
       const tm = new ToolManager(createMockContext(), {});
