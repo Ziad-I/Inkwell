@@ -14,7 +14,7 @@ import { ConnectionManager } from "@/core/connectionManager";
 import { activeBoardSessionSlot as activeBoardSessionRegistry } from "@/collaboration/sessionSlot";
 import { BoardDocument } from "@/collaboration/boardDocument";
 import { OperationJournal } from "@/collaboration/operationJournal";
-import { BoardSession as BoardSessionCoordinator } from "@/collaboration/boardSession";
+import { SessionCordinator as BoardSessionCoordinator } from "@/collaboration/sessionCordinator";
 import type { StageOperations } from "@/types/common";
 import type { Point } from "@/types/common";
 import { Tools } from "@/types/tool";

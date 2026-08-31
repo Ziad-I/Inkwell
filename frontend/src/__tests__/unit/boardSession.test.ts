@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { BoardSession } from "@/collaboration/boardSession";
-import type { BoardSessionOptions } from "@/collaboration/boardSession";
+import { SessionCordinator } from "@/collaboration/sessionCordinator";
+import type { SessionCordinatorOptions } from "@/collaboration/sessionCordinator";
 import { joinAckSchema } from "@/collaboration/schemas";
 import { AckError } from "@/core/connectionManager";
 import type { ConnectionManager } from "@/core/connectionManager";
@@ -43,7 +43,7 @@ type PendingAck = {
 type RecordedTimer = { ms: number; cancelled: boolean };
 
 interface CoordinatorHarness {
-  coordinator: BoardSession;
+  coordinator: SessionCordinator;
   connect: SpyFn;
   emitVolatile: SpyFn;
   subscribeLifecycle: SpyFn;
@@ -87,7 +87,7 @@ const harnesses: CoordinatorHarness[] = [];
  * escalates through `requestReconciliation("ambiguous-delta")`.
  */
 function coordinatorHarness(
-  options: Partial<BoardSessionOptions> = {},
+  options: Partial<SessionCordinatorOptions> = {},
 ): CoordinatorHarness {
   const validatedHandlers = new Map<string, ValidatedEntry>();
   const lifecycle: LifecycleHandlers[] = [];
@@ -98,7 +98,7 @@ function coordinatorHarness(
   let failNextDelta = false;
 
   const coordinatorRef: {
-    current: BoardSession | null;
+    current: SessionCordinator | null;
   } = { current: null };
 
   const connection = {
@@ -178,7 +178,7 @@ function coordinatorHarness(
   const clearPresence = vi.fn();
   const publish = vi.fn();
 
-  const coordinator = new BoardSession({
+  const coordinator = new SessionCordinator({
     epoch: EPOCH,
     roomId: ROOM_ID,
     connection: connection as unknown as ConnectionManager,
@@ -307,7 +307,7 @@ function finalizeArgs(seq: number): [string, RenderableCommand] {
 
 /** Flows a fresh coordinator to `ready` with the default editor capability. */
 async function readyHarness(
-  options: Partial<BoardSessionOptions> = {},
+  options: Partial<SessionCordinatorOptions> = {},
 ): Promise<CoordinatorHarness> {
   const harness = coordinatorHarness(options);
   await startAndDeliver(harness, "ack-first");

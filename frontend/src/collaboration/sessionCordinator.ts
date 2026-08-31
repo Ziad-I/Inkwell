@@ -38,7 +38,7 @@ export const GAP_DEADLINE_MS = 1_500;
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
-export type BoardSessionOptions = {
+export type SessionCordinatorOptions = {
   epoch: string;
   roomId: string;
   connection: ConnectionManager;
@@ -80,7 +80,7 @@ const NO_PERMISSIONS: BoardPermissions = { read: false, draw: false };
  * validation failure, pending operation at disconnect) freezes editing and
  * deliberately rejoins without `lastSeq` to replace local state.
  */
-export class BoardSession {
+export class SessionCordinator {
   private readonly epoch: string;
   private readonly roomId: string;
   private readonly connection: ConnectionManager;
@@ -122,7 +122,7 @@ export class BoardSession {
   private lastPublished: BoardSessionSnapshot | null = null;
   private readonly unsubscribers: Array<() => void> = [];
 
-  constructor(options: BoardSessionOptions) {
+  constructor(options: SessionCordinatorOptions) {
     this.epoch = options.epoch;
     this.roomId = options.roomId;
     this.connection = options.connection;

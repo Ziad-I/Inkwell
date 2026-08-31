@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import type { ToolManager } from "@/core/toolManager";
 import type { CommandManager } from "@/core/commandManager";
-import type { BoardSession } from "@/collaboration/boardSession";
+import type { SessionCordinator } from "@/collaboration/sessionCordinator";
 import type { Point } from "@/types/common";
 
 export type BoardManagersContextValue = {
@@ -9,7 +9,7 @@ export type BoardManagersContextValue = {
   epoch: string;
   toolManagerRef: React.RefObject<ToolManager | null>;
   commandManagerRef: React.RefObject<CommandManager | null>;
-  coordinatorRef: React.RefObject<BoardSession | null>;
+  coordinatorRef: React.RefObject<SessionCordinator | null>;
   /**
    * Volatile presence emission routed through the session coordinator;
    * returns false while no coordinator is active or the session is not
