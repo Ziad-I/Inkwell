@@ -1,5 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { useAuthStore, type AuthUser } from "@/stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
+import type { AuthUser } from "@/types/auth";
 
 export const baseURL = `${import.meta.env.VITE_BACKEND_API_URL}/api`;
 const REFRESH_PATH = "/auth/refresh";

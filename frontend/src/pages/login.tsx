@@ -11,7 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useAuthStore, type AuthUser } from "@/stores/authStore";
+import type { AuthUser } from "@/types/auth";
+import { useAuthStore, } from "@/stores/authStore";
 import api, { apiErrorMessage } from "@/lib/api";
 
 export default function LoginPage() {

@@ -16,14 +16,7 @@ import { RoleBadge } from "@/components/invite/roleBadge";
 import { InviteStatusCard } from "@/components/invite/inviteStatusCard";
 import api, { apiErrorMessage } from "@/lib/api";
 import { CalendarClock, PenSquare, ShieldX } from "lucide-react";
-
-type InviteInfo = {
-  boardId: string;
-  boardName: string;
-  role: "editor" | "viewer";
-  expiresAt: string | null;
-  valid: boolean;
-};
+import type { InviteInfo } from "@/types/invite";
 
 function formatExpiry(expiresAt: string | null): string {
   if (!expiresAt) return "This invite never expires";
