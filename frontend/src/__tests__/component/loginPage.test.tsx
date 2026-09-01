@@ -10,14 +10,6 @@ const authStoreMock = vi.hoisted(() => ({
 
 const apiMock = vi.hoisted(() => ({
   default: { post: vi.fn() },
-  apiErrorMessage: (err: unknown, fallback: string) => {
-    if (err instanceof AxiosError) {
-      const message = (err.response?.data as { message?: string } | undefined)
-        ?.message;
-      if (message) return message;
-    }
-    return fallback;
-  },
 }));
 
 const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
@@ -30,7 +22,10 @@ vi.mock("@/stores/authStore", () => ({
       setSession: authStoreMock.setSession,
     }),
 }));
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, default: apiMock.default };
+});
 vi.mock("sonner", () => toastMock);
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -103,15 +98,15 @@ describe("LoginPage", () => {
     expect(navigateMock).toHaveBeenCalledWith("/");
   });
 
-  it("shows the server error message as a toast on failure", async () => {
+  it("shows the stable error message as a toast on failure", async () => {
     const apiError = new AxiosError(
       "Request failed with status code 401",
       "ERR_BAD_REQUEST",
-      undefined,
+      { url: "/auth/login", method: "post" } as never,
       undefined,
       {
         status: 401,
-        data: { message: "Invalid email or password" },
+        data: { message: "alice@example.com: 3 failed sign-in attempts" },
       } as never,
     );
     apiMock.default.post.mockRejectedValue(apiError);
@@ -125,7 +120,7 @@ describe("LoginPage", () => {
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
-        "Invalid email or password",
+        "Invalid email or password.",
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();

@@ -1,6 +1,8 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/stores/authStore";
 import type { AuthUser } from "@/types/auth";
+import type { HttpOperation } from "@/types/http";
+import { mapHttpError, operationMessage } from "@/api/errors";
 
 export const baseURL = `${import.meta.env.VITE_BACKEND_API_URL}/api`;
 const REFRESH_PATH = "/auth/refresh";
@@ -17,13 +19,104 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+/**
+ * INTERIM wrapper over mapHttpError, kept so existing callers compile while
+ * closing the backend-message leak immediately. Remove once callers migrate
+ * to mapHttpError directly (then suppress cancellation toasts with
+ * isCancelledHttpError).
+ *
+ * Semantics: infers the failing operation from the request URL, maps the
+ * error through mapHttpError, and returns the operation-specific stable
+ * message for listed (operation, category) pairs. Service errors,
+ * cancellations, and unlisted pairs return the caller-provided fallback so
+ * existing toast copy is preserved.
+ */
 export function apiErrorMessage(err: unknown, fallback: string): string {
-  if (err instanceof AxiosError) {
-    const message = (err.response?.data as { message?: string } | undefined)
-      ?.message;
-    if (message) return message;
+  const operation = inferHttpOperation(err);
+  if (operation === null) {
+    return fallback;
   }
-  return fallback;
+  const mapped = mapHttpError(err, operation);
+  if (mapped.category === "service" || mapped.category === "cancelled") {
+    return fallback;
+  }
+  return operationMessage(operation, mapped.category) ?? fallback;
+}
+
+/**
+ * INTERIM helper for apiErrorMessage: infers the app operation that
+ * produced an error by matching the Axios request method and URL path
+ * against the endpoint table. The config is read for routing only — the
+ * URL is never displayed, serialized, or included in any returned value.
+ * /auth/refresh is attributed to refresh-session; restore-session failures
+ * are swallowed by performRefresh and never reach apiErrorMessage.
+ */
+function inferHttpOperation(err: unknown): HttpOperation | null {
+  if (!(err instanceof AxiosError)) {
+    return null;
+  }
+  const url = err.config?.url;
+  if (typeof url !== "string" || url === "") {
+    return null;
+  }
+  const method = (err.config?.method ?? "get").toLowerCase();
+  let pathname: string;
+  try {
+    pathname = new URL(url, "http://inkwell.invalid").pathname;
+  } catch {
+    return null;
+  }
+  const segments = pathname.split("/").filter((segment) => segment !== "");
+  if (segments[0] === "api") {
+    segments.shift();
+  }
+
+  if (segments[0] === "auth" && segments.length === 2 && method === "post") {
+    switch (segments[1]) {
+      case "login":
+        return "login";
+      case "register":
+        return "register";
+      case "refresh":
+        return "refresh-session";
+      case "logout":
+        return "logout";
+      default:
+        return null;
+    }
+  }
+  if (segments[0] === "invites" && segments.length === 2) {
+    if (method === "post" && segments[1] === "redeem") {
+      return "redeem-invite";
+    }
+    if (method === "get") {
+      return "lookup-invite";
+    }
+    return null;
+  }
+  if (segments[0] === "boards") {
+    if (segments.length === 1) {
+      if (method === "get") return "list-boards";
+      if (method === "post") return "create-board";
+      return null;
+    }
+    if (segments.length === 2) {
+      if (method === "get") return "lookup-board";
+      if (method === "patch") return "rename-board";
+      if (method === "delete") return "delete-board";
+      return null;
+    }
+    if (segments.length === 3) {
+      const action = segments[2];
+      if (method === "post" && action === "invites") return "create-invite";
+      if (method === "post" && action === "duplicate") {
+        return "duplicate-board";
+      }
+      if (method === "patch" && action === "archive") return "archive-board";
+      if (method === "patch" && action === "restore") return "restore-board";
+    }
+  }
+  return null;
 }
 
 function performRefresh(): Promise<RefreshResult | null> {

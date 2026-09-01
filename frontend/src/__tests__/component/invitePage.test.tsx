@@ -6,19 +6,14 @@ import { AxiosError } from "axios";
 
 const apiMock = vi.hoisted(() => ({
   default: { get: vi.fn(), post: vi.fn() },
-  apiErrorMessage: (err: unknown, fallback: string) => {
-    if (err instanceof AxiosError) {
-      const message = (err.response?.data as { message?: string } | undefined)
-        ?.message;
-      if (message) return message;
-    }
-    return fallback;
-  },
 }));
 
 const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
 
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, default: apiMock.default };
+});
 vi.mock("sonner", () => toastMock);
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -164,9 +159,7 @@ describe("InvitePage", () => {
     expect(navigateMock).toHaveBeenCalledWith("/board/b1", { replace: true });
     // Terminal state: isSubmitting has been reset once the handler settles.
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Join board" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Join board" })).toBeEnabled();
     });
   });
 
@@ -176,9 +169,12 @@ describe("InvitePage", () => {
       new AxiosError(
         "Request failed with status code 400",
         "ERR_BAD_REQUEST",
+        { url: "/invites/redeem", method: "post" } as never,
         undefined,
-        undefined,
-        { status: 400, data: { message: "Invite is not redeemable" } } as never,
+        {
+          status: 400,
+          data: { message: "Invite token tok1 was revoked by bob" },
+        } as never,
       ),
     );
     const user = userEvent.setup();
@@ -188,15 +184,13 @@ describe("InvitePage", () => {
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
-        "Invite is not redeemable",
+        "This invitation link is no longer redeemable. Ask the board owner for a new link.",
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();
     // Terminal state: isSubmitting has been reset once the handler settles.
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Join board" }),
-      ).toBeEnabled();
+      expect(screen.getByRole("button", { name: "Join board" })).toBeEnabled();
     });
   });
 });

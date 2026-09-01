@@ -8,21 +8,16 @@ import type { BoardSessionSnapshot } from "@/types/session";
 
 const apiMock = vi.hoisted(() => ({
   default: { post: vi.fn() },
-  apiErrorMessage: (err: unknown, fallback: string) => {
-    if (err instanceof AxiosError) {
-      const message = (err.response?.data as { message?: string } | undefined)
-        ?.message;
-      if (message) return message;
-    }
-    return fallback;
-  },
 }));
 
 const toastMock = vi.hoisted(() => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, default: apiMock.default };
+});
 vi.mock("sonner", () => toastMock);
 
 const paramsMock = vi.hoisted(() => ({ roomId: "b1" }));
@@ -163,13 +158,13 @@ describe("ShareDialog", () => {
   it("shows a toast and no link when invite creation fails", async () => {
     apiMock.default.post.mockRejectedValue(
       new AxiosError(
-        "Request failed with status code 400",
+        "Request failed with status code 403",
         "ERR_BAD_REQUEST",
-        undefined,
+        { url: "/boards/b1/invites", method: "post" } as never,
         undefined,
         {
-          status: 400,
-          data: { message: "Only the board owner can create invites" },
+          status: 403,
+          data: { message: "alice@example.com cannot open Secret Roadmap" },
         } as never,
       ),
     );
@@ -182,7 +177,7 @@ describe("ShareDialog", () => {
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
-        "Only the board owner can create invites",
+        "Only the board owner can create invitation links.",
       );
     });
     expect(
