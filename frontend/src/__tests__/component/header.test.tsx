@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/providers/themeProvider";
 const storeMock = vi.hoisted(() => ({
   user: null as { id: string; username: string; email: string } | null,
   status: "unauthenticated" as string,
-  clearSession: vi.fn(),
+  logoutLocally: vi.fn(),
 }));
 
 vi.mock("@/stores/authStore", () => ({
@@ -15,13 +15,13 @@ vi.mock("@/stores/authStore", () => ({
       selector({
         user: storeMock.user,
         status: storeMock.status,
-        clearSession: storeMock.clearSession,
+        logoutLocally: storeMock.logoutLocally,
       }),
     {
       getState: () => ({
         user: storeMock.user,
         status: storeMock.status,
-        clearSession: storeMock.clearSession,
+        logoutLocally: storeMock.logoutLocally,
       }),
     },
   ),

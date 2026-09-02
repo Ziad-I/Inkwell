@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router";
 const storeMock = vi.hoisted(() => ({
   user: null as { id: string; username: string; email: string } | null,
   status: "unauthenticated" as string,
-  clearSession: vi.fn(),
+  logoutLocally: vi.fn(),
 }));
 
 const apiMock = vi.hoisted(() => ({ default: { post: vi.fn() } }));
@@ -17,13 +17,13 @@ vi.mock("@/stores/authStore", () => ({
       selector({
         user: storeMock.user,
         status: storeMock.status,
-        clearSession: storeMock.clearSession,
+        logoutLocally: storeMock.logoutLocally,
       }),
     {
       getState: () => ({
         user: storeMock.user,
         status: storeMock.status,
-        clearSession: storeMock.clearSession,
+        logoutLocally: storeMock.logoutLocally,
       }),
     },
   ),
@@ -49,14 +49,14 @@ describe("UserMenu", () => {
   beforeEach(() => {
     storeMock.user = null;
     storeMock.status = "unauthenticated";
-    storeMock.clearSession.mockReset();
+    storeMock.logoutLocally.mockReset();
     navigateMock.mockReset();
     apiMock.default.post.mockReset();
     apiMock.default.post.mockResolvedValue({ status: 204 });
   });
 
-  it("renders nothing while the session is loading", async () => {
-    storeMock.status = "loading";
+  it("renders nothing while the session is restoring", async () => {
+    storeMock.status = "restoring";
     await renderUserMenu();
 
     expect(
@@ -104,7 +104,7 @@ describe("UserMenu", () => {
 
     await waitFor(() => {
       expect(apiMock.default.post).toHaveBeenCalledWith("/auth/logout");
-      expect(storeMock.clearSession).toHaveBeenCalled();
+      expect(storeMock.logoutLocally).toHaveBeenCalled();
       expect(navigateMock).toHaveBeenCalledWith("/");
     });
   });
@@ -122,7 +122,7 @@ describe("UserMenu", () => {
     await user.click(screen.getByRole("menuitem", { name: "Log out" }));
 
     await waitFor(() => {
-      expect(storeMock.clearSession).toHaveBeenCalled();
+      expect(storeMock.logoutLocally).toHaveBeenCalled();
       expect(navigateMock).toHaveBeenCalledWith("/");
     });
     expect(apiMock.default.post).toHaveBeenCalledWith("/auth/logout");

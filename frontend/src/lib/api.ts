@@ -125,16 +125,17 @@ function performRefresh(): Promise<RefreshResult | null> {
   }
 
   refreshPromise = (async () => {
+    const epoch = useAuthStore.getState().captureEpoch();
     try {
       const { data } = await axios.post<RefreshResult>(
         `${baseURL}${REFRESH_PATH}`,
         null,
         { withCredentials: true },
       );
-      useAuthStore.getState().setSession(data.user, data.accessToken);
-      return data;
+      const committed = useAuthStore.getState().commitSession(epoch, data);
+      return committed ? data : null;
     } catch {
-      useAuthStore.getState().clearSession();
+      useAuthStore.getState().commitUnauthenticated(epoch);
       return null;
     } finally {
       refreshPromise = null;
@@ -156,7 +157,7 @@ function shouldAttemptRefresh(error: AxiosError, config?: RetryableConfig) {
 }
 
 export function restoreSession(): Promise<RefreshResult | null> {
-  useAuthStore.getState().setStatus("loading");
+  useAuthStore.getState().setStatus("restoring");
   return performRefresh();
 }
 

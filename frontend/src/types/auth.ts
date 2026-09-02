@@ -6,6 +6,7 @@ export interface AuthUser {
 
 export type AuthStatus =
   | "idle"
-  | "loading"
+  | "restoring"
   | "authenticated"
-  | "unauthenticated";
+  | "unauthenticated"
+  | "error";

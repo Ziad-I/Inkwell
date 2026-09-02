@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 function resetStore() {
   useAuthStore.setState({
+    epoch: 0,
     user: null,
     accessToken: null,
     status: "idle",

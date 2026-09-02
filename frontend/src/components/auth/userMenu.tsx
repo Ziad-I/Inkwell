@@ -26,7 +26,7 @@ export function UserMenu() {
     } catch {
       // Best-effort server-side revoke; the local session is cleared regardless.
     }
-    useAuthStore.getState().clearSession();
+    useAuthStore.getState().logoutLocally();
     navigate("/");
   };
 
