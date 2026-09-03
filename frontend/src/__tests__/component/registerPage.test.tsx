@@ -3,26 +3,16 @@ import { waitFor, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 
-const authStoreMock = vi.hoisted(() => ({
-  setSession: vi.fn(),
-}));
-
-const apiMock = vi.hoisted(() => ({
-  default: { post: vi.fn() },
-  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
+const authApiMock = vi.hoisted(() => ({
+  register: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
 
-vi.mock("@/stores/authStore", () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      user: null,
-      status: "idle",
-      setSession: authStoreMock.setSession,
-    }),
-}));
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, authApi: authApiMock };
+});
 vi.mock("sonner", () => toastMock);
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -75,11 +65,8 @@ describe("RegisterPage", () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.toast.error.mockReset();
-    authStoreMock.setSession.mockReset();
-    apiMock.default.post.mockReset();
-    apiMock.default.post.mockResolvedValue({
-      data: { user: { id: "u1" }, accessToken: "access-1" },
-    });
+    authApiMock.register.mockReset();
+    authApiMock.register.mockResolvedValue("authenticated");
   });
 
   it("renders the registration form", async () => {
@@ -106,7 +93,7 @@ describe("RegisterPage", () => {
     expect(toastMock.toast.error).toHaveBeenCalledWith(
       "Please enter a valid email address.",
     );
-    expect(apiMock.default.post).not.toHaveBeenCalled();
+    expect(authApiMock.register).not.toHaveBeenCalled();
   });
 
   it("validates the minimum password length", async () => {
@@ -124,7 +111,7 @@ describe("RegisterPage", () => {
     expect(toastMock.toast.error).toHaveBeenCalledWith(
       "Password must be at least 8 characters.",
     );
-    expect(apiMock.default.post).not.toHaveBeenCalled();
+    expect(authApiMock.register).not.toHaveBeenCalled();
   });
 
   it("validates that passwords match", async () => {
@@ -142,7 +129,7 @@ describe("RegisterPage", () => {
     expect(toastMock.toast.error).toHaveBeenCalledWith(
       "Passwords do not match.",
     );
-    expect(apiMock.default.post).not.toHaveBeenCalled();
+    expect(authApiMock.register).not.toHaveBeenCalled();
   });
 
   it("submits the registration and navigates home on success", async () => {
@@ -158,16 +145,12 @@ describe("RegisterPage", () => {
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/auth/register", {
+      expect(authApiMock.register).toHaveBeenCalledWith({
         username: "alice",
         email: "alice@example.com",
         password: "supersecret",
       });
     });
-    expect(authStoreMock.setSession).toHaveBeenCalledWith(
-      { id: "u1" },
-      "access-1",
-    );
     expect(navigateMock).toHaveBeenCalledWith("/");
   });
 });

@@ -11,13 +11,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { AuthUser } from "@/types/auth";
-import { useAuthStore, } from "@/stores/authStore";
-import api, { apiErrorMessage } from "@/lib/api";
+import { authApi, mapHttpError } from "@/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const setSession = useAuthStore((s) => s.setSession);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,14 +29,18 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      const { data } = await api.post<{ user: AuthUser; accessToken: string }>(
-        "/auth/login",
-        { email: email.trim(), password },
-      );
-      setSession(data.user, data.accessToken);
-      navigate("/");
+      const outcome = await authApi.login({
+        email: email.trim(),
+        password,
+      });
+      if (outcome === "authenticated") {
+        navigate("/");
+      }
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Login failed. Please try again."));
+      const mapped = mapHttpError(err, "login");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsSubmitting(false);
     }

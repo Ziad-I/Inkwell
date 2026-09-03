@@ -11,6 +11,14 @@ type AuthState = {
   status: AuthStatus;
   captureEpoch: () => number;
   beginRestore: (epoch: number) => boolean;
+  /**
+   * Claims a fresh epoch for an explicit sign-in (login or
+   * register): increments the epoch so every capture made before
+   * the sign-in — e.g. an in-flight pre-login refresh — becomes stale,
+   * and returns the new epoch to commit against. Credentials and
+   * status are left untouched until the sign-in commits.
+   */
+  beginSession: () => number;
   commitSession: (epoch: number, session: AuthSession) => boolean;
   commitUnauthenticated: (epoch: number) => boolean;
   failRestore: (epoch: number) => boolean;
@@ -46,6 +54,14 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     return committed;
   },
 
+  beginSession: () => {
+    let nextEpoch = 0;
+    set((state) => {
+      nextEpoch = state.epoch + 1;
+      return { epoch: nextEpoch };
+    });
+    return nextEpoch;
+  },
   commitSession: (epoch, session) => {
     let committed = false;
     set((state) => {

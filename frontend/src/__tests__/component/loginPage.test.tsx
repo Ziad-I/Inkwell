@@ -4,27 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
 
-const authStoreMock = vi.hoisted(() => ({
-  setSession: vi.fn(),
-}));
-
-const apiMock = vi.hoisted(() => ({
-  default: { post: vi.fn() },
+const authApiMock = vi.hoisted(() => ({
+  login: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
 
-vi.mock("@/stores/authStore", () => ({
-  useAuthStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      user: null,
-      status: "idle",
-      setSession: authStoreMock.setSession,
-    }),
-}));
-vi.mock("@/lib/api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
-  return { ...actual, default: apiMock.default };
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, authApi: authApiMock };
 });
 vi.mock("sonner", () => toastMock);
 
@@ -50,11 +38,8 @@ describe("LoginPage", () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.toast.error.mockReset();
-    authStoreMock.setSession.mockReset();
-    apiMock.default.post.mockReset();
-    apiMock.default.post.mockResolvedValue({
-      data: { user: { id: "u1" }, accessToken: "access-1" },
-    });
+    authApiMock.login.mockReset();
+    authApiMock.login.mockResolvedValue("authenticated");
   });
 
   it("renders email and password fields", async () => {
@@ -74,7 +59,7 @@ describe("LoginPage", () => {
     expect(toastMock.toast.error).toHaveBeenCalledWith(
       "Please fill in your email and password.",
     );
-    expect(apiMock.default.post).not.toHaveBeenCalled();
+    expect(authApiMock.login).not.toHaveBeenCalled();
   });
 
   it("submits credentials and navigates home on success", async () => {
@@ -86,15 +71,11 @@ describe("LoginPage", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/auth/login", {
+      expect(authApiMock.login).toHaveBeenCalledWith({
         email: "alice@example.com",
         password: "supersecret",
       });
     });
-    expect(authStoreMock.setSession).toHaveBeenCalledWith(
-      { id: "u1" },
-      "access-1",
-    );
     expect(navigateMock).toHaveBeenCalledWith("/");
   });
 
@@ -109,7 +90,7 @@ describe("LoginPage", () => {
         data: { message: "alice@example.com: 3 failed sign-in attempts" },
       } as never,
     );
-    apiMock.default.post.mockRejectedValue(apiError);
+    authApiMock.login.mockRejectedValue(apiError);
 
     const user = userEvent.setup();
     await renderLogin();

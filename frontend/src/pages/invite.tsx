@@ -14,7 +14,7 @@ import {
 import { LoadingSpinner } from "@/components/home/LoadingSpinner";
 import { RoleBadge } from "@/components/invite/roleBadge";
 import { InviteStatusCard } from "@/components/invite/inviteStatusCard";
-import api, { apiErrorMessage } from "@/lib/api";
+import { mapHttpError, inviteApi } from "@/api";
 import { CalendarClock, PenSquare, ShieldX } from "lucide-react";
 import type { InviteInfo } from "@/types/invite";
 
@@ -45,17 +45,21 @@ export default function InvitePage() {
 
     async function loadInvite() {
       try {
-        const { data } = await api.get<InviteInfo>(`/invites/${token}`);
+        const inviteInfo = await inviteApi.get(token!, {
+          allowAuthRefresh: false,
+        });
         if (cancelled) return;
-        setInvite(data);
+        setInvite(inviteInfo);
       } catch (err) {
         if (cancelled) return;
-        setInvalidMessage(
-          apiErrorMessage(
-            err,
-            "This invitation link is invalid or no longer exists.",
-          ),
-        );
+        const mapped = mapHttpError(err, "lookup-invite");
+        if (mapped.category === "validation") {
+          setInvalidMessage(mapped.message);
+        }
+
+        if (mapped.category !== "cancelled") {
+          toast.error(mapped.message);
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -71,12 +75,18 @@ export default function InvitePage() {
     if (!invite) return;
     setIsSubmitting(true);
     try {
-      const { data } = await api.post<{ boardId: string }>("/invites/redeem", {
-        token,
+      const { boardId } = await inviteApi.redeem(token!, {
+        allowAuthRefresh: false,
       });
-      navigate(`/board/${data.boardId}`, { replace: true });
+      navigate(`/board/${boardId}`, { replace: true });
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to join board"));
+      const mapped = mapHttpError(err, "redeem-invite");
+      if (mapped.category === "validation") {
+        setInvalidMessage(mapped.message);
+      }
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsSubmitting(false);
     }

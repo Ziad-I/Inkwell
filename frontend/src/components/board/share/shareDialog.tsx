@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { ChevronRight, Share2 } from "lucide-react";
 import { toast } from "sonner";
-import api, { apiErrorMessage } from "@/lib/api";
+import { inviteApi, mapHttpError } from "@/api";
 
 type InviteRole = "editor" | "viewer";
 type ExpiryPreset = "never" | "1h" | "1d" | "7d" | "30d";
@@ -50,13 +50,17 @@ export default function ShareDialog({
         expiry === "never"
           ? undefined
           : new Date(Date.now() + EXPIRY_MS[expiry]).toISOString();
-      const { data } = await api.post<{ token: string }>(
-        `/boards/${roomId}/invites`,
-        { role, ...(expiresAt ? { expiresAt } : {}) },
-      );
-      setLink(`${window.location.origin}/invite/${data.token}`);
+
+      const { token } = await inviteApi.create(roomId, {
+        role,
+        ...(expiresAt ? { expiresAt } : {}),
+      });
+      setLink(`${window.location.origin}/invite/${token}`);
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to create invite"));
+      const mapped = mapHttpError(err, "create-invite");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -146,7 +150,11 @@ export default function ShareDialog({
               </SelectContent>
             </Select>
           </div>
-          <Button className="w-full" onClick={handleCreate} disabled={isCreating}>
+          <Button
+            className="w-full"
+            onClick={handleCreate}
+            disabled={isCreating}
+          >
             {isCreating ? "Creating…" : "Create link"}
           </Button>
           {link && (

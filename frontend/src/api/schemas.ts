@@ -23,7 +23,7 @@ export const authSessionResponseSchema: z.ZodType<{
 
 export const inviteInfoResponseSchema: z.ZodType<InviteInfo> = z.strictObject({
   boardId: idSchema,
-  boardName: z.string().max(100),
+  boardName: z.string().max(255),
   role: z.enum(["editor", "viewer"]),
   expiresAt: isoDatetimeSchema.nullable(),
   valid: z.boolean(),
@@ -39,14 +39,15 @@ export const inviteCreateResponseSchema: z.ZodType<{ token: string }> =
     token: z.string().min(16).max(512),
   });
 
-export const boardReferenceResponseSchema: z.ZodType<{ id: string }> =
-  z.strictObject({
+export const boardReferenceResponseSchema: z.ZodType<{ id: string }> = z.object(
+  {
     id: idSchema,
-  });
+  },
+);
 
 const boardSummarySchema = z.strictObject({
   id: idSchema,
-  title: z.string().max(100),
+  title: z.string().max(255),
   ownerId: idSchema,
   defaultRole: z.enum(["editor", "viewer"]),
   createdAt: isoDatetimeSchema,

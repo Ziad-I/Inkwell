@@ -4,15 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { AxiosError } from "axios";
 
-const apiMock = vi.hoisted(() => ({
-  default: { get: vi.fn(), post: vi.fn() },
+const inviteApiMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  redeem: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({ toast: { error: vi.fn() } }));
 
-vi.mock("@/lib/api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
-  return { ...actual, default: apiMock.default };
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, inviteApi: inviteApiMock };
 });
 vi.mock("sonner", () => toastMock);
 
@@ -54,12 +55,12 @@ describe("InvitePage", () => {
   beforeEach(() => {
     navigateMock.mockReset();
     toastMock.toast.error.mockReset();
-    apiMock.default.get.mockReset();
-    apiMock.default.post.mockReset();
+    inviteApiMock.get.mockReset();
+    inviteApiMock.redeem.mockReset();
   });
 
   it("renders a valid invite with the board name and role", async () => {
-    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
+    inviteApiMock.get.mockResolvedValueOnce(validInvite);
     await renderInvite();
 
     await waitFor(() => {
@@ -76,12 +77,10 @@ describe("InvitePage", () => {
   });
 
   it("shows the expired message when a valid invite has a future-dated check but is already past expiry", async () => {
-    apiMock.default.get.mockResolvedValueOnce({
-      data: {
-        ...validInvite,
-        valid: false,
-        expiresAt: new Date(Date.now() - 1000 * 60).toISOString(),
-      },
+    inviteApiMock.get.mockResolvedValueOnce({
+      ...validInvite,
+      valid: false,
+      expiresAt: new Date(Date.now() - 1000 * 60).toISOString(),
     });
     await renderInvite();
 
@@ -102,8 +101,10 @@ describe("InvitePage", () => {
   });
 
   it("shows the revoked/exhausted message when the invite is invalid without an expiry date", async () => {
-    apiMock.default.get.mockResolvedValueOnce({
-      data: { ...validInvite, valid: false, expiresAt: null },
+    inviteApiMock.get.mockResolvedValueOnce({
+      ...validInvite,
+      valid: false,
+      expiresAt: null,
     });
     await renderInvite();
 
@@ -121,7 +122,7 @@ describe("InvitePage", () => {
   });
 
   it("shows the not-found card with a home link on 404", async () => {
-    apiMock.default.get.mockRejectedValue(
+    inviteApiMock.get.mockRejectedValue(
       new AxiosError(
         "Request failed with status code 404",
         "ERR_BAD_REQUEST",
@@ -144,16 +145,16 @@ describe("InvitePage", () => {
   });
 
   it("redeems the invite and navigates to the board on success", async () => {
-    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
-    apiMock.default.post.mockResolvedValue({ data: { boardId: "b1" } });
+    inviteApiMock.get.mockResolvedValueOnce(validInvite);
+    inviteApiMock.redeem.mockResolvedValue({ boardId: "b1" });
     const user = userEvent.setup();
     await renderInvite();
 
     await user.click(await screen.findByRole("button", { name: "Join board" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/invites/redeem", {
-        token: "tok1",
+      expect(inviteApiMock.redeem).toHaveBeenCalledWith("tok1", {
+        allowAuthRefresh: false,
       });
     });
     expect(navigateMock).toHaveBeenCalledWith("/board/b1", { replace: true });
@@ -164,8 +165,8 @@ describe("InvitePage", () => {
   });
 
   it("shows a toast and stays on the page when redemption fails", async () => {
-    apiMock.default.get.mockResolvedValueOnce({ data: validInvite });
-    apiMock.default.post.mockRejectedValue(
+    inviteApiMock.get.mockResolvedValueOnce(validInvite);
+    inviteApiMock.redeem.mockRejectedValue(
       new AxiosError(
         "Request failed with status code 400",
         "ERR_BAD_REQUEST",
@@ -188,9 +189,15 @@ describe("InvitePage", () => {
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();
-    // Terminal state: isSubmitting has been reset once the handler settles.
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Join board" })).toBeEnabled();
-    });
+    // Terminal state: a validation-category failure swaps the card for the
+    // invalid state once the handler settles.
+    expect(
+      await screen.findByText(
+        "This invitation link is no longer redeemable. Ask the board owner for a new link.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Join board" }),
+    ).not.toBeInTheDocument();
   });
 });

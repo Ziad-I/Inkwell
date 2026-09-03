@@ -6,17 +6,17 @@ import { AxiosError } from "axios";
 import { useSessionStore } from "@/stores/sessionStore";
 import type { BoardSessionSnapshot } from "@/types/session";
 
-const apiMock = vi.hoisted(() => ({
-  default: { post: vi.fn() },
+const inviteApiMock = vi.hoisted(() => ({
+  create: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("@/lib/api", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
-  return { ...actual, default: apiMock.default };
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, inviteApi: inviteApiMock };
 });
 vi.mock("sonner", () => toastMock);
 
@@ -52,7 +52,7 @@ describe("ShareDialog", () => {
   beforeEach(() => {
     toastMock.toast.error.mockReset();
     toastMock.toast.success.mockReset();
-    apiMock.default.post.mockReset();
+    inviteApiMock.create.mockReset();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       configurable: true,
@@ -70,7 +70,7 @@ describe("ShareDialog", () => {
   });
 
   it("changes the role through the select menu before creating the link", async () => {
-    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    inviteApiMock.create.mockResolvedValue({ token: "tok123" });
     await openShareDialog();
 
     const [roleTrigger] = screen.getAllByRole("combobox");
@@ -86,14 +86,14 @@ describe("ShareDialog", () => {
     // Terminal state: isCreating has been reset once the handler settles.
     await screen.findByRole("button", { name: "Create link" });
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
+      expect(inviteApiMock.create).toHaveBeenCalledWith("b1", {
         role: "viewer",
       });
     });
   });
 
   it("changes the expiry through the select menu and sends expiresAt", async () => {
-    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    inviteApiMock.create.mockResolvedValue({ token: "tok123" });
     await openShareDialog();
 
     const [, expiryTrigger] = screen.getAllByRole("combobox");
@@ -109,7 +109,7 @@ describe("ShareDialog", () => {
     // Terminal state: isCreating has been reset once the handler settles.
     await screen.findByRole("button", { name: "Create link" });
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
+      expect(inviteApiMock.create).toHaveBeenCalledWith("b1", {
         role: "editor",
         expiresAt: expect.any(String),
       });
@@ -117,7 +117,7 @@ describe("ShareDialog", () => {
   });
 
   it("creates an invite link with the default role and shows the one-time URL", async () => {
-    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    inviteApiMock.create.mockResolvedValue({ token: "tok123" });
     await openShareDialog();
 
     const user = userEvent.setup();
@@ -126,7 +126,7 @@ describe("ShareDialog", () => {
     await screen.findByRole("button", { name: "Create link" });
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/invites", {
+      expect(inviteApiMock.create).toHaveBeenCalledWith("b1", {
         role: "editor",
       });
     });
@@ -136,7 +136,7 @@ describe("ShareDialog", () => {
   });
 
   it("copies the invite link to the clipboard", async () => {
-    apiMock.default.post.mockResolvedValue({ data: { token: "tok123" } });
+    inviteApiMock.create.mockResolvedValue({ token: "tok123" });
     await openShareDialog();
 
     // fireEvent throughout, not userEvent: user-event.setup() replaces
@@ -156,7 +156,7 @@ describe("ShareDialog", () => {
   });
 
   it("shows a toast and no link when invite creation fails", async () => {
-    apiMock.default.post.mockRejectedValue(
+    inviteApiMock.create.mockRejectedValue(
       new AxiosError(
         "Request failed with status code 403",
         "ERR_BAD_REQUEST",

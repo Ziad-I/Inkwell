@@ -4,22 +4,15 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { useAuthStore } from "@/stores/authStore";
 
-vi.mock("@/lib/api", () => ({
-  default: {
-    post: vi
-      .fn()
-      .mockResolvedValue({ data: { id: "board-123", title: "Test Board" } }),
-    get: vi.fn().mockResolvedValue({
-      data: {
-        id: "board-123",
-        roomId: "room-123",
-        title: "Test Board",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    }),
-  },
+const boardApiMock = vi.hoisted(() => ({
+  create: vi.fn().mockResolvedValue({ id: "board-123" }),
+  get: vi.fn().mockResolvedValue({ id: "board-123" }),
 }));
+
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, boardApi: boardApiMock };
+});
 
 vi.mock("sonner", () => ({
   toast: { error: vi.fn() },
@@ -97,7 +90,6 @@ describe("ActionCards integration", () => {
 
   it("creates board calls API", async () => {
     const user = userEvent.setup();
-    const api = await import("@/lib/api");
     const { ActionCards } = await import("@/components/home/actionCards");
 
     render(
@@ -110,10 +102,7 @@ describe("ActionCards integration", () => {
     await user.click(createBtn);
 
     await waitFor(() => {
-      expect(api.default.post).toHaveBeenCalledWith(
-        "/boards",
-        expect.any(Object),
-      );
+      expect(boardApiMock.create).toHaveBeenCalledWith(expect.any(Object));
     });
     // Terminal state: isCreating has been reset once the handler settles.
     await waitFor(() => {

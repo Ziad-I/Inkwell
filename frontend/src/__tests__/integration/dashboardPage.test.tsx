@@ -10,21 +10,25 @@ import {
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 
-const apiMock = vi.hoisted(() => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
-  },
-  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
+const boardApiMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  create: vi.fn(),
+  list: vi.fn(),
+  rename: vi.fn(),
+  duplicate: vi.fn(),
+  archive: vi.fn(),
+  restore: vi.fn(),
+  delete: vi.fn(),
 }));
 
 const toastMock = vi.hoisted(() => ({
   toast: { error: vi.fn(), success: vi.fn() },
 }));
 
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, boardApi: boardApiMock };
+});
 vi.mock("sonner", () => toastMock);
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -112,14 +116,22 @@ describe("DashboardPage integration", () => {
     toastMock.toast.error.mockReset();
     toastMock.toast.success.mockReset();
     navigateMock.mockReset();
-    apiMock.default.get.mockReset();
-    apiMock.default.post.mockReset();
-    apiMock.default.patch.mockReset();
-    apiMock.default.delete.mockReset();
-    apiMock.default.get.mockResolvedValue({ data: { boards: activeBoards } });
-    apiMock.default.post.mockResolvedValue({ data: { id: "b9" } });
-    apiMock.default.patch.mockResolvedValue({});
-    apiMock.default.delete.mockResolvedValue({});
+    boardApiMock.get.mockReset();
+    boardApiMock.create.mockReset();
+    boardApiMock.list.mockReset();
+    boardApiMock.rename.mockReset();
+    boardApiMock.duplicate.mockReset();
+    boardApiMock.archive.mockReset();
+    boardApiMock.restore.mockReset();
+    boardApiMock.delete.mockReset();
+    boardApiMock.get.mockResolvedValue({ id: "b1" });
+    boardApiMock.list.mockResolvedValue({ boards: activeBoards });
+    boardApiMock.create.mockResolvedValue({ id: "b9" });
+    boardApiMock.rename.mockResolvedValue(undefined);
+    boardApiMock.duplicate.mockResolvedValue({ id: "b9" });
+    boardApiMock.archive.mockResolvedValue(undefined);
+    boardApiMock.restore.mockResolvedValue(undefined);
+    boardApiMock.delete.mockResolvedValue(undefined);
   });
 
   it("renders the heading, tabs, and fetches active boards on load", async () => {
@@ -131,9 +143,7 @@ describe("DashboardPage integration", () => {
     expect(screen.getByRole("tab", { name: "Archived" })).toBeInTheDocument();
 
     await screen.findByText("Alpha");
-    expect(apiMock.default.get).toHaveBeenCalledWith("/boards", {
-      params: { status: "active" },
-    });
+    expect(boardApiMock.list).toHaveBeenCalledWith({ status: "active" });
     expect(screen.getByText("Beta")).toBeInTheDocument();
   });
 
@@ -152,7 +162,7 @@ describe("DashboardPage integration", () => {
   });
 
   it("shows the empty state when there are no active boards", async () => {
-    apiMock.default.get.mockResolvedValue({ data: { boards: [] } });
+    boardApiMock.list.mockResolvedValue({ boards: [] });
     await renderDashboard();
 
     expect(await screen.findByText("No active boards yet")).toBeInTheDocument();
@@ -163,7 +173,7 @@ describe("DashboardPage integration", () => {
   });
 
   it("shows no create button in the archived empty state", async () => {
-    apiMock.default.get.mockResolvedValue({ data: { boards: [] } });
+    boardApiMock.list.mockResolvedValue({ boards: [] });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -174,15 +184,13 @@ describe("DashboardPage integration", () => {
     expect(screen.getAllByRole("button", { name: /New board/i })).toHaveLength(
       1,
     );
-    expect(apiMock.default.get).toHaveBeenCalledWith("/boards", {
-      params: { status: "archived" },
-    });
+    expect(boardApiMock.list).toHaveBeenCalledWith({ status: "archived" });
   });
 
   it("switches to the archived tab and lists archived boards with Restore action", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: archivedBoards } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: archivedBoards });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -190,9 +198,7 @@ describe("DashboardPage integration", () => {
     await user.click(screen.getByRole("tab", { name: "Archived" }));
 
     await screen.findByText("Old Board");
-    expect(apiMock.default.get).toHaveBeenCalledWith("/boards", {
-      params: { status: "archived" },
-    });
+    expect(boardApiMock.list).toHaveBeenCalledWith({ status: "archived" });
 
     await openBoardActions("Old Board");
     expect(
@@ -239,7 +245,7 @@ describe("DashboardPage integration", () => {
     await user.click(screen.getByRole("button", { name: "New board" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/boards", {
+      expect(boardApiMock.create).toHaveBeenCalledWith({
         name: "Untitled Board",
       });
     });
@@ -253,9 +259,9 @@ describe("DashboardPage integration", () => {
   });
 
   it("renames a board through the actions menu", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: renamedBoards } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: renamedBoards });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -273,9 +279,7 @@ describe("DashboardPage integration", () => {
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(apiMock.default.patch).toHaveBeenCalledWith("/boards/b1", {
-        title: "Renamed Board",
-      });
+      expect(boardApiMock.rename).toHaveBeenCalledWith("b1", "Renamed Board");
     });
     await waitFor(() => {
       expect(toastMock.toast.success).toHaveBeenCalledWith(
@@ -290,9 +294,9 @@ describe("DashboardPage integration", () => {
   });
 
   it("duplicates a board through the actions menu", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: duplicatedBoards } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: duplicatedBoards });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -302,7 +306,7 @@ describe("DashboardPage integration", () => {
     await user.click(screen.getByRole("menuitem", { name: "Duplicate" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/boards/b1/duplicate");
+      expect(boardApiMock.duplicate).toHaveBeenCalledWith("b1");
     });
     await waitFor(() => {
       expect(toastMock.toast.success).toHaveBeenCalledWith(
@@ -314,9 +318,9 @@ describe("DashboardPage integration", () => {
   });
 
   it("archives a board through the actions menu", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: betaOnly } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: betaOnly });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -326,7 +330,7 @@ describe("DashboardPage integration", () => {
     await user.click(screen.getByRole("menuitem", { name: "Archive" }));
 
     await waitFor(() => {
-      expect(apiMock.default.patch).toHaveBeenCalledWith("/boards/b1/archive");
+      expect(boardApiMock.archive).toHaveBeenCalledWith("b1");
     });
     await waitFor(() => {
       expect(toastMock.toast.success).toHaveBeenCalledWith(
@@ -341,10 +345,10 @@ describe("DashboardPage integration", () => {
   });
 
   it("restores an archived board through the actions menu", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: archivedBoards } })
-      .mockResolvedValue({ data: { boards: restoredActiveBoards } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: archivedBoards })
+      .mockResolvedValue({ boards: restoredActiveBoards });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -356,7 +360,7 @@ describe("DashboardPage integration", () => {
     await user.click(screen.getByRole("menuitem", { name: "Restore" }));
 
     await waitFor(() => {
-      expect(apiMock.default.patch).toHaveBeenCalledWith("/boards/b3/restore");
+      expect(boardApiMock.restore).toHaveBeenCalledWith("b3");
     });
     await waitFor(() => {
       expect(toastMock.toast.success).toHaveBeenCalledWith(
@@ -369,9 +373,9 @@ describe("DashboardPage integration", () => {
   });
 
   it("deletes a board after confirming the dialog", async () => {
-    apiMock.default.get
-      .mockResolvedValueOnce({ data: { boards: activeBoards } })
-      .mockResolvedValueOnce({ data: { boards: betaOnly } });
+    boardApiMock.list
+      .mockResolvedValueOnce({ boards: activeBoards })
+      .mockResolvedValueOnce({ boards: betaOnly });
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -388,7 +392,7 @@ describe("DashboardPage integration", () => {
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
-      expect(apiMock.default.delete).toHaveBeenCalledWith("/boards/b1");
+      expect(boardApiMock.delete).toHaveBeenCalledWith("b1");
     });
     await waitFor(() => {
       expect(toastMock.toast.success).toHaveBeenCalledWith(
@@ -418,16 +422,16 @@ describe("DashboardPage integration", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    expect(apiMock.default.delete).not.toHaveBeenCalled();
+    expect(boardApiMock.delete).not.toHaveBeenCalled();
   });
 
   it("shows a toast when loading boards fails", async () => {
-    apiMock.default.get.mockRejectedValue(new Error("network down"));
+    boardApiMock.list.mockRejectedValue(new Error("network down"));
     await renderDashboard();
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
-        "Failed to load your boards",
+        "The service is temporarily unavailable. Please try again.",
       );
     });
     // Terminal UI: the loading lifecycle finished (finally ran) and the
@@ -436,7 +440,7 @@ describe("DashboardPage integration", () => {
   });
 
   it("shows a toast when creating a board fails and stays on the page", async () => {
-    apiMock.default.post.mockRejectedValue(new Error("network down"));
+    boardApiMock.create.mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
     await renderDashboard();
 
@@ -445,7 +449,7 @@ describe("DashboardPage integration", () => {
 
     await waitFor(() => {
       expect(toastMock.toast.error).toHaveBeenCalledWith(
-        "Failed to create board",
+        "The service is temporarily unavailable. Please try again.",
       );
     });
     expect(navigateMock).not.toHaveBeenCalled();

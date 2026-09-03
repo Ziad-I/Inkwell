@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import api, { apiErrorMessage } from "@/lib/api";
+import { boardApi, mapHttpError } from "@/api";
 import type { BoardListStatus, BoardSummary } from "@/types/boards";
 
 import BoardTable from "@/components/dashboard/boardTable";
@@ -42,12 +42,13 @@ export default function DashboardPage() {
     setIsLoading(true);
     setSkeletonDelayElapsed(false);
     try {
-      const { data } = await api.get<{ boards: BoardSummary[] }>("/boards", {
-        params: { status },
-      });
-      setBoards(data.boards);
+      const { boards: boardList } = await boardApi.list({ status });
+      setBoards(boardList);
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to load your boards"));
+      const mapped = mapHttpError(err, "list-boards");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -71,12 +72,13 @@ export default function DashboardPage() {
   const handleCreateBoard = async () => {
     setIsCreating(true);
     try {
-      const { data } = await api.post<{ id: string }>("/boards", {
-        name: "Untitled Board",
-      });
-      navigate(`/board/${data.id}`, { state: { skipValidation: true } });
+      const { id } = await boardApi.create({ name: "Untitled Board" });
+      navigate(`/board/${id}`, { state: { skipValidation: true } });
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to create board"));
+      const mapped = mapHttpError(err, "create-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -86,13 +88,16 @@ export default function DashboardPage() {
     if (!selectedBoard) return;
     setIsRenaming(true);
     try {
-      await api.patch(`/boards/${selectedBoard.id}`, { title });
+      await boardApi.rename(selectedBoard.id, title);
       toast.success(`Board “${selectedBoard.title}” renamed to “${title}”`);
       setRenameOpen(false);
       setSelectedBoard(null);
       await fetchBoards();
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to rename board"));
+      const mapped = mapHttpError(err, "rename-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsRenaming(false);
     }
@@ -100,31 +105,40 @@ export default function DashboardPage() {
 
   const handleDuplicate = async (board: BoardSummary) => {
     try {
-      await api.post(`/boards/${board.id}/duplicate`);
+      await boardApi.duplicate(board.id);
       toast.success(`Board “${board.title}” duplicated`);
       await fetchBoards();
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to duplicate board"));
+      const mapped = mapHttpError(err, "duplicate-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     }
   };
 
   const handleArchive = async (board: BoardSummary) => {
     try {
-      await api.patch(`/boards/${board.id}/archive`);
+      await boardApi.archive(board.id);
       toast.success(`Board “${board.title}” archived`);
       await fetchBoards();
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to archive board"));
+      const mapped = mapHttpError(err, "archive-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     }
   };
 
   const handleRestore = async (board: BoardSummary) => {
     try {
-      await api.patch(`/boards/${board.id}/restore`);
+      await boardApi.restore(board.id);
       toast.success(`Board “${board.title}” restored`);
       await fetchBoards();
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to restore board"));
+      const mapped = mapHttpError(err, "restore-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     }
   };
 
@@ -132,13 +146,16 @@ export default function DashboardPage() {
     if (!selectedBoard) return;
     setIsDeleting(true);
     try {
-      await api.delete(`/boards/${selectedBoard.id}`);
+      await boardApi.delete(selectedBoard.id);
       toast.success(`Board “${selectedBoard.title}” deleted`);
       setDeleteOpen(false);
       setSelectedBoard(null);
       await fetchBoards();
     } catch (err) {
-      toast.error(apiErrorMessage(err, "Failed to delete board"));
+      const mapped = mapHttpError(err, "delete-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsDeleting(false);
     }

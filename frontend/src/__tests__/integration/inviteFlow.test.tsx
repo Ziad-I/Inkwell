@@ -3,15 +3,15 @@ import { waitFor, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 
-const apiMock = vi.hoisted(() => ({
-  default: {
-    get: vi.fn(),
-    post: vi.fn(),
-  },
-  apiErrorMessage: (_err: unknown, fallback: string) => fallback,
+const inviteApiMock = vi.hoisted(() => ({
+  get: vi.fn(),
+  redeem: vi.fn(),
 }));
 
-vi.mock("@/lib/api", () => apiMock);
+vi.mock("@/api", async () => {
+  const actual = await vi.importActual<typeof import("@/api")>("@/api");
+  return { ...actual, inviteApi: inviteApiMock };
+});
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 const navigateMock = vi.hoisted(() => vi.fn());
@@ -28,18 +28,16 @@ vi.mock("react-router", async () => {
 describe("Invite flow", () => {
   beforeEach(() => {
     navigateMock.mockReset();
-    apiMock.default.get.mockReset();
-    apiMock.default.post.mockReset();
-    apiMock.default.get.mockResolvedValueOnce({
-      data: {
-        boardId: "b1",
-        boardName: "Team Board",
-        role: "viewer",
-        expiresAt: null,
-        valid: true,
-      },
+    inviteApiMock.get.mockReset();
+    inviteApiMock.redeem.mockReset();
+    inviteApiMock.get.mockResolvedValueOnce({
+      boardId: "b1",
+      boardName: "Team Board",
+      role: "viewer",
+      expiresAt: null,
+      valid: true,
     });
-    apiMock.default.post.mockResolvedValue({ data: { boardId: "b1" } });
+    inviteApiMock.redeem.mockResolvedValue({ boardId: "b1" });
   });
 
   it("renders the invite card and redeems the invite", async () => {
@@ -63,8 +61,8 @@ describe("Invite flow", () => {
     await user.click(screen.getByRole("button", { name: "Join board" }));
 
     await waitFor(() => {
-      expect(apiMock.default.post).toHaveBeenCalledWith("/invites/redeem", {
-        token: "tok1",
+      expect(inviteApiMock.redeem).toHaveBeenCalledWith("tok1", {
+        allowAuthRefresh: false,
       });
     });
     expect(navigateMock).toHaveBeenCalledWith("/board/b1", { replace: true });

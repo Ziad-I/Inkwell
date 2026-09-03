@@ -13,7 +13,7 @@ import { useNavigate } from "react-router";
 import { usePresenceStore } from "@/stores/presenceStore";
 import { useAuthStore } from "@/stores/authStore";
 
-import api from "@/lib/api";
+import { boardApi, mapHttpError } from "@/api";
 import { toast } from "sonner";
 import {
   Select,
@@ -47,16 +47,17 @@ export function ActionCards() {
     try {
       if (name.trim()) setAnonymousName(name.trim());
 
-      const { data } = await api.post("/boards", {
+      const { id } = await boardApi.create({
         name: name.trim() ? `${name.trim()}'s Board` : "Untitled Board",
-        // Guests cannot restrict drawing — only authenticated users get
-        // durable boards with a draw permission.
         drawPermission: isAuthenticated ? drawPermission : "anyone",
       });
 
-      navigate(`/board/${data.id}`, { state: { skipValidation: true } });
-    } catch {
-      toast.error("Failed to create board. Please try again.");
+      navigate(`/board/${id}`);
+    } catch (err) {
+      const mapped = mapHttpError(err, "create-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsCreating(false);
     }
@@ -75,13 +76,14 @@ export function ActionCards() {
         ? roomCode.split("/").at(-1)!
         : roomCode.trim();
 
-      await api.get(`/boards/${id}`);
-      navigate(`/board/${id}`, { state: { skipValidation: true } });
+      await boardApi.get(id, { allowAuthRefresh: false });
+      navigate(`/board/${id}`);
     } catch (err) {
       console.error(err);
-      toast.error(
-        "Failed to join board. Please check the room code and try again.",
-      );
+      const mapped = mapHttpError(err, "lookup-board");
+      if (mapped.category !== "cancelled") {
+        toast.error(mapped.message);
+      }
     } finally {
       setIsJoining(false);
     }

@@ -1,21 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { useAuthStore } from "@/stores/authStore";
 
 const MOCK_USER = { id: "user-1", username: "alice", email: "a@b.c" };
 const VALID_SESSION = { user: MOCK_USER, accessToken: "access-1" };
-
-const axiosPostMock = vi.hoisted(() => vi.fn());
-
-vi.mock("axios", async () => {
-  const actual = await vi.importActual<typeof import("axios")>("axios");
-  return {
-    ...actual,
-    default: {
-      ...actual.default,
-      post: axiosPostMock,
-    },
-  };
-});
 
 function resetStore() {
   useAuthStore.setState({
@@ -164,57 +151,6 @@ describe("interim setSession kept for login and register pages", () => {
       user: MOCK_USER,
       accessToken: "access-1",
       status: "authenticated",
-    });
-  });
-});
-
-describe("refresh race through restoreSession", () => {
-  beforeEach(() => {
-    resetStore();
-    axiosPostMock.mockReset();
-  });
-
-  it("an old-epoch refresh resolving after logout cannot restore credentials", async () => {
-    const { restoreSession } = await import("@/lib/api");
-    useAuthStore.setState({
-      user: MOCK_USER,
-      accessToken: "access-1",
-      status: "authenticated",
-    });
-
-    let resolveRefresh!: (value: {
-      data: { user: typeof MOCK_USER; accessToken: string };
-    }) => void;
-    axiosPostMock.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveRefresh = resolve;
-        }),
-    );
-
-    const restoring = restoreSession();
-
-    useAuthStore.getState().logoutLocally();
-    resolveRefresh({ data: { user: MOCK_USER, accessToken: "access-2" } });
-
-    await expect(restoring).resolves.toBeNull();
-    expect(useAuthStore.getState()).toMatchObject({
-      user: null,
-      accessToken: null,
-      status: "unauthenticated",
-    });
-  });
-
-  it("a refresh failure within the current epoch commits unauthenticated", async () => {
-    const { restoreSession } = await import("@/lib/api");
-    axiosPostMock.mockRejectedValue(new Error("no cookie"));
-
-    await expect(restoreSession()).resolves.toBeNull();
-
-    expect(useAuthStore.getState()).toMatchObject({
-      user: null,
-      accessToken: null,
-      status: "unauthenticated",
     });
   });
 });

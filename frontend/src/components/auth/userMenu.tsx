@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { useAuthStore } from "@/stores/authStore";
-import api from "@/lib/api";
+import { authApi } from "@/api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,7 +22,7 @@ export function UserMenu() {
 
   const handleLogout = async () => {
     try {
-      await api.post("/auth/logout");
+      await authApi.logout();
     } catch {
       // Best-effort server-side revoke; the local session is cleared regardless.
     }
