@@ -116,8 +116,6 @@ const authApi = {
   login,
   register,
   logout,
-  restoreSession,
-  revokeServerSession,
 };
 
 export default authApi;

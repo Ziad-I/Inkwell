@@ -87,8 +87,39 @@ async function runRefresh(
   }
 }
 
+/**
+ * Combines abort signals into one that fires when the first source fires.
+ *
+ * Prefers the native AbortSignal.any and falls back to a manual
+ * combination for runtimes that predate it. The fallback matters because
+ * a missing static would throw a TypeError inside the refresh path whose
+ * catch swallows it — silently turning every session restore on an older
+ * browser into a permanent "unauthenticated" dead end.
+ */
+export function combineAbortSignals(
+  signals: readonly AbortSignal[],
+): AbortSignal {
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([...signals]);
+  }
+
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      return controller.signal;
+    }
+  }
+  for (const signal of signals) {
+    signal.addEventListener("abort", () => controller.abort(signal.reason), {
+      once: true,
+    });
+  }
+  return controller.signal;
+}
+
 function authDeadlineSignal(signal: AbortSignal | undefined): AbortSignal {
   const deadline = AbortSignal.timeout(AUTH_DEADLINE_MS);
 
-  return signal ? AbortSignal.any([signal, deadline]) : deadline;
+  return signal ? combineAbortSignals([signal, deadline]) : deadline;
 }
