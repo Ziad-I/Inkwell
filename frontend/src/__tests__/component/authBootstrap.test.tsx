@@ -127,6 +127,64 @@ describe("AuthBootstrap", () => {
     }
   });
 
+  it("keeps the app rendered once the restore settled: the deadline timer must not fire afterwards", async () => {
+    vi.useFakeTimers();
+    try {
+      restoreSessionMock.mockResolvedValue("authenticated");
+      await renderBootstrap();
+
+      await act(async () => {});
+      expect(screen.getByText("App content")).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+
+      expect(screen.getByText("App content")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", {
+          name: "Session restoration timed out",
+        }),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the error surface stable once the restore rejected: the deadline timer must not mutate it", async () => {
+    vi.useFakeTimers();
+    try {
+      restoreSessionMock.mockRejectedValueOnce(new Error("network is down"));
+      await renderBootstrap();
+
+      await act(async () => {});
+      expect(
+        screen.getByRole("heading", {
+          name: "We couldn't restore your session",
+        }),
+      ).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+
+      expect(
+        screen.getByRole("heading", {
+          name: "We couldn't restore your session",
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", {
+          name: "Session restoration timed out",
+        }),
+      ).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("surfaces a recoverable error when the restore call rejects", async () => {
     restoreSessionMock
       .mockRejectedValueOnce(new Error("network is down"))

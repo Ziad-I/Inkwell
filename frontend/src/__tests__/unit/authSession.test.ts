@@ -13,6 +13,7 @@ import {
   sessionWith,
   type HttpAdapterHarness,
 } from "../helpers/httpClient";
+import { CanceledError } from "axios";
 
 let harness: HttpAdapterHarness;
 
@@ -106,6 +107,49 @@ describe("restoreSession", () => {
     expect(useAuthStore.getState().accessToken).toBeNull();
 
     expect(useAuthStore.getState().status).toBe("unauthenticated");
+  });
+
+  it("starts a fresh refresh instead of joining an aborted in-flight refresh", async () => {
+    const firstRefresh = deferred<{ data: unknown }>();
+    let dispatches = 0;
+    harness.stub((request) => {
+      dispatches += 1;
+      if (dispatches > 1) {
+        // Deliver the response on a macrotask, like a real network
+        // roundtrip: the aborted first refresh's rejection then settles
+        // first, which is the production ordering.
+        return new Promise((resolve) => {
+          setTimeout(() => resolve({ data: sessionWith("access-2") }), 0);
+        });
+      }
+      // Mirror real axios: aborting the request's signal rejects it.
+      request.signal?.addEventListener?.("abort", () => {
+        firstRefresh.reject(new CanceledError("canceled"));
+      });
+      return firstRefresh.promise;
+    });
+
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const first = restoreSession({ signal: firstController.signal });
+    await flushAsync();
+
+    // StrictMode remount timing: cleanup aborts the first restore and
+    // the second setup runs immediately, before the dead refresh's
+    // rejection has settled.
+    firstController.abort();
+    const second = restoreSession({ signal: secondController.signal });
+
+    await expect(second).resolves.toBe("authenticated");
+    await expect(first).resolves.toBe("unauthenticated");
+
+    expect(harness.requests).toHaveLength(2);
+    expect(harness.requests[0].signal?.aborted).toBe(true);
+    expect(harness.requests[1].signal?.aborted).toBe(false);
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: "access-2",
+      status: "authenticated",
+    });
   });
 
   it("cannot clear a newer login when a stale restore fails", async () => {

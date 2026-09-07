@@ -22,6 +22,7 @@ export type RefreshOutcome =
 let refreshInFlight: {
   epoch: number;
   promise: Promise<RefreshOutcome>;
+  signal: AbortSignal;
 } | null = null;
 
 export function refreshSession(options?: {
@@ -29,11 +30,13 @@ export function refreshSession(options?: {
 }): Promise<RefreshOutcome> {
   const epoch = useAuthStore.getState().captureEpoch();
 
-  if (refreshInFlight?.epoch === epoch) {
+  if (refreshInFlight?.epoch === epoch && !refreshInFlight.signal.aborted) {
     return refreshInFlight.promise;
   }
 
-  const promise = runRefresh(epoch, options).finally(() => {
+  const signal = authDeadlineSignal(options?.signal);
+
+  const promise = runRefresh(epoch, signal).finally(() => {
     if (refreshInFlight?.promise === promise) {
       refreshInFlight = null;
     }
@@ -42,6 +45,7 @@ export function refreshSession(options?: {
   refreshInFlight = {
     epoch,
     promise,
+    signal,
   };
 
   return promise;
@@ -49,13 +53,11 @@ export function refreshSession(options?: {
 
 async function runRefresh(
   epoch: number,
-  options?: {
-    signal?: AbortSignal;
-  },
+  signal: AbortSignal,
 ): Promise<RefreshOutcome> {
   try {
     const { data } = await apiClient.post(AUTH_ENDPOINTS.REFRESH, null, {
-      signal: authDeadlineSignal(options?.signal),
+      signal,
     });
 
     const session = authSessionResponseSchema.parse(data);

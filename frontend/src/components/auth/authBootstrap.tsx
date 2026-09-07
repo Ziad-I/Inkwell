@@ -45,6 +45,9 @@ export function AuthBootstrap({
 
     restoreSession({ signal: controller.signal }).then(
       () => {
+        // The restore settled: the deadline can no longer fire, or every
+        // successful load would flip to the timeout surface 8s in.
+        clearTimeout(timer);
         if (timedOut) {
           // The deadline fired first. The abort may have landed inside
           // the refresh path as a committed "unauthenticated"; re-mark
@@ -64,6 +67,7 @@ export function AuthBootstrap({
         setPhase("ready");
       },
       (error: unknown) => {
+        clearTimeout(timer);
         if (
           timedOut ||
           controller.signal.aborted ||
