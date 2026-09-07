@@ -62,6 +62,25 @@ export function BoardManagersProvider({
     const connection = new ConnectionManager(url, {
       auth: { userId, userName, userColor, token: accessToken },
     });
+
+    // Token rotations must never recreate the session: the auth store is
+    // watched for access-token changes and each rotation is merged into
+    // THIS generation's handshake auth (used by the next connect or
+    // reconnect) while the healthy socket stays connected. Identity
+    // changes are effect dependencies, so the captured identity fields
+    // stay valid for this subscription's lifetime
+    const unsubscribeAuth = useAuthStore.subscribe((state, prev) => {
+      if (state.accessToken === prev.accessToken) {
+        return;
+      }
+      connection.setAuth({
+        userId,
+        userName,
+        userColor,
+        token: state.accessToken,
+      });
+    });
+
     const document = new BoardDocument();
     const journal = new OperationJournal();
 
@@ -160,14 +179,30 @@ export function BoardManagersProvider({
     });
     activeCoordinator.current = localCoordinator;
 
+    // Single guarded teardown for the connection-critical pair
+    // (coordinator + transport). Both the registry's dispose handle
+    // (the logout boundary) and this effect's own cleanup independently
+    // reach this generation's teardown — a registry-triggered dispose can
+    // race a React re-render caused by the same logout (e.g. an identity
+    // change flowing through useCollabIdentity), so both paths must fold
+    // into one guarded call rather than each invoking
+    // localCoordinator.dispose()/connection.disconnect() on their own.
+    let disposedConnection = false;
+    const disposeConnection = () => {
+      if (disposedConnection) {
+        return;
+      }
+      disposedConnection = true;
+      localCoordinator.dispose();
+      connection.disconnect();
+    };
+
     // Register before starting so the coordinator stays disposable through
     // the registry (the logout boundary) even if this effect's own cleanup
     // never runs.
     const unregister = activeBoardSessionRegistry.register({
       epoch,
-      dispose: () => {
-        localCoordinator.dispose();
-      },
+      dispose: disposeConnection,
     });
 
     toolManagerRef.current = toolManager;
@@ -181,10 +216,9 @@ export function BoardManagersProvider({
         return;
       }
       finalized = true;
-      localCoordinator.dispose();
+      disposeConnection();
       toolManager.destroy();
       commandMgr.destroy();
-      connection.disconnect();
       stageOperations.resetRoomScene();
     };
 
@@ -208,11 +242,18 @@ export function BoardManagersProvider({
         return;
       }
 
+      connection.setAuth({
+        userId,
+        userName,
+        userColor,
+        token: useAuthStore.getState().accessToken,
+      });
       localCoordinator.start();
     })();
 
     return () => {
       abortController.abort();
+      unsubscribeAuth();
       unregister();
       finalizeLocal();
       useSessionStore.getState().reset();
