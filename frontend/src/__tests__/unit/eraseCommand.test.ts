@@ -1,43 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EraseCommand } from "@/commands/eraseCommand";
 import type { StageOperations } from "@/types/common";
-
-const createNode: StageOperations["createNode"] = vi.fn(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <CTOR extends new (...args: any[]) => any>(
-    Ctor: CTOR,
-    ...args: ConstructorParameters<CTOR>
-  ): InstanceType<CTOR> => {
-    return new Ctor(...args) as InstanceType<CTOR>;
-  },
-);
-
-function createMockStageOps(): StageOperations {
-  return {
-    getNodeById: vi.fn(),
-    createNode,
-    addDrawingNode: vi.fn(),
-    addOverlayNode: vi.fn(),
-    removeNodeById: vi.fn(),
-    removeNode: vi.fn(),
-    redrawDrawingLayer: vi.fn(),
-    redrawOverlayLayer: vi.fn(),
-    getStage: vi.fn(),
-    getDrawingLayer: vi.fn(),
-    getOverlayLayer: vi.fn(),
-    getViewpointPos: vi.fn(),
-    getScale: vi.fn(),
-    setScale: vi.fn(),
-    setViewpointPos: vi.fn(),
-    screenToWorld: vi.fn(),
-    worldToScreen: vi.fn(),
-    translate: vi.fn(),
-    toggleDrawing: vi.fn(),
-  };
-}
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 describe("EraseCommand", () => {
-  let stageOps: ReturnType<typeof createMockStageOps>;
+  let stageOps: StageOperations;
 
   beforeEach(() => {
     stageOps = createMockStageOps();

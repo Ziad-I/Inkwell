@@ -15,6 +15,48 @@
       "when": 1782212472408,
       "tag": "0001_ancient_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786447010722,
+      "tag": "0002_tearful_slayback",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786995986548,
+      "tag": "0003_mighty_carlie_cooper",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787056252869,
+      "tag": "0004_simple_slayback",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1787328946999,
+      "tag": "0005_mean_talisman",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787330721055,
+      "tag": "0006_greedy_romulus",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787773759905,
+      "tag": "0007_safe_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

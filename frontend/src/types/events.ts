@@ -1,14 +1,17 @@
 import type { Command, CommandID, PresenceMeta } from "@/types/command";
 import type { Point } from "./common";
 
+export type BoardRole = "owner" | "editor" | "viewer";
+export type BoardPermissions = { read: boolean; draw: boolean };
+
 type Ack<T = void> = (err?: unknown, resp?: T) => void;
 type AckWithSeq = Ack<{ seq: number }>;
-type AckDrawPerm = Ack<{ canDraw: boolean }>;
+type AckJoin = Ack<{ role: BoardRole; permissions: BoardPermissions }>;
 
 export type ClientEmitEvents = {
   "room:join": (
     payload: { roomId: string; lastSeq: number },
-    ack?: AckDrawPerm,
+    ack?: AckJoin,
   ) => void;
   "command:create": (
     payload: { id: CommandID; command: Command },

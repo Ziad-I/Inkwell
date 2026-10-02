@@ -38,6 +38,11 @@ const GRID_FALLBACK_PALETTE = {
     axisStroke: "rgba(15, 23, 42, 0.2)",
   },
 };
+const GUIDELINE_OFFSET = 5;
+const GUIDE_COLOR = "blue";
+const GUIDE_NAME = "guide-line";
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
 
 export {
   DEFAULT_SCALE,
@@ -56,6 +61,11 @@ export {
   MAJOR_GRID_MULTIPLIER,
   GRID_OVERSCAN_MULTIPLIER,
   GRID_FALLBACK_PALETTE,
+  GUIDELINE_OFFSET,
+  GUIDE_COLOR,
+  GUIDE_NAME,
+  EMAIL_REGEX,
+  MIN_PASSWORD_LENGTH,
 };
 
 export type ShapeKind = (typeof SHAPE_KINDS)[number];

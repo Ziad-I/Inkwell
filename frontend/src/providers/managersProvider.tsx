@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { ToolManager } from "@/core/toolManager";
 import { CommandManager } from "@/core/commandManager";
 import { ConnectionManager } from "@/core/connectionManager";
-import type { ToolContext } from "@/types/tool";
 import type { StageOperations } from "@/types/common";
 import { BoardManagersContext } from "@/context/boardManagersContext";
+import { useSessionStore } from "@/stores/sessionStore";
+import { useAuthStore } from "@/stores/authStore";
+import { useCollabIdentity } from "@/hooks/useCollabIdentity";
 
 interface BoardManagersProviderProps {
-  userId: string;
-  userName: string;
-  userColor: string;
   url: string;
   roomId: string;
   stageOperations: StageOperations;
@@ -17,29 +16,30 @@ interface BoardManagersProviderProps {
 }
 
 export function BoardManagersProvider({
-  userId,
-  userName,
-  userColor,
   url,
   roomId,
   stageOperations,
   children,
 }: BoardManagersProviderProps) {
+  const { id: userId, name: userName, color: userColor } = useCollabIdentity();
+
   const toolManagerRef = useRef<ToolManager | null>(null);
   const commandManagerRef = useRef<CommandManager | null>(null);
   const connectionManagerRef = useRef<ConnectionManager | null>(null);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!userId || !roomId) return;
 
-    let cancelled = false;
+    const { setSessionStatus, reset } = useSessionStore.getState();
+    const { accessToken } = useAuthStore.getState();
+
+    setSessionStatus({ status: "connecting" });
 
     async function initManagers() {
       if (!userId) return;
 
       const connection = new ConnectionManager(url, {
-        auth: { userId, userName, userColor },
+        auth: { userId, userName, userColor, token: accessToken },
       });
 
       const commandMgr = new CommandManager(
@@ -49,12 +49,10 @@ export function BoardManagersProvider({
         connection,
       );
 
-      const ctx: ToolContext = {
+      const mgr = new ToolManager({
         stageOps: stageOperations,
         commandManager: commandMgr,
-      };
-
-      const mgr = new ToolManager(ctx);
+      });
 
       // Assign refs before initiating the connection
       connectionManagerRef.current = connection;
@@ -63,19 +61,15 @@ export function BoardManagersProvider({
 
       await mgr.initTools();
       connection.connect();
-
-      if (!cancelled) {
-        setReady(true);
-      }
     }
 
     initManagers();
 
     return () => {
-      cancelled = true;
       connectionManagerRef.current?.disconnect?.();
       toolManagerRef.current?.destroy?.();
       commandManagerRef.current?.destroy?.();
+      reset();
     };
   }, [stageOperations, url, userColor, userId, userName, roomId]);
 
@@ -84,9 +78,8 @@ export function BoardManagersProvider({
       toolManagerRef,
       commandManagerRef,
       connectionManagerRef,
-      ready,
     }),
-    [ready],
+    [],
   );
 
   return (

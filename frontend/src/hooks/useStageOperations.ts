@@ -7,6 +7,7 @@ import {
   MAX_SCALE,
   DEFAULT_SCALE,
   DEFAULT_VIEWPOINT_POS,
+  ZOOM_FACTOR,
 } from "@/lib/constants";
 
 export function useStageOperations() {
@@ -47,6 +48,39 @@ export function useStageOperations() {
 
       stage.scale({ x: clamped, y: clamped });
       stage.batchDraw();
+    },
+
+    zoomBy: (factor: number, pivotPoint?: Point) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const oldScale = stage.scaleX();
+      const pivot = pivotPoint ?? {
+        x: stage.width() / 2,
+        y: stage.height() / 2,
+      };
+
+      stageOperations.current.setScale(oldScale * factor, pivot);
+    },
+
+    zoomIn: (pivotPoint?: Point) => {
+      stageOperations.current.zoomBy(ZOOM_FACTOR, pivotPoint);
+    },
+
+    zoomOut: (pivotPoint?: Point) => {
+      stageOperations.current.zoomBy(1 / ZOOM_FACTOR, pivotPoint);
+    },
+
+    resetZoom: () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const center = {
+        x: stage.width() / 2,
+        y: stage.height() / 2,
+      };
+
+      stageOperations.current.setScale(DEFAULT_SCALE, center);
     },
 
     getDrawingLayer: () => drawingLayerRef.current,

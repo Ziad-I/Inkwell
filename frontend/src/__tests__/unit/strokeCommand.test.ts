@@ -1,38 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { StrokeCommand } from "@/commands/strokeCommand";
 import type { StageOperations } from "@/types/common";
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 function mockNode(id: string) {
-  return { id: vi.fn().mockReturnValue(id), setAttrs: vi.fn(), getLayer: vi.fn() };
+  return {
+    id: vi.fn().mockReturnValue(id),
+    setAttrs: vi.fn(),
+    getLayer: vi.fn(),
+  };
 }
 
 const createNode: StageOperations["createNode"] = vi.fn(
   () => mockNode("n-1") as unknown as ReturnType<StageOperations["createNode"]>,
 );
-
-function createMockStageOps(): StageOperations {
-  return {
-    getNodeById: vi.fn(),
-    createNode,
-    addDrawingNode: vi.fn(),
-    addOverlayNode: vi.fn(),
-    removeNodeById: vi.fn(),
-    removeNode: vi.fn(),
-    redrawDrawingLayer: vi.fn(),
-    redrawOverlayLayer: vi.fn(),
-    getStage: vi.fn(),
-    getDrawingLayer: vi.fn(),
-    getOverlayLayer: vi.fn(),
-    getViewpointPos: vi.fn(),
-    getScale: vi.fn(),
-    setScale: vi.fn(),
-    setViewpointPos: vi.fn(),
-    screenToWorld: vi.fn(),
-    worldToScreen: vi.fn(),
-    translate: vi.fn(),
-    toggleDrawing: vi.fn(),
-  };
-}
 
 function makeStrokeCmd(overrides?: Record<string, unknown>) {
   return {
@@ -55,10 +36,10 @@ function makeStrokeCmd(overrides?: Record<string, unknown>) {
 }
 
 describe("StrokeCommand", () => {
-  let stageOps: ReturnType<typeof createMockStageOps>;
+  let stageOps: StageOperations;
 
   beforeEach(() => {
-    stageOps = createMockStageOps();
+    stageOps = createMockStageOps({ createNode });
   });
 
   it("applies by creating and adding a line node", () => {
@@ -120,7 +101,17 @@ describe("StrokeCommand", () => {
 
   it("canFinalize returns false when points.length < 4", () => {
     const cmd = new StrokeCommand(
-      makeStrokeCmd({ payload: { nodeId: "n-2", points: [0, 0], color: "#000", strokeWidth: 1, lineCap: "round", lineJoin: "round", opacity: 1 } }),
+      makeStrokeCmd({
+        payload: {
+          nodeId: "n-2",
+          points: [0, 0],
+          color: "#000",
+          strokeWidth: 1,
+          lineCap: "round",
+          lineJoin: "round",
+          opacity: 1,
+        },
+      }),
       stageOps,
     );
     expect(cmd.canFinalize()).toBe(false);

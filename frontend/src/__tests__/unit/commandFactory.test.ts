@@ -4,6 +4,8 @@ import { StrokeCommand } from "@/commands/strokeCommand";
 import { ShapeCommand } from "@/commands/shapeCommand";
 import { EraseCommand } from "@/commands/eraseCommand";
 import { TransformCommand } from "@/commands/transformCommand";
+import type { StageOperations } from "@/types/common";
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 vi.mock("@/lib/utils", () => ({
   generateId: vi.fn(() => "mock-id-001"),
@@ -11,9 +13,11 @@ vi.mock("@/lib/utils", () => ({
 
 describe("CommandFactory", () => {
   let factory: CommandFactory;
+  let mockStageOps: StageOperations;
 
   beforeEach(() => {
     factory = new CommandFactory();
+    mockStageOps = createMockStageOps();
   });
 
   describe("createCommand", () => {
@@ -110,28 +114,6 @@ describe("CommandFactory", () => {
   });
 
   describe("createInstance", () => {
-    const mockStageOps = {
-      getNodeById: vi.fn(),
-      createNode: vi.fn(),
-      addDrawingNode: vi.fn(),
-      addOverlayNode: vi.fn(),
-      removeNodeById: vi.fn(),
-      removeNode: vi.fn(),
-      redrawDrawingLayer: vi.fn(),
-      redrawOverlayLayer: vi.fn(),
-      getStage: vi.fn(),
-      getDrawingLayer: vi.fn(),
-      getOverlayLayer: vi.fn(),
-      getViewpointPos: vi.fn(),
-      getScale: vi.fn(),
-      setScale: vi.fn(),
-      setViewpointPos: vi.fn(),
-      screenToWorld: vi.fn(),
-      worldToScreen: vi.fn(),
-      translate: vi.fn(),
-      toggleDrawing: vi.fn(),
-    };
-
     it("creates a StrokeCommand for stroke type", () => {
       const cmd = factory.createCommand(
         "stroke",

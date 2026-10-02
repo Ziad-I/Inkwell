@@ -35,12 +35,31 @@ export interface Point {
   y: number;
 }
 
-export const DrawPermissions = ["owner", "anyone"] as const;
-export type DrawPermission = (typeof DrawPermissions)[number];
+export const BoardRoles = ["owner", "editor", "viewer"] as const;
+export type BoardRole = (typeof BoardRoles)[number];
+
+export const BoardPermissions = ["read", "draw"] as const;
+export type BoardPermission = (typeof BoardPermissions)[number];
+
+export type PrincipalType = "user" | "guest";
+
+export interface Principal {
+  type: PrincipalType;
+  id: string;
+}
+
+export interface BoardAccess {
+  boardId: string;
+  principal: Principal;
+  role: BoardRole;
+  permissions: Record<BoardPermission, boolean>;
+}
 
 export interface SocketData {
   userId: string;
+  /** Focused room: the most recently joined room. Commands and presence moves broadcast here. Membership itself is tracked by Socket.IO's socket.rooms. */
   roomId?: string;
   meta: PresenceMeta;
-  canDraw?: boolean;
+  principalType: PrincipalType;
+  boardAccess?: BoardAccess;
 }

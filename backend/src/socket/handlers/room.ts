@@ -5,83 +5,119 @@ import {
   getCommandsInBuffer,
   getBoardStateArr,
 } from "@/services/state.js";
-import type { Ack, DrawPermission, SocketData } from "@/types/types.js";
+import { authorizeBoardAccess } from "@/services/boardAccess.js";
+import {
+  getBoardAccessCookieName,
+  parseCookiesHeader,
+} from "@/utils/cookies.js";
+import type {
+  Ack,
+  SocketData,
+  BoardRole,
+  BoardPermission,
+} from "@/types/types.js";
 import type { Command } from "@/types/types.js";
 import type { Server, Socket } from "socket.io";
 import { getLatestSnapshot } from "@/services/snapshot.js";
+import { roomJoinSchema, roomLeaveSchema } from "@/socket/validation.js";
 import logger from "@/config/logger.js";
 
-export function resolveCanDraw(
-  drawPermission: string,
-  ownerId: string,
-  userId: string,
-): boolean {
-  if (drawPermission === "anyone") return true;
-  if (drawPermission === "owner") return userId === ownerId;
-  return false;
-}
-
-type AckWithDrawPerm = Ack<{ canDraw: boolean }>;
+type AckWithAccess = Ack<{
+  role: BoardRole;
+  permissions: Record<BoardPermission, boolean>;
+}>;
 
 export function registerRoomHandlers(socket: Socket, io: Server) {
   socket.on(
     "room:join",
     async (
       payload: { roomId: string; lastSeq?: number },
-      ack?: AckWithDrawPerm,
+      ack?: AckWithAccess,
     ) => {
       try {
-        const { roomId } = payload;
-
-        const board = await getBoardById(roomId);
-        if (!board) {
-          ack?.("Room not found");
+        const parsedJoin = roomJoinSchema.safeParse(payload);
+        if (!parsedJoin.success) {
+          ack?.("INVALID_ROOM_ID");
           return;
         }
+        const { roomId, lastSeq } = parsedJoin.data;
+        const socketData = socket.data as SocketData;
+        const userId = socketData.userId;
 
-        if (!(await isRoomInitialized(roomId))) {
+        // ─────────────────────────────────────────────────────────────
+        // 1. Determine whether this is a persistent or ephemeral board
+        // ─────────────────────────────────────────────────────────────
+
+        const board = await getBoardById(roomId);
+
+        if (!board) {
+          // Ephemeral board: Redis state is the source of truth.
+          // If Redis state is gone, the ephemeral board no longer exists.
+          if (!(await isRoomInitialized(roomId))) {
+            ack?.("BOARD_NOT_FOUND");
+            return;
+          }
+        } else if (!(await isRoomInitialized(roomId))) {
+          // Persistent board: initialize Redis state from the latest
+          // snapshot when necessary.
           const snapshot = (await getLatestSnapshot(roomId)) ?? {};
           await initBoardState(roomId, snapshot);
         }
 
-        socket.join(roomId);
+        // ─────────────────────────────────────────────────────────────
+        // 2. Resolve board access from the board-specific cookie.
+        //    The role is always derived server-side — never trusted
+        //    from the client.
+        // ─────────────────────────────────────────────────────────────
 
-        const userId = (socket.data as SocketData).userId;
+        const cookies = parseCookiesHeader(socket.handshake.headers.cookie);
+        const boardAccess = await authorizeBoardAccess({
+          boardId: roomId,
+          board,
+          principal: { type: socketData.principalType, id: userId },
+          inviteToken: cookies[getBoardAccessCookieName(roomId)] ?? null,
+        });
 
-        const canDraw = resolveCanDraw(
-          board.drawPermission as DrawPermission,
-          board.ownerId,
-          userId,
-        );
+        // ─────────────────────────────────────────────────────────────
+        // 3. Join the room and record access
+        // ─────────────────────────────────────────────────────────────
 
-        (socket.data as SocketData).roomId = roomId;
-        (socket.data as SocketData).canDraw = canDraw;
+        await socket.join(roomId);
 
-        const socketData = socket.data as SocketData;
-        if (canDraw) {
-          socket
-            .to(roomId)
-            .emit("presence:join", socketData.userId, socketData.meta);
-        }
+        // Focus room: most recently joined; used to route commands/presence broadcasts.
+        socketData.roomId = roomId;
+        socketData.boardAccess = boardAccess;
 
-        ack?.(undefined, { canDraw });
+        // ─────────────────────────────────────────────────────────────
+        // 4. Presence — every member has read access, so everyone is
+        //    visible to everyone else.
+        // ─────────────────────────────────────────────────────────────
 
-        const existing = await io.in(roomId).fetchSockets();
-        for (const peer of existing) {
-          if (peer.id !== socket.id) {
-            const peerData = peer.data as SocketData;
-            if (!peerData.canDraw) continue;
+        socket
+          .to(roomId)
+          .emit("presence:join", socketData.userId, socketData.meta);
 
-            socket.emit("presence:join", peerData.userId, peerData.meta);
+        const existingSockets = await io.in(roomId).fetchSockets();
+
+        for (const peer of existingSockets) {
+          if (peer.id === socket.id) {
+            continue;
           }
+          const peerData = peer.data as SocketData;
+          socket.emit("presence:join", peerData.userId, peerData.meta);
         }
 
-        let syncState: Command[] = [];
+        // ─────────────────────────────────────────────────────────────
+        // 5. Sync
+        // ─────────────────────────────────────────────────────────────
 
-        if (payload.lastSeq !== undefined) {
-          const missed = await getCommandsInBuffer(roomId, payload.lastSeq);
-          if (missed) {
-            syncState = missed;
+        let syncState: Command[];
+
+        if (lastSeq !== undefined) {
+          const missedCommands = await getCommandsInBuffer(roomId, lastSeq);
+
+          if (missedCommands !== null) {
+            syncState = missedCommands;
           } else {
             syncState = await getBoardStateArr(roomId);
           }
@@ -89,34 +125,46 @@ export function registerRoomHandlers(socket: Socket, io: Server) {
           syncState = await getBoardStateArr(roomId);
         }
 
+        ack?.(undefined, {
+          role: boardAccess.role,
+          permissions: boardAccess.permissions,
+        });
+
         socket.emit("room:sync", syncState);
       } catch (err) {
         logger.error(`[room:join] error:`, err);
-        ack?.("Internal server error");
+        ack?.("INTERNAL_SERVER_ERROR");
       }
     },
   );
 
-  socket.on("disconnect", () => {
-    //   const { roomId } = socket.data as SocketData;
-    //   if (!roomId) return;
-    //   // Debounce: wait for concurrent disconnects to settle before checking
-    //   setTimeout(() => {
-    //     void (async () => {
-    //       try {
-    //         const remaining = await io.in(roomId).fetchSockets();
-    //         if (remaining.length === 0) {
-    //           await writeBoardSnapshot(roomId);
-    //           await clearBoardState(roomId);
-    //         }
-    //       } catch (err) {
-    //         logger.error(
-    //           `[room:disconnect] cleanup error for room ${roomId}:`,
-    //           err,
-    //         );
-    //       }
-    //     })();
-    //   }, 1500);
-    // });
+  socket.on("room:leave", async (payload: { roomId?: string }, ack?: Ack) => {
+    try {
+      const parsed = roomLeaveSchema.safeParse(payload);
+      if (!parsed.success) {
+        ack?.("INVALID_ROOM_ID");
+        return;
+      }
+      const roomId = parsed.data.roomId;
+      const socketData = socket.data as SocketData;
+
+      if (!socket.rooms.has(roomId)) {
+        ack?.();
+        return;
+      }
+
+      await socket.leave(roomId);
+      socket.to(roomId).emit("presence:leave", socketData.userId);
+      if (socketData.roomId === roomId) {
+        // delete (not "= undefined"): exactOptionalPropertyTypes forbids
+        // assigning undefined to optional-only fields; runtime-equivalent.
+        delete socketData.roomId;
+        delete socketData.boardAccess;
+      }
+      ack?.();
+    } catch (err) {
+      logger.error("[room:leave] error:", err);
+      ack?.("INTERNAL_SERVER_ERROR");
+    }
   });
 }

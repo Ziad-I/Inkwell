@@ -1,13 +1,38 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function createMockSocket(data?: Record<string, unknown>) {
+const RID = "550e8400-e29b-41d4-a716-446655440000";
+const MISSING_RID = "00000000-0000-4000-8000-000000000000";
+const EPHEMERAL_RID = "f47ac10b-58cc-4372-a567-0e02b2c3d479";
+const OTHER_RID = "6ba7b810-9dad-41d1-80b4-00c04fd430c8";
+
+function createMockSocket(
+  data?: Record<string, unknown>,
+  cookie?: string,
+  rooms: string[] = [],
+) {
+  const joined = new Set<string>(rooms);
+  const order: string[] = [];
+  const broadcast = {
+    emit: vi.fn((...args: unknown[]) => order.push(`emit:${String(args[0])}`)),
+  };
   return {
-    data: data ?? { userId: "user-123" },
+    data: data ?? { userId: "user-123", principalType: "guest" },
+    handshake: { headers: { cookie } },
     on: vi.fn().mockReturnThis(),
     emit: vi.fn(),
     join: vi.fn(),
-    to: vi.fn().mockReturnThis(),
+    leave: vi.fn(async (roomId: string) => {
+      order.push("leave:start");
+      joined.delete(roomId);
+      order.push("leave:end");
+    }),
+    to: vi.fn((roomId: string) => {
+      order.push(`to:${roomId}`);
+      return broadcast;
+    }),
     id: "mock-socket-id",
+    rooms: joined,
+    order,
   };
 }
 
@@ -21,18 +46,16 @@ function createMockServer() {
 }
 
 const mockBoard = {
-  id: "room-abc",
+  id: RID,
   title: "Test Board",
   ownerId: "user-123",
-  drawPermission: "anyone",
+  defaultRole: "editor",
   createdAt: new Date(),
   updatedAt: new Date(),
 };
 
 function getHandler(socket: { on: ReturnType<typeof vi.fn> }, event: string) {
-  return socket.on.mock.calls.find(
-    (c: unknown[]) => c[0] === event,
-  )?.[1];
+  return socket.on.mock.calls.find((c: unknown[]) => c[0] === event)?.[1];
 }
 
 const boardMock = vi.hoisted(() => ({ getBoardById: vi.fn() }));
@@ -43,32 +66,21 @@ const stateMock = vi.hoisted(() => ({
   getBoardStateArr: vi.fn(),
 }));
 const snapshotMock = vi.hoisted(() => ({ getLatestSnapshot: vi.fn() }));
+const boardAccessMock = vi.hoisted(() => ({ authorizeBoardAccess: vi.fn() }));
 
 vi.mock("@/services/board.js", () => boardMock);
 vi.mock("@/services/state.js", () => stateMock);
 vi.mock("@/services/snapshot.js", () => snapshotMock);
+vi.mock("@/services/boardAccess.js", () => boardAccessMock);
 
-describe("resolveCanDraw", () => {
-  it("returns true for anyone permission", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("anyone", "owner-1", "user-1")).toBe(true);
-  });
-
-  it("returns true for owner permission when user is owner", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("owner", "owner-1", "owner-1")).toBe(true);
-  });
-
-  it("returns false for owner permission when user is not owner", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("owner", "owner-1", "user-other")).toBe(false);
-  });
-
-  it("returns false for unknown permission", async () => {
-    const { resolveCanDraw } = await import("@/socket/handlers/room.js");
-    expect(resolveCanDraw("unknown", "owner-1", "user-1")).toBe(false);
-  });
-});
+function makeAccess(role: "owner" | "editor" | "viewer") {
+  return {
+    boardId: RID,
+    principal: { type: "guest" as const, id: "user-123" },
+    role,
+    permissions: { read: true, draw: role !== "viewer" },
+  };
+}
 
 describe("registerRoomHandlers — room:join", () => {
   beforeEach(() => {
@@ -79,10 +91,14 @@ describe("registerRoomHandlers — room:join", () => {
     stateMock.getCommandsInBuffer.mockResolvedValue([]);
     stateMock.getBoardStateArr.mockResolvedValue([]);
     snapshotMock.getLatestSnapshot.mockResolvedValue(null);
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(
+      makeAccess("editor"),
+    );
   });
 
-  it("rejects join when board not found", async () => {
+  it("rejects join when board not found and room is not in Redis", async () => {
     boardMock.getBoardById.mockResolvedValue(null);
+    stateMock.isRoomInitialized.mockResolvedValue(false);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
     const socket = createMockSocket();
@@ -91,16 +107,51 @@ describe("registerRoomHandlers — room:join", () => {
     registerRoomHandlers(socket as never, io as never);
 
     const ack = vi.fn();
-    await getHandler(socket, "room:join")({ roomId: "nonexistent" }, ack);
+    await getHandler(socket, "room:join")({ roomId: MISSING_RID }, ack);
 
-    expect(ack).toHaveBeenCalledWith("Room not found");
+    expect(ack).toHaveBeenCalledWith("BOARD_NOT_FOUND");
     expect(socket.join).not.toHaveBeenCalled();
+    expect(boardAccessMock.authorizeBoardAccess).not.toHaveBeenCalled();
+  });
+
+  it("joins ephemeral rooms with editor access when Redis state exists", async () => {
+    boardMock.getBoardById.mockResolvedValue(null);
+    stateMock.isRoomInitialized.mockResolvedValue(true);
+
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket();
+    const io = createMockServer();
+
+    registerRoomHandlers(socket as never, io as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:join")({ roomId: EPHEMERAL_RID }, ack);
+
+    expect(socket.join).toHaveBeenCalledWith(EPHEMERAL_RID);
+    expect(boardAccessMock.authorizeBoardAccess).toHaveBeenCalledWith({
+      boardId: EPHEMERAL_RID,
+      board: null,
+      principal: { type: "guest", id: "user-123" },
+      inviteToken: null,
+    });
+    expect(socket.data.boardAccess).toEqual(makeAccess("editor"));
+    expect(ack).toHaveBeenCalledWith(undefined, {
+      role: "editor",
+      permissions: { draw: true, read: true },
+    });
   });
 
   it("initializes board state from snapshot if room not initialized", async () => {
     stateMock.isRoomInitialized.mockResolvedValue(false);
     snapshotMock.getLatestSnapshot.mockResolvedValue({
-      "cmd-1": { id: "cmd-1", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 123 },
+      "cmd-1": {
+        id: "cmd-1",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 123,
+      },
     });
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -109,13 +160,37 @@ describe("registerRoomHandlers — room:join", () => {
 
     registerRoomHandlers(socket as never, io as never);
 
-    await getHandler(socket, "room:join")({ roomId: "room-abc" }, vi.fn());
+    await getHandler(socket, "room:join")({ roomId: RID }, vi.fn());
 
-    expect(snapshotMock.getLatestSnapshot).toHaveBeenCalledWith("room-abc");
+    expect(snapshotMock.getLatestSnapshot).toHaveBeenCalledWith(RID);
     expect(stateMock.initBoardState).toHaveBeenCalled();
   });
 
-  it("sets canDraw=true for anyone permission", async () => {
+  it("passes the board-specific cookie through to authorization", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      undefined,
+      `board_access_${RID}=raw-token`,
+    );
+    const io = createMockServer();
+
+    registerRoomHandlers(socket as never, io as never);
+
+    await getHandler(socket, "room:join")({ roomId: RID }, vi.fn());
+
+    expect(boardAccessMock.authorizeBoardAccess).toHaveBeenCalledWith({
+      boardId: RID,
+      board: mockBoard,
+      principal: { type: "guest", id: "user-123" },
+      inviteToken: "raw-token",
+    });
+  });
+
+  it("resolves viewer access for a viewer invite", async () => {
+    boardAccessMock.authorizeBoardAccess.mockResolvedValue(
+      makeAccess("viewer"),
+    );
+
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
     const socket = createMockSocket();
     const io = createMockServer();
@@ -123,35 +198,25 @@ describe("registerRoomHandlers — room:join", () => {
     registerRoomHandlers(socket as never, io as never);
 
     const ack = vi.fn();
-    await getHandler(socket, "room:join")({ roomId: "room-abc" }, ack);
+    await getHandler(socket, "room:join")({ roomId: RID }, ack);
 
-    expect(socket.data.canDraw).toBe(true);
-    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: true });
-  });
-
-  it("sets canDraw=false for owner permission when user is not owner", async () => {
-    boardMock.getBoardById.mockResolvedValue({
-      ...mockBoard,
-      drawPermission: "owner",
-      ownerId: "owner-user",
+    expect(socket.data.boardAccess).toEqual(makeAccess("viewer"));
+    expect(ack).toHaveBeenCalledWith(undefined, {
+      role: "viewer",
+      permissions: { draw: false, read: true },
     });
-
-    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
-    const socket = createMockSocket({ userId: "guest-user" });
-    const io = createMockServer();
-
-    registerRoomHandlers(socket as never, io as never);
-
-    const ack = vi.fn();
-    await getHandler(socket, "room:join")({ roomId: "room-abc" }, ack);
-
-    expect(socket.data.canDraw).toBe(false);
-    expect(ack).toHaveBeenCalledWith(undefined, { canDraw: false });
   });
 
   it("emits room:sync with full state when no lastSeq", async () => {
     stateMock.getBoardStateArr.mockResolvedValue([
-      { id: "cmd-1", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 123 },
+      {
+        id: "cmd-1",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 123,
+      },
     ]);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -160,7 +225,7 @@ describe("registerRoomHandlers — room:join", () => {
 
     registerRoomHandlers(socket as never, io as never);
 
-    await getHandler(socket, "room:join")({ roomId: "room-abc" }, vi.fn());
+    await getHandler(socket, "room:join")({ roomId: RID }, vi.fn());
 
     const syncCall = (socket.emit as ReturnType<typeof vi.fn>).mock.calls.find(
       (c: unknown[]) => c[0] === "room:sync",
@@ -173,7 +238,14 @@ describe("registerRoomHandlers — room:join", () => {
 
   it("performs delta sync when lastSeq is provided", async () => {
     stateMock.getCommandsInBuffer.mockResolvedValue([
-      { id: "cmd-2", type: "stroke", payload: {}, owner: "user-123", status: "applied", timestamp: 456 },
+      {
+        id: "cmd-2",
+        type: "stroke",
+        payload: {},
+        owner: "user-123",
+        status: "applied",
+        timestamp: 456,
+      },
     ]);
 
     const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
@@ -182,9 +254,12 @@ describe("registerRoomHandlers — room:join", () => {
 
     registerRoomHandlers(socket as never, io as never);
 
-    await getHandler(socket, "room:join")({ roomId: "room-abc", lastSeq: 5 }, vi.fn());
+    await getHandler(socket, "room:join")(
+      { roomId: RID, lastSeq: 5 },
+      vi.fn(),
+    );
 
-    expect(stateMock.getCommandsInBuffer).toHaveBeenCalledWith("room-abc", 5);
+    expect(stateMock.getCommandsInBuffer).toHaveBeenCalledWith(RID, 5);
     const syncCall = (socket.emit as ReturnType<typeof vi.fn>).mock.calls.find(
       (c: unknown[]) => c[0] === "room:sync",
     );
@@ -192,5 +267,166 @@ describe("registerRoomHandlers — room:join", () => {
     expect(syncCall?.[1]).toEqual(
       expect.arrayContaining([expect.objectContaining({ id: "cmd-2" })]),
     );
+  });
+
+  it("rejects join with a non-UUID roomId", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket();
+    registerRoomHandlers(socket as never, createMockServer() as never);
+    const ack = vi.fn();
+    await getHandler(socket, "room:join")({ roomId: "not-a-uuid" }, ack);
+    expect(ack).toHaveBeenCalledWith("INVALID_ROOM_ID");
+  });
+});
+
+describe("registerRoomHandlers — room:leave", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("leaves the focused room: announces leave and clears focus state", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: makeAccess("editor"),
+      },
+      undefined,
+      [RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, ack);
+
+    expect(socket.leave).toHaveBeenCalledWith(RID);
+    expect(socket.to).toHaveBeenCalledWith(RID);
+    expect(socket.to(RID).emit).toHaveBeenCalledWith(
+      "presence:leave",
+      "user-123",
+    );
+    expect(socket.data.roomId).toBeUndefined();
+    expect(socket.data.boardAccess).toBeUndefined();
+    expect(ack).toHaveBeenCalledWith();
+  });
+
+  it("awaits adapter leave before presence, focus mutation, and ack", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      { userId: "user-123", roomId: RID, principalType: "guest", boardAccess: makeAccess("editor") },
+      undefined,
+      [RID],
+    );
+    let release!: () => void;
+    (socket.leave as ReturnType<typeof vi.fn>).mockImplementationOnce(
+      () => new Promise<void>((resolve) => { release = resolve; }),
+    );
+    const io = createMockServer();
+    registerRoomHandlers(socket as never, io as never);
+    const ack = vi.fn();
+    const pending = getHandler(socket, "room:leave")({ roomId: RID }, ack);
+    await Promise.resolve();
+    expect(ack).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+    expect(socket.data.roomId).toBe(RID);
+    release();
+    await pending;
+    expect(socket.to).toHaveBeenCalledWith(RID);
+    expect(socket.data.roomId).toBeUndefined();
+    expect(ack).toHaveBeenCalledWith();
+  });
+
+  it("maps adapter leave rejection to INTERNAL_SERVER_ERROR without side effects", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket({ userId: "user-123", roomId: RID, principalType: "guest", boardAccess: makeAccess("editor") }, undefined, [RID]);
+    (socket.leave as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("adapter down"));
+    registerRoomHandlers(socket as never, createMockServer() as never);
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, ack);
+    expect(ack).toHaveBeenCalledWith("INTERNAL_SERVER_ERROR");
+    expect(socket.to).not.toHaveBeenCalled();
+    expect(socket.data.roomId).toBe(RID);
+  });
+
+  it("is idempotent: a second leave of the same room emits nothing and still acks", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: makeAccess("editor"),
+      },
+      undefined,
+      [RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const firstAck = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, firstAck);
+    expect(firstAck).toHaveBeenCalledWith();
+
+    const secondAck = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: RID }, secondAck);
+
+    expect(secondAck).toHaveBeenCalledWith();
+    expect(socket.leave).toHaveBeenCalledTimes(1);
+    expect(socket.to).toHaveBeenCalledTimes(1);
+    expect(socket.to(RID).emit).toHaveBeenCalledTimes(1);
+  });
+
+  it("acks INVALID_ROOM_ID for a non-UUID roomId", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(undefined, undefined, [RID]);
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: "not-a-uuid" }, ack);
+
+    expect(ack).toHaveBeenCalledWith("INVALID_ROOM_ID");
+    expect(socket.leave).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it("acks without emitting when leaving a room that was not joined", async () => {
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(undefined, undefined, []);
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: OTHER_RID }, ack);
+
+    expect(ack).toHaveBeenCalledWith();
+    expect(socket.leave).not.toHaveBeenCalled();
+    expect(socket.to).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus when leaving a non-focused room", async () => {
+    const access = makeAccess("editor");
+    const { registerRoomHandlers } = await import("@/socket/handlers/room.js");
+    const socket = createMockSocket(
+      {
+        userId: "user-123",
+        roomId: RID,
+        principalType: "guest",
+        boardAccess: access,
+      },
+      undefined,
+      [RID, OTHER_RID],
+    );
+    registerRoomHandlers(socket as never, createMockServer() as never);
+
+    const ack = vi.fn();
+    await getHandler(socket, "room:leave")({ roomId: OTHER_RID }, ack);
+
+    expect(socket.leave).toHaveBeenCalledWith(OTHER_RID);
+    expect(socket.to(OTHER_RID).emit).toHaveBeenCalledWith(
+      "presence:leave",
+      "user-123",
+    );
+    expect(socket.data.roomId).toBe(RID);
+    expect(socket.data.boardAccess).toEqual(access);
   });
 });

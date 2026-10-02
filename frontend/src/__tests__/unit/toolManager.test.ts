@@ -1,16 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { StageOperations } from "@/types/common";
 import type { ToolContext } from "@/types/tool";
-
-const createNode: StageOperations["createNode"] = vi.fn(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  <CTOR extends new (...args: any[]) => any>(
-    Ctor: CTOR,
-    ...args: ConstructorParameters<CTOR>
-  ): InstanceType<CTOR> => {
-    return new Ctor(...args) as InstanceType<CTOR>;
-  },
-);
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 vi.mock("@/stores/toolStore", () => ({
   useToolStore: {
@@ -23,27 +13,7 @@ vi.mock("@/stores/toolStore", () => ({
 
 function createMockContext(): ToolContext {
   return {
-    stageOps: {
-      getStage: vi.fn(),
-      createNode,
-      addDrawingNode: vi.fn(),
-      addOverlayNode: vi.fn(),
-      redrawDrawingLayer: vi.fn(),
-      redrawOverlayLayer: vi.fn(),
-      getNodeById: vi.fn(),
-      removeNodeById: vi.fn(),
-      removeNode: vi.fn(),
-      getViewpointPos: vi.fn(),
-      getScale: vi.fn().mockReturnValue(1),
-      setScale: vi.fn(),
-      setViewpointPos: vi.fn(),
-      screenToWorld: vi.fn(),
-      worldToScreen: vi.fn(),
-      translate: vi.fn(),
-      toggleDrawing: vi.fn(),
-      getDrawingLayer: vi.fn(),
-      getOverlayLayer: vi.fn(),
-    } as StageOperations,
+    stageOps: createMockStageOps(),
     commandManager: {} as never,
   };
 }

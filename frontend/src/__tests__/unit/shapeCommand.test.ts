@@ -2,38 +2,19 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ShapeKind } from "@/lib/constants";
 import { ShapeCommand } from "@/commands/shapeCommand";
 import type { StageOperations } from "@/types/common";
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 function mockNode(id: string) {
-  return { id: vi.fn().mockReturnValue(id), setAttrs: vi.fn(), getLayer: vi.fn() };
+  return {
+    id: vi.fn().mockReturnValue(id),
+    setAttrs: vi.fn(),
+    getLayer: vi.fn(),
+  };
 }
 
 const createNode: StageOperations["createNode"] = vi.fn(
   () => mockNode("n-1") as unknown as ReturnType<StageOperations["createNode"]>,
 );
-
-function createMockStageOps(): StageOperations {
-  return {
-    getNodeById: vi.fn(),
-    createNode,
-    addDrawingNode: vi.fn(),
-    addOverlayNode: vi.fn(),
-    removeNodeById: vi.fn(),
-    removeNode: vi.fn(),
-    redrawDrawingLayer: vi.fn(),
-    redrawOverlayLayer: vi.fn(),
-    getStage: vi.fn(),
-    getDrawingLayer: vi.fn(),
-    getOverlayLayer: vi.fn(),
-    getViewpointPos: vi.fn(),
-    getScale: vi.fn(),
-    setScale: vi.fn(),
-    setViewpointPos: vi.fn(),
-    screenToWorld: vi.fn(),
-    worldToScreen: vi.fn(),
-    translate: vi.fn(),
-    toggleDrawing: vi.fn(),
-  };
-}
 
 function makeShapeCmd(kind: ShapeKind, overrides?: Record<string, unknown>) {
   return {
@@ -58,10 +39,10 @@ function makeShapeCmd(kind: ShapeKind, overrides?: Record<string, unknown>) {
 }
 
 describe("ShapeCommand", () => {
-  let stageOps: ReturnType<typeof createMockStageOps>;
+  let stageOps: StageOperations;
 
   beforeEach(() => {
-    stageOps = createMockStageOps();
+    stageOps = createMockStageOps({ createNode });
   });
 
   describe("apply", () => {
@@ -149,10 +130,15 @@ describe("ShapeCommand", () => {
       const cmd = new ShapeCommand(
         makeShapeCmd("rectangle", {
           payload: {
-            nodeId: "n-1", kind: "rectangle",
-            start: { x: 0, y: 0 }, end: { x: 0, y: 0 },
-            color: "#000", strokeWidth: 2,
-            lineCap: "round", lineJoin: "round", opacity: 1,
+            nodeId: "n-1",
+            kind: "rectangle",
+            start: { x: 0, y: 0 },
+            end: { x: 0, y: 0 },
+            color: "#000",
+            strokeWidth: 2,
+            lineCap: "round",
+            lineJoin: "round",
+            opacity: 1,
           },
         }),
         stageOps,
@@ -169,10 +155,15 @@ describe("ShapeCommand", () => {
       const cmd = new ShapeCommand(
         makeShapeCmd("circle", {
           payload: {
-            nodeId: "n-1", kind: "circle",
-            start: { x: 0, y: 0 }, end: { x: 0, y: 0 },
-            color: "#000", strokeWidth: 2,
-            lineCap: "round", lineJoin: "round", opacity: 1,
+            nodeId: "n-1",
+            kind: "circle",
+            start: { x: 0, y: 0 },
+            end: { x: 0, y: 0 },
+            color: "#000",
+            strokeWidth: 2,
+            lineCap: "round",
+            lineJoin: "round",
+            opacity: 1,
           },
         }),
         stageOps,

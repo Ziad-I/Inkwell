@@ -1,27 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ConnectionManager } from "@/core/connectionManager";
-
-const mockStageOps = {
-  getNodeById: vi.fn(),
-  createNode: vi.fn(),
-  addDrawingNode: vi.fn(),
-  addOverlayNode: vi.fn(),
-  removeNodeById: vi.fn(),
-  removeNode: vi.fn(),
-  redrawDrawingLayer: vi.fn(),
-  redrawOverlayLayer: vi.fn(),
-  getStage: vi.fn(),
-  getDrawingLayer: vi.fn(),
-  getOverlayLayer: vi.fn(),
-  getViewpointPos: vi.fn(),
-  getScale: vi.fn(),
-  setScale: vi.fn(),
-  setViewpointPos: vi.fn(),
-  screenToWorld: vi.fn(),
-  worldToScreen: vi.fn(),
-  translate: vi.fn(),
-  toggleDrawing: vi.fn(),
-};
+import type { StageOperations } from "@/types/common";
+import { createMockStageOps } from "@/__tests__/util/mockStageOps";
 
 function createMockConnectionManager(): ConnectionManager {
   return {
@@ -37,7 +17,12 @@ function createMockConnectionManager(): ConnectionManager {
 }
 
 describe("CommandManager", async () => {
+  let mockStageOps: StageOperations;
   const { CommandManager } = await import("@/core/commandManager");
+
+  beforeEach(() => {
+    mockStageOps = createMockStageOps();
+  });
 
   describe("constructor", () => {
     it("registers server listeners on creation", () => {
@@ -52,10 +37,10 @@ describe("CommandManager", async () => {
   });
 
   describe("startCommand", () => {
-    it("creates and emits a command when canDraw is true", () => {
+    it("creates and emits a command when draw permission is true", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
 
       const commandId = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -75,10 +60,11 @@ describe("CommandManager", async () => {
       );
     });
 
-    it("returns undefined and warns when canDraw is false", () => {
+    it("returns undefined and warns when draw permission is false", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      manager.setPermissions({ read: true, draw: false });
 
       const result = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -102,7 +88,7 @@ describe("CommandManager", async () => {
     it("undo stack is populated after finalizeCommand", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
 
       const cmdId = manager.startCommand("stroke", {
         nodeId: "n-1",
@@ -162,7 +148,7 @@ describe("CommandManager", async () => {
     it("clears all internal state", () => {
       const cm = createMockConnectionManager();
       const manager = new CommandManager("user-1", "room-1", mockStageOps, cm);
-      manager.setCanDraw(true);
+      manager.setPermissions({ read: true, draw: true });
       manager.startCommand("stroke", {
         nodeId: "n-1",
         points: [0, 0],

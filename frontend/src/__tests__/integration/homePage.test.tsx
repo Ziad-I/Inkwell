@@ -34,11 +34,13 @@ describe("HomePage integration", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByText("Inkwell").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Inkwell is the ultimate/)).toBeInTheDocument();
     expect(screen.getByText("Create, Collaborate,")).toBeInTheDocument();
     expect(screen.getByText("Start Fresh")).toBeInTheDocument();
     expect(screen.getByText("Join Session")).toBeInTheDocument();
     expect(screen.getByText("Everything you need to collaborate")).toBeInTheDocument();
-    expect(screen.getByText(/Built for creative collaboration/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Powerful features designed to make remote collaboration/),
+    ).toBeInTheDocument();
   });
 });

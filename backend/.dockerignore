@@ -1,7 +1,28 @@
-.git
-*Dockerfile*
-*docker-compose*
+# Dependencies
 node_modules
-*.log
-*.ps1
-*.cmd
+npm-debug.log
+
+# Build output
+dist
+coverage
+logs
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+
+# Docker
+Dockerfile
+.dockerignore

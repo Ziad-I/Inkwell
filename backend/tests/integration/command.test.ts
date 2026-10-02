@@ -1,19 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { io as ioc, type Socket as ClientSocket } from "socket.io-client";
-import { port, seedBoard, cleanupTestData } from "./setup.js";
-
-function connectClient(auth?: Record<string, unknown>): Promise<ClientSocket> {
-  return new Promise((resolve, reject) => {
-    const socket = ioc(`http://localhost:${port}`, {
-      transports: ["websocket"],
-      forceNew: true,
-      auth: auth ?? { userId: "test-user" },
-    });
-    socket.on("connect", () => resolve(socket));
-    socket.on("connect_error", (err) => reject(err));
-    setTimeout(() => reject(new Error("connection timeout")), 3000);
-  });
-}
+import { seedBoard, seedUser, cleanupTestData } from "./setup.js";
+import { connectClient, roomJoin } from "./helpers.js";
 
 function makeStrokeCommand(id: string, owner: string) {
   return {
@@ -51,21 +38,20 @@ describe("command:create", () => {
   it("creates a command and receives ack", async () => {
     const socket = await connectClient();
 
+    await roomJoin(socket, boardId);
     await new Promise<void>((resolve, reject) => {
-      socket.emit("room:join", { roomId: boardId }, () => {
-        socket.emit(
-          "command:create",
-          makeStrokeCommand("cmd-1", "test-user"),
-          (err: unknown) => {
-            try {
-              expect(err).toBeUndefined();
-              resolve();
-            } catch (e) {
-              reject(e);
-            }
-          },
-        );
-      });
+      socket.emit(
+        "command:create",
+        makeStrokeCommand("cmd-1", "test-user"),
+        (err: unknown) => {
+          try {
+            expect(err).toBeUndefined();
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+      );
       setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
@@ -81,7 +67,7 @@ describe("command:create", () => {
         makeStrokeCommand("cmd-1", "test-user"),
         (response: unknown) => {
           try {
-            expect(response).toBe("User not in a room");
+            expect(response).toBe("NOT_IN_ROOM");
             resolve();
           } catch (e) {
             reject(e);
@@ -109,29 +95,28 @@ describe("command:finalize", () => {
   it("finalizes a command and receives ack with seq", async () => {
     const socket = await connectClient();
 
+    await roomJoin(socket, boardId);
     await new Promise<void>((resolve, reject) => {
-      socket.emit("room:join", { roomId: boardId }, () => {
-        socket.emit(
-          "command:create",
-          makeStrokeCommand("cmd-f1", "test-user"),
-          () => {
-            socket.emit(
-              "command:finalize",
-              makeStrokeCommand("cmd-f1", "test-user"),
-              (err: unknown, resp?: { seq: number }) => {
-                try {
-                  expect(err).toBeNull();
-                  expect(resp).toBeDefined();
-                  expect(resp!.seq).toBeGreaterThanOrEqual(1);
-                  resolve();
-                } catch (e) {
-                  reject(e);
-                }
-              },
-            );
-          },
-        );
-      });
+      socket.emit(
+        "command:create",
+        makeStrokeCommand("cmd-f1", "test-user"),
+        () => {
+          socket.emit(
+            "command:finalize",
+            makeStrokeCommand("cmd-f1", "test-user"),
+            (err: unknown, resp?: { seq: number }) => {
+              try {
+                expect(err).toBeNull();
+                expect(resp).toBeDefined();
+                expect(resp!.seq).toBeGreaterThanOrEqual(1);
+                resolve();
+              } catch (e) {
+                reject(e);
+              }
+            },
+          );
+        },
+      );
       setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
@@ -147,7 +132,7 @@ describe("command:finalize", () => {
         makeStrokeCommand("cmd-f2", "test-user"),
         (err: unknown) => {
           try {
-            expect(err).toBe("User not in a room");
+            expect(err).toBe("NOT_IN_ROOM");
             resolve();
           } catch (e) {
             reject(e);
@@ -175,49 +160,48 @@ describe("command:undo / command:redo", () => {
   it("undoes and redoes a finalized command", async () => {
     const socket = await connectClient();
 
+    await roomJoin(socket, boardId);
     await new Promise<void>((resolve, reject) => {
-      socket.emit("room:join", { roomId: boardId }, () => {
-        socket.emit(
-          "command:create",
-          makeStrokeCommand("cmd-ur1", "test-user"),
-          () => {
-            socket.emit(
-              "command:finalize",
-              makeStrokeCommand("cmd-ur1", "test-user"),
-              (_err: unknown, _resp?: { seq: number }) => {
-                socket.emit(
-                  "command:undo",
-                  { id: "cmd-ur1" },
-                  (undoErr: unknown, undoResp?: { seq: number }) => {
-                    try {
-                      expect(undoErr).toBeNull();
-                      expect(undoResp).toBeDefined();
-                      expect(undoResp!.seq).toBeGreaterThanOrEqual(1);
+      socket.emit(
+        "command:create",
+        makeStrokeCommand("cmd-ur1", "test-user"),
+        () => {
+          socket.emit(
+            "command:finalize",
+            makeStrokeCommand("cmd-ur1", "test-user"),
+            (_err: unknown, _resp?: { seq: number }) => {
+              socket.emit(
+                "command:undo",
+                { id: "cmd-ur1" },
+                (undoErr: unknown, undoResp?: { seq: number }) => {
+                  try {
+                    expect(undoErr).toBeNull();
+                    expect(undoResp).toBeDefined();
+                    expect(undoResp!.seq).toBeGreaterThanOrEqual(1);
 
-                      socket.emit(
-                        "command:redo",
-                        { id: "cmd-ur1" },
-                        (redoErr: unknown, redoResp?: { seq: number }) => {
-                          try {
-                            expect(redoErr).toBeNull();
-                            expect(redoResp).toBeDefined();
-                            expect(redoResp!.seq).toBeGreaterThanOrEqual(1);
-                            resolve();
-                          } catch (e) {
-                            reject(e);
-                          }
-                        },
-                      );
-                    } catch (e) {
-                      reject(e);
-                    }
-                  },
-                );
-              },
-            );
-          },
-        );
-      });
+                    socket.emit(
+                      "command:redo",
+                      { id: "cmd-ur1" },
+                      (redoErr: unknown, redoResp?: { seq: number }) => {
+                        try {
+                          expect(redoErr).toBeNull();
+                          expect(redoResp).toBeDefined();
+                          expect(redoResp!.seq).toBeGreaterThanOrEqual(1);
+                          resolve();
+                        } catch (e) {
+                          reject(e);
+                        }
+                      },
+                    );
+                  } catch (e) {
+                    reject(e);
+                  }
+                },
+              );
+            },
+          );
+        },
+      );
       setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
@@ -239,22 +223,21 @@ describe("delta sync on reconnect", () => {
   it("returns empty sync state when client is up-to-date", async () => {
     const socket1 = await connectClient();
 
+    await roomJoin(socket1, boardId);
     const lastSeq = await new Promise<number>((resolve, reject) => {
-      socket1.emit("room:join", { roomId: boardId }, () => {
-        socket1.emit(
-          "command:create",
-          makeStrokeCommand("cmd-ds1", "test-user"),
-          () => {
-            socket1.emit(
-              "command:finalize",
-              makeStrokeCommand("cmd-ds1", "test-user"),
-              (_err: unknown, resp?: { seq: number }) => {
-                resolve(resp!.seq);
-              },
-            );
-          },
-        );
-      });
+      socket1.emit(
+        "command:create",
+        makeStrokeCommand("cmd-ds1", "test-user"),
+        () => {
+          socket1.emit(
+            "command:finalize",
+            makeStrokeCommand("cmd-ds1", "test-user"),
+            (_err: unknown, resp?: { seq: number }) => {
+              resolve(resp!.seq);
+            },
+          );
+        },
+      );
       setTimeout(() => reject(new Error("timeout")), 3000);
     });
 
@@ -288,10 +271,11 @@ describe("draw permissions", () => {
   let boardId: string;
 
   beforeAll(async () => {
+    const ownerId = await seedUser();
     boardId = await seedBoard({
       title: "Permissions Test",
-      ownerId: "owner-1",
-      drawPermission: "owner",
+      ownerId,
+      defaultRole: "viewer",
     });
   });
 
@@ -302,15 +286,77 @@ describe("draw permissions", () => {
   it("restricts draw when joining as non-owner", async () => {
     const socket = await connectClient({ userId: "other-user" });
 
+    const joined = await roomJoin(socket, boardId);
+    expect(joined.err).toBeNull();
+    expect(joined.data).toMatchObject({ permissions: { draw: false } });
+
+    socket.disconnect();
+  });
+
+  it("rejects command:create when user cannot draw", async () => {
+    const socket = await connectClient({ userId: "other-user" });
+
+    await roomJoin(socket, boardId);
     await new Promise<void>((resolve, reject) => {
       socket.emit(
-        "room:join",
-        { roomId: boardId },
-        (err: unknown, resp?: { canDraw: boolean }) => {
+        "command:create",
+        makeStrokeCommand("cmd-p1", "other-user"),
+        (err: unknown) => {
           try {
-            expect(err).toBeNull();
-            expect(resp).toBeDefined();
-            expect(resp!.canDraw).toBe(false);
+            expect(err).toBe("UNAUTHORIZED_NO_PERMISSION_TO_DRAW");
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+      );
+      setTimeout(() => reject(new Error("timeout")), 3000);
+    });
+
+    socket.disconnect();
+  });
+});
+
+describe("malformed socket input", () => {
+  let boardId: string;
+
+  beforeAll(async () => {
+    boardId = await seedBoard({ title: "Malformed Input" });
+  });
+
+  afterAll(async () => {
+    await cleanupTestData(boardId);
+  });
+
+  it("rejects malformed payloads and keeps the connection usable", async () => {
+    const socket = await connectClient();
+    let rejectsSeen = 0;
+    const rejected = new Promise<void>((resolve, reject) => {
+      socket.on("command:reject", (_id: unknown, reason: unknown) => {
+        try {
+          expect(reason).toBe("INVALID_COMMAND");
+          rejectsSeen += 1;
+          if (rejectsSeen === 2) resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      setTimeout(() => reject(new Error("no command:reject")), 3000);
+    });
+    socket.emit("command:create", null);
+    socket.emit("command:create", { id: "m1" });
+    await rejected;
+
+    const joined = await roomJoin(socket, boardId);
+    expect(joined.err).toBeNull();
+
+    await new Promise<void>((resolve, reject) => {
+      socket.emit(
+        "command:create",
+        makeStrokeCommand("cmd-ok1", "test-user"),
+        (err: unknown) => {
+          try {
+            expect(err).toBeUndefined();
             resolve();
           } catch (e) {
             reject(e);
@@ -323,27 +369,10 @@ describe("draw permissions", () => {
     socket.disconnect();
   });
 
-  it("rejects command:create when user cannot draw", async () => {
-    const socket = await connectClient({ userId: "other-user" });
-
-    await new Promise<void>((resolve, reject) => {
-      socket.emit("room:join", { roomId: boardId }, () => {
-        socket.emit(
-          "command:create",
-          makeStrokeCommand("cmd-p1", "other-user"),
-          (err: unknown) => {
-            try {
-              expect(err).toBe("User does not have permission to draw");
-              resolve();
-            } catch (e) {
-              reject(e);
-            }
-          },
-        );
-      });
-      setTimeout(() => reject(new Error("timeout")), 3000);
-    });
-
+  it("acks INVALID_ROOM_ID for a non-UUID join", async () => {
+    const socket = await connectClient();
+    const res = await roomJoin(socket, "not-a-uuid");
+    expect(res.err).toBe("INVALID_ROOM_ID");
     socket.disconnect();
   });
 });

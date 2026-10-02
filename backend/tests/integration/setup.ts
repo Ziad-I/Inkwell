@@ -1,8 +1,15 @@
 import { beforeAll, afterAll } from "vitest";
-import { createServer, type Server as HttpServer } from "node:http";
-import { Server as SocketServer } from "socket.io";
-import { boards, snapshots } from "@/db/schema.js";
-import { eq } from "drizzle-orm";
+import type { Server as HttpServer } from "node:http";
+import { randomUUID } from "node:crypto";
+import type { Server as SocketServer } from "socket.io";
+import {
+  boards,
+  boardInvites,
+  refreshTokens,
+  snapshots,
+  users,
+} from "@/db/schema.js";
+import { eq, desc } from "drizzle-orm";
 
 export let httpServer: HttpServer;
 export let io: SocketServer;
@@ -13,20 +20,112 @@ let _redisStateClient: Awaited<
   typeof import("@/redis/client.js")
 >["redisStateClient"];
 
+export async function seedUser(): Promise<string> {
+  const suffix = randomUUID();
+  const result = await _db
+    .insert(users)
+    .values({
+      username: `user_${suffix}`,
+      email: `${suffix}@test.local`,
+      passwordHash: "not-used-in-tests",
+    })
+    .returning();
+  return result[0]!.id;
+}
+
+export async function seedRefreshToken(
+  userId: string,
+  overrides?: {
+    token?: string;
+    expiresAt?: Date;
+    revokedAt?: Date | null;
+  },
+): Promise<string> {
+  const { hashToken, generateOpaqueToken } =
+    await import("@/services/auth.js");
+  const token = overrides?.token ?? generateOpaqueToken();
+
+  await _db.insert(refreshTokens).values({
+    userId,
+    tokenHash: hashToken(token),
+    expiresAt: overrides?.expiresAt ?? new Date(Date.now() + 60_000),
+    revokedAt: overrides?.revokedAt ?? null,
+  });
+
+  return token;
+}
+
+export async function getRefreshTokenByRawToken(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const rows = await _db
+    .select()
+    .from(refreshTokens)
+    .where(eq(refreshTokens.tokenHash, hashToken(rawToken)));
+  return rows[0] ?? null;
+}
+
+export async function expireRefreshRotationGrace(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const token = rawToken.includes("=") ? rawToken.slice(rawToken.indexOf("=") + 1) : rawToken;
+  await _db
+    .update(refreshTokens)
+    .set({ rotationGraceExpiresAt: new Date(0) })
+    .where(eq(refreshTokens.tokenHash, hashToken(token)));
+}
+
 export async function seedBoard(overrides?: {
   title?: string;
   ownerId?: string;
-  drawPermission?: "owner" | "anyone";
+  defaultRole?: "editor" | "viewer";
 }): Promise<string> {
+  const ownerId = overrides?.ownerId ?? (await seedUser());
   const result = await _db
     .insert(boards)
     .values({
       title: overrides?.title ?? "Test Board",
-      ownerId: overrides?.ownerId ?? "test-owner",
-      drawPermission: overrides?.drawPermission ?? "anyone",
+      ownerId,
+      defaultRole: overrides?.defaultRole ?? "editor",
     })
     .returning();
   return result[0]!.id;
+}
+
+export async function seedInvite(overrides: {
+  boardId: string;
+  createdBy?: string;
+  role?: "editor" | "viewer";
+  expiresAt?: Date;
+  maxUses?: number | null;
+  revokedAt?: Date | null;
+}): Promise<{ id: string; rawToken: string }> {
+  const { randomBytes } = await import("node:crypto");
+  const { hashToken } = await import("@/services/auth.js");
+  const rawToken = randomBytes(32).toString("base64url");
+  const createdBy = overrides.createdBy ?? (await seedUser());
+
+  const rows = await _db
+    .insert(boardInvites)
+    .values({
+      boardId: overrides.boardId,
+      createdBy,
+      role: overrides.role ?? "editor",
+      tokenHash: hashToken(rawToken),
+      expiresAt: overrides.expiresAt ?? null,
+      maxUses: overrides.maxUses ?? null,
+      revokedAt: overrides.revokedAt ?? null,
+    })
+    .returning();
+
+  return { id: rows[0]!.id, rawToken };
+}
+
+export async function getInviteByRawToken(rawToken: string) {
+  const { hashToken } = await import("@/services/auth.js");
+  const rows = await _db
+    .select()
+    .from(boardInvites)
+    .where(eq(boardInvites.tokenHash, hashToken(rawToken)));
+  return rows[0] ?? null;
 }
 
 export async function cleanupTestData(boardId: string) {
@@ -37,8 +136,37 @@ export async function cleanupTestData(boardId: string) {
   await _redisStateClient.srem("dirty:rooms", boardId);
 
   // Then delete DB records (board must exist when snapshot cleanup fires)
+  await _db.delete(boardInvites).where(eq(boardInvites.boardId, boardId));
   await _db.delete(snapshots).where(eq(snapshots.boardId, boardId));
   await _db.delete(boards).where(eq(boards.id, boardId));
+}
+
+export async function getBoardRow(roomId: string) {
+  const rows = await _db.select().from(boards).where(eq(boards.id, roomId));
+  return rows[0] ?? null;
+}
+
+export async function countSnapshots(roomId: string): Promise<number> {
+  const rows = await _db
+    .select({ id: snapshots.id })
+    .from(snapshots)
+    .where(eq(snapshots.boardId, roomId));
+  return rows.length;
+}
+
+export async function getLatestSnapshotState(roomId: string) {
+  const rows = await _db
+    .select()
+    .from(snapshots)
+    .where(eq(snapshots.boardId, roomId))
+    .orderBy(desc(snapshots.createdAt))
+    .limit(1);
+  return rows[0]?.state ?? null;
+}
+
+export async function isRedisRoomAlive(roomId: string): Promise<boolean> {
+  const exists = await _redisStateClient.exists(`board:${roomId}:seq`);
+  return exists === 1;
 }
 
 beforeAll(async () => {
@@ -56,15 +184,9 @@ beforeAll(async () => {
   await migrate(_db, { migrationsFolder: "./drizzle" });
 
   const { app } = await import("@/app.js");
-  const { registerSocketHandlers } = await import("@/socket/handlers.js");
+  const { createSocketServer } = await import("@/socket/server.js");
 
-  const httpSrv = createServer(app);
-  io = new SocketServer(httpSrv, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
-    transports: ["websocket", "polling"],
-  });
-  registerSocketHandlers(io);
-  httpServer = httpSrv;
+  ({ io, httpServer } = createSocketServer(app));
 
   await new Promise<void>((resolve) => {
     httpServer.listen(0, () => {

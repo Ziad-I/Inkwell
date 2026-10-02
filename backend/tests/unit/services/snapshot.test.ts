@@ -92,3 +92,22 @@ describe("getLatestSnapshot", () => {
     expect(result).toBeNull();
   });
 });
+
+describe("snapshot retention", () => {
+  it("skips deletion entirely while count <= retention (cheap gate)", async () => {
+    mockDb.limit.mockResolvedValue([{ count: 3 }]);
+    const { saveSnapshot } = await import("@/services/snapshot.js");
+    mockDb.returning.mockResolvedValue([{ id: "snap-x" }]);
+    await saveSnapshot("room-1", mockState);
+    expect(mockDb.delete).not.toHaveBeenCalled();
+  });
+
+  it("prunes oldest rows when count exceeds retention", async () => {
+    mockDb.limit.mockResolvedValue([{ count: 5 }]);
+    mockDb.returning.mockResolvedValue([{ id: "snap-y" }]);
+    const { saveSnapshot } = await import("@/services/snapshot.js");
+    await saveSnapshot("room-1", mockState);
+    expect(mockDb.delete).toHaveBeenCalled();
+    expect(mockDb.where).toHaveBeenCalled();
+  });
+});

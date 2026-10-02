@@ -18,6 +18,7 @@ export class ConnectionManager<
   constructor(url: string, options?: Partial<ManagerOptions & SocketOptions>) {
     this.socket = io(url, {
       autoConnect: false,
+      withCredentials: true,
       ...options,
     });
   }

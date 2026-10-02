@@ -35,6 +35,7 @@ export class ShapeCommand extends BaseCommand {
       shadowForStrokeEnabled: false,
       erasable: true,
       selectable: true,
+      hasGuideLines: true,
     };
   }
 

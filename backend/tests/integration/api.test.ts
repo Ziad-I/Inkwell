@@ -9,3 +9,12 @@ describe("GET /health", () => {
     expect(res.body).toEqual({ status: "OK" });
   });
 });
+
+describe("unknown API routes", () => {
+  it("returns the public 404 error contract", async () => {
+    const res = await supertest(httpServer).get("/api/nope");
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ message: "Not Found" });
+  });
+});

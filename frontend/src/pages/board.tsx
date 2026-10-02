@@ -1,76 +1,65 @@
-import InfiniteCanvas from "@/components/board/canvas/canvas";
-import Toolbar from "@/components/board/toolbar/toolbar";
-import { useStageOperations } from "@/hooks/useStageOperations";
-import { useUserStore } from "@/stores/userStore";
-import { LoadingSpinner } from "@/components/home/LoadingSpinner";
+import { useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
 import { BoardManagersProvider } from "@/providers/managersProvider";
-import { useParams, useNavigate, useLocation } from "react-router";
-import { useEffect, useState } from "react";
-import api from "@/lib/api";
-
-type ValidationState = "pending" | "valid" | "invalid";
+import { useStageOperations } from "@/hooks/useStageOperations";
+import { LoadingSpinner } from "@/components/home/LoadingSpinner";
+import ToolSettings from "@/components/board/toolbar/toolSettings";
+import Toolbar from "@/components/board/toolbar/toolbar";
+import InfiniteCanvas from "@/components/board/canvas/canvas";
+import { useSessionStore } from "@/stores/sessionStore";
+import { toast } from "sonner";
 
 function BoardPage() {
   const { stageOperations, stageRef, drawingLayerRef, overlayLayerRef } =
     useStageOperations();
 
   const { roomId } = useParams<{ roomId: string }>();
-
   const navigate = useNavigate();
-  const location = useLocation();
-  const skipValidation = location.state?.skipValidation || false;
 
-  const userId = useUserStore((s) => s.userId);
-  const userName = useUserStore((s) => s.userName);
-  const userColor = useUserStore((s) => s.userColor);
-  const url = import.meta.env.VITE_BACKEND_WS_URL;
-
-  const [validation, setValidation] = useState<ValidationState>(
-    skipValidation ? "valid" : "pending",
-  );
+  const sessionStatus = useSessionStore((state) => state.sessionStatus);
 
   useEffect(() => {
     if (!roomId) {
       navigate("/", { replace: true });
+    }
+  }, [roomId, navigate]);
+
+  useEffect(() => {
+    if (sessionStatus.status !== "error") {
       return;
     }
 
-    if (validation === "valid") return;
+    toast.error("An error occurred while joining the board.");
+    navigate("/", { replace: true });
+  }, [sessionStatus.status, navigate]);
 
-    const ensureBoardExists = async () => {
-      try {
-        await api.get(`/boards/${roomId}`);
-        setValidation("valid");
-      } catch {
-        setValidation("invalid");
-        navigate("/", { replace: true });
-      }
-    };
-
-    ensureBoardExists();
-  }, [roomId, navigate]);
-
-  if (validation !== "valid") {
-    return <LoadingSpinner />;
-  }
+  const isLoading =
+    sessionStatus.status === "idle" ||
+    sessionStatus.status === "connecting" ||
+    sessionStatus.status === "joining" ||
+    sessionStatus.status === "syncing";
 
   return (
     <BoardManagersProvider
-      userId={userId}
-      userName={userName}
-      userColor={userColor}
-      url={url}
+      url={import.meta.env.VITE_BACKEND_WS_URL}
       roomId={roomId!}
       stageOperations={stageOperations}
     >
       <div>
         <Toolbar />
+        <ToolSettings />
         <InfiniteCanvas
           stageRef={stageRef}
           drawingLayerRef={drawingLayerRef}
           overlayLayerRef={overlayLayerRef}
           stageOperations={stageOperations}
         />
+
+        {isLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center">
+            <LoadingSpinner />
+          </div>
+        )}
       </div>
     </BoardManagersProvider>
   );

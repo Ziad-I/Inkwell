@@ -20,6 +20,14 @@ on:
       - "!**/*.yaml"
       - "!docs/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  ACCESS_TOKEN_SECRET: "inkwell-ci-test-access-token-secret-32chars"
+
 jobs:
   lint-typecheck-backend:
     name: Backend Lint & TypeCheck
@@ -191,6 +199,9 @@ jobs:
       - name: Build frontend
         run: npm run build
         working-directory: frontend
+        env:
+          VITE_BACKEND_API_URL: http://localhost:3000
+          VITE_BACKEND_WS_URL: http://localhost:3000
 
       - name: Run migrations
         run: npx drizzle-kit migrate
@@ -208,6 +219,7 @@ jobs:
           REDIS_URL: redis://localhost:6380
           PORT: "3000"
           NODE_ENV: production
+          CORS_ORIGIN: http://localhost:4173
 
       - name: Start frontend
         run: |
@@ -223,3 +235,4 @@ jobs:
           browser: chrome
         env:
           CYPRESS_BASE_URL: http://localhost:4173
+          CYPRESS_API_URL: http://localhost:3000/api

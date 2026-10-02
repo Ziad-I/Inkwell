@@ -5,7 +5,7 @@ const mockBoard = {
   id: "550e8400-e29b-41d4-a716-446655440000",
   title: "Test Board",
   ownerId: "user-123",
-  drawPermission: "anyone",
+  defaultRole: "editor",
   createdAt: new Date("2025-01-01"),
   updatedAt: new Date("2025-01-01"),
 };
@@ -44,25 +44,15 @@ describe("createBoard", () => {
     mockDb.returning.mockResolvedValue([mockBoard]);
     const { createBoard } = await loadBoardService();
 
-    const result = await createBoard("Test Board", "user-123", "anyone");
+    const result = await createBoard("Test Board", "user-123", "editor");
 
     expect(result).toEqual(mockBoard);
     expect(mockDb.insert).toHaveBeenCalled();
     expect(mockDb.values).toHaveBeenCalledWith({
       title: "Test Board",
       ownerId: "user-123",
-      drawPermission: "anyone",
+      defaultRole: "editor",
     });
-  });
-
-  it("creates board with owner-only draw permission", async () => {
-    const ownerBoard = { ...mockBoard, drawPermission: "owner" };
-    mockDb.returning.mockResolvedValue([ownerBoard]);
-    const { createBoard } = await loadBoardService();
-
-    const result = await createBoard("Private Board", "user-123", "owner");
-
-    expect(result.drawPermission).toBe("owner");
   });
 });
 
@@ -105,5 +95,96 @@ describe("deleteBoard", () => {
 
     expect(mockDb.delete).toHaveBeenCalled();
     expect(mockDb.where).toHaveBeenCalled();
+  });
+});
+
+describe("duplicateBoard", () => {
+  const snapshotRow = {
+    id: "snap-1",
+    boardId: "board-id",
+    state: { elements: [] },
+    createdAt: new Date("2025-02-01"),
+  };
+
+  it("clones the row and the latest snapshot", async () => {
+    const newBoard = { ...mockBoard, id: "copy-id", title: "Test Board (Copy)" };
+    mockDb.limit.mockReturnValueOnce([mockBoard]);
+    mockDb.limit.mockReturnValueOnce([snapshotRow]);
+    mockDb.returning
+      .mockResolvedValueOnce([newBoard])
+      .mockResolvedValueOnce([{ ...snapshotRow, boardId: "copy-id" }]);
+
+    const beforeInserts = mockDb.insert.mock.calls.length;
+    const beforeValues = mockDb.values.mock.calls.length;
+    const { duplicateBoard } = await loadBoardService();
+
+    const result = await duplicateBoard("board-id");
+
+    expect(mockDb.insert.mock.calls.length - beforeInserts).toBe(2);
+    const valueCalls = mockDb.values.mock.calls.slice(beforeValues);
+    expect(valueCalls[0]?.[0]).toMatchObject({
+      title: "Test Board (Copy)",
+      ownerId: "user-123",
+      defaultRole: "editor",
+    });
+    expect(valueCalls[1]?.[0]).toMatchObject({
+      boardId: "copy-id",
+      state: snapshotRow.state,
+    });
+    expect(result).toEqual(newBoard);
+  });
+
+  it("does not write a snapshot when the source has none", async () => {
+    const newBoard = { ...mockBoard, id: "copy-id", title: "Test Board (Copy)" };
+    mockDb.limit.mockReturnValueOnce([mockBoard]);
+    mockDb.limit.mockReturnValueOnce([]);
+    mockDb.returning.mockResolvedValueOnce([newBoard]);
+
+    const beforeInserts = mockDb.insert.mock.calls.length;
+    const { duplicateBoard } = await loadBoardService();
+
+    const result = await duplicateBoard("board-id");
+
+    expect(mockDb.insert.mock.calls.length - beforeInserts).toBe(1);
+    expect(result).toEqual(newBoard);
+  });
+
+  it("returns null when the source board does not exist", async () => {
+    mockDb.limit.mockReturnValueOnce([]);
+    const { duplicateBoard } = await loadBoardService();
+
+    const result = await duplicateBoard("missing-id");
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("archiveBoard", () => {
+  it("stamps archivedAt alongside updatedAt", async () => {
+    const { archiveBoard } = await loadBoardService();
+
+    await archiveBoard("board-id");
+
+    const setCall = mockDb.set.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(setCall.archivedAt).toBeInstanceOf(Date);
+    expect(setCall.updatedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("restoreBoard", () => {
+  it("clears archivedAt", async () => {
+    const { restoreBoard } = await loadBoardService();
+
+    await restoreBoard("board-id");
+
+    const setCall = mockDb.set.mock.calls.at(-1)?.[0] as Record<
+      string,
+      unknown
+    >;
+    expect(setCall.archivedAt).toBeNull();
+    expect(setCall.updatedAt).toBeInstanceOf(Date);
   });
 });

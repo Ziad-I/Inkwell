@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/card";
 import { Plus, Link2 } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useUserStore } from "@/stores/userStore";
+import { usePresenceStore } from "@/stores/presenceStore";
+import { useAuthStore } from "@/stores/authStore";
 
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -34,20 +35,23 @@ export function ActionCards() {
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
 
-  const setUserName = useUserStore((state) => state.setUserName);
-  const userId = useUserStore((state) => state.userId);
+  const setAnonymousName = usePresenceStore((state) => state.setAnonymousName);
+  const isAuthenticated = useAuthStore(
+    (state) => state.status === "authenticated",
+  );
 
   const handleCreateBoard = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsCreating(true);
 
     try {
-      if (name.trim()) setUserName(name.trim());
+      if (name.trim()) setAnonymousName(name.trim());
 
       const { data } = await api.post("/boards", {
         name: name.trim() ? `${name.trim()}'s Board` : "Untitled Board",
-        userId,
-        drawPermission,
+        // Guests cannot restrict drawing — only authenticated users get
+        // durable boards with a draw permission.
+        drawPermission: isAuthenticated ? drawPermission : "anyone",
       });
 
       navigate(`/board/${data.id}`, { state: { skipValidation: true } });
@@ -65,7 +69,7 @@ export function ActionCards() {
     setIsJoining(true);
 
     try {
-      if (name.trim()) setUserName(name.trim());
+      if (name.trim()) setAnonymousName(name.trim());
 
       const id = roomCode.includes("/")
         ? roomCode.split("/").at(-1)!
@@ -115,9 +119,16 @@ export function ActionCards() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="anyone">Anyone can draw</SelectItem>
-                <SelectItem value="owner">Only me</SelectItem>
+                <SelectItem value="owner" disabled={!isAuthenticated}>
+                  Only me
+                </SelectItem>
               </SelectContent>
             </Select>
+            {!isAuthenticated && (
+              <p className="text-xs text-muted-foreground">
+                Sign in to create boards with draw permissions.
+              </p>
+            )}
             <Button
               type="submit"
               className="w-full group"

@@ -7,7 +7,6 @@ export type BoardManagersContextValue = {
   toolManagerRef: React.RefObject<ToolManager | null>;
   commandManagerRef: React.RefObject<CommandManager | null>;
   connectionManagerRef: React.RefObject<ConnectionManager | null>;
-  ready: boolean;
 };
 
 export const BoardManagersContext =
